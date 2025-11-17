@@ -17,9 +17,19 @@ public abstract class DisplayObject : IDisposable
 {
     public float X { get; set; }
     public float Y { get; set; }
+    public PointF Position
+    {
+        get => new(X, Y);
+        set => (X, Y) = (value.X, value.Y);
+    }
 
     public virtual float Height { get; set; } = 0.0f;
     public virtual float Width { get; set; } = 0.0f;
+    public virtual SizeF Size
+    {
+        get => new(Width, Height);
+        set => (Width, Height) = (value.Width, value.Height);
+    }
 
     public float Scale { set => ScaleX = ScaleY = value; }
     public float ScaleX { get; set; } = 1.0f;
@@ -38,6 +48,7 @@ public abstract class DisplayObject : IDisposable
     /// 锚点定义了对象的变换原点（旋转、缩放的中心点）。
     /// </summary>
     public float AnchorY { get; set; } = 0.0f;
+    public float Anchor { set => AnchorX = AnchorY = value; }
 
     /// <summary>
     /// Must be set to true for this object to receive events.

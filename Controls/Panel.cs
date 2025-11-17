@@ -37,13 +37,13 @@ public class Panel : Container
         // 创建背景
         _background = new Graphics
         {
-            Interactive = false
+            Interactive = false,
+            FillColor = _backgroundColor,
+            StrokeColor = _borderColor,
+            StrokeWidth = _borderWidth
         };
-        _background.FillColor = _backgroundColor;
-        _background.StrokeColor = _borderColor;
-        _background.StrokeWidth = _borderWidth;
         UpdateBackground();
-        base.AddChild(_background);
+        AddChild(_background);
 
         // 创建内容容器
         _contentContainer = new Container
@@ -60,6 +60,18 @@ public class Panel : Container
     {
         get => _background.Interactive;
         set => _background.Interactive = value;
+    }
+
+    public new bool AcceptFocus
+    {
+        get => _background.AcceptFocus;
+        set => _background.AcceptFocus = value;
+    }
+
+    public new DisplayObject? FocusTarget
+    {
+        get => _background.FocusTarget;
+        set => _background.FocusTarget = value;
     }
 
     public override bool HitTest(PointF localPoint)
