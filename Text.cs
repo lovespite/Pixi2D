@@ -1,0 +1,308 @@
+﻿using Pixi2D.Extensions;
+using SharpDX.Direct2D1;
+using SharpDX.DirectWrite;
+using SharpDX.Mathematics.Interop;
+using System.Drawing;
+using System.Numerics;
+
+namespace Pixi2D;
+
+/// <summary>
+/// (新!) 用于显示文本的 DisplayObject。
+/// 使用 DirectWrite。
+/// </summary>
+public class Text : DisplayObject
+{
+    /// <summary>
+    /// 在您的应用程序退出时调用此方法以清理静态 DirectWrite 资源。
+    /// </summary>
+    public static void DisposeDirectWriteFactory()
+    {
+    }
+
+    private RenderTarget? _cachedRenderTarget;
+    private SolidColorBrush? _fillBrush;
+    private TextFormat? _textFormat;
+    private TextLayout? _textLayout;
+
+    private bool _isDirty = true; // 标记是否需要重建 Format 和 Layout
+    private bool _isBrushDirty = true; // 标记是否需要更新笔刷颜色
+
+    private string _text;
+    private string _fontFamily;
+    private float _fontSize;
+    private FontStyle _fontStyle;
+    private FontWeight _fontWeight;
+    private RawColor4 _fillColor;
+    private float _maxWidth = float.MaxValue;
+    private float _maxHeight = float.MaxValue;
+
+    // --- 公共属性 --- 
+
+    public string Content
+    {
+        get => _text;
+        set { if (_text != value) { _text = value; _isDirty = true; } }
+    }
+
+    public string FontFamily
+    {
+        get => _fontFamily;
+        set { if (_fontFamily != value) { _fontFamily = value; _isDirty = true; } }
+    }
+
+    public float FontSize
+    {
+        get => _fontSize;
+        set { if (_fontSize != value) { _fontSize = value; _isDirty = true; } }
+    }
+
+    public FontStyle FontStyle
+    {
+        get => _fontStyle;
+        set { if (_fontStyle != value) { _fontStyle = value; _isDirty = true; } }
+    }
+
+    public FontWeight FontWeight
+    {
+        get => _fontWeight;
+        set { if (_fontWeight != value) { _fontWeight = value; _isDirty = true; } }
+    }
+
+    public RawColor4 FillColor
+    {
+        get => _fillColor;
+        set { _fillColor = value; _isBrushDirty = true; }
+    }
+
+    public float MaxWidth
+    {
+        get => _maxWidth;
+        set { if (_maxWidth != value) { _maxWidth = value; _isDirty = true; } }
+    }
+
+    public float MaxHeight
+    {
+        get => _maxHeight;
+        set { if (_maxHeight != value) { _maxHeight = value; _isDirty = true; } }
+    }
+
+    private readonly SharpDX.DirectWrite.Factory _dwFactory;
+
+    /// <summary>
+    /// 创建一个新的 Text 对象。
+    /// </summary>
+    /// <param name="text">要显示的文本。</param>
+    /// <param name="fontFamily">字体家族 (例如 "Arial")。</param>
+    /// <param name="fontSize">字体大小。</param>
+    /// <param name="color">文本颜色。</param>
+    public Text(SharpDX.DirectWrite.Factory dwFactory, string text, string fontFamily, float fontSize, FontStyle style, FontWeight weight, RawColor4 color)
+    {
+        _text = text;
+        _fontFamily = fontFamily;
+        _fontSize = fontSize;
+        _fillColor = color;
+        _fontStyle = style;
+        _fontWeight = weight;
+        _dwFactory = dwFactory;
+    }
+
+    /// <summary>
+    /// 确保所有 DWrite 资源都已创建并为最新。
+    /// </summary>
+    private void UpdateResources(RenderTarget renderTarget)
+    {
+        // 检查 RenderTarget 是否已更改 (例如设备丢失)
+        if (_cachedRenderTarget != renderTarget)
+        {
+            _fillBrush?.Dispose();
+            _fillBrush = null;
+            _cachedRenderTarget = renderTarget;
+            _isBrushDirty = true; // 强制重建笔刷
+        }
+
+        // 检查文本样式/内容是否已更改
+        if (_isDirty)
+        {
+            // 释放旧资源
+            _textFormat?.Dispose();
+            _textLayout?.Dispose();
+
+            // 1. 创建 TextFormat
+            _textFormat = new TextFormat(
+                                        factory: _dwFactory,
+                                        fontFamilyName: _fontFamily,
+                                        fontSize: _fontSize,
+                                        fontWeight: _fontWeight,
+                                        fontStyle: _fontStyle);
+
+            // 2. 创建 TextLayout
+            _textLayout = new TextLayout(_dwFactory, _text ?? string.Empty, _textFormat, _maxWidth, _maxHeight);
+
+            _isDirty = false;
+        }
+
+        // 检查笔刷颜色是否已更改
+        if (_isBrushDirty)
+        {
+            if (_fillColor.A > 0)
+            {
+                if (_fillBrush == null)
+                    _fillBrush = new SolidColorBrush(renderTarget, _fillColor);
+                else
+                    _fillBrush.Color = _fillColor;
+            }
+            else
+            {
+                _fillBrush?.Dispose();
+                _fillBrush = null;
+            }
+            _isBrushDirty = false;
+        }
+    }
+
+    /// <summary>
+    /// 检查本地点是否在文本布局的边界内。
+    /// </summary>
+    public override bool HitTest(PointF localPoint)
+    {
+        // 确保 TextLayout 存在，即使尚未渲染
+        // 注意: 第一次 HitTest 可能需要一个有效的 RenderTarget
+        if (_textLayout == null && _cachedRenderTarget != null)
+        {
+            UpdateResources(_cachedRenderTarget);
+        }
+
+        if (_textLayout == null) return false;
+
+        // 使用布局的指标进行简单的 AABB 检查
+        var metrics = _textLayout.Metrics;
+        return localPoint.X >= metrics.Left && localPoint.X < metrics.Left + metrics.Width &&
+               localPoint.Y >= metrics.Top && localPoint.Y < metrics.Top + metrics.Height;
+    }
+
+    /// <summary>
+    /// 渲染文本。
+    /// </summary>
+    public override void Render(RenderTarget renderTarget, Matrix3x2 parentTransform)
+    {
+        if (!Visible) return;
+
+        // 1. 确保所有资源 (Format, Layout, Brush) 都是最新的
+        UpdateResources(renderTarget);
+
+        if (_textLayout == null || _fillBrush == null) return;
+
+        // 2. 计算世界变换
+        Matrix3x2 myLocalTransform = GetLocalTransform();
+        Matrix3x2 myWorldTransform = myLocalTransform * parentTransform;
+
+        // 3. 保存并设置变换
+        var oldTransform = renderTarget.Transform;
+        renderTarget.Transform = new RawMatrix3x2
+        {
+            M11 = myWorldTransform.M11,
+            M12 = myWorldTransform.M12,
+            M21 = myWorldTransform.M21,
+            M22 = myWorldTransform.M22,
+            M31 = myWorldTransform.M31,
+            M32 = myWorldTransform.M32
+        };
+
+        // 4. 绘制文本布局
+        // 我们在 (0,0) 绘制，因为变换已经处理了 X, Y 位置
+        renderTarget.DrawTextLayout(
+            new RawVector2(0, 0),
+            _textLayout,
+            _fillBrush,
+            DrawTextOptions.None // 或 DrawTextOptions.Clip (如果需要)
+        );
+
+        // 5. 恢复变换
+        renderTarget.Transform = oldTransform;
+    }
+
+    /// <summary>
+    /// 释放 DWrite 和 D2D 资源。
+    /// </summary>
+    public override void Dispose()
+    {
+        base.Dispose();
+        _textFormat?.Dispose();
+        _textLayout?.Dispose();
+        _fillBrush?.Dispose();
+
+        _textFormat = null;
+        _textLayout = null;
+        _fillBrush = null;
+        _cachedRenderTarget = null;
+    }
+
+    public class Factory(SharpDX.DirectWrite.Factory factory)
+    {    // 静态 DirectWrite 工厂 (为简单起见，所有 Text 实例共享)
+        private static readonly SharpDX.DirectWrite.Factory s_dwFactory = new();
+
+        private static SharpDX.DirectWrite.Factory DwFactory => s_dwFactory;
+
+        private readonly SharpDX.DirectWrite.Factory m_dwFactory = factory;
+
+        public Factory() : this(DwFactory)
+        {
+        }
+
+        public string FontFamily { get; set; } = "Arial";
+        public FontWeight FontWeight { get; set; } = FontWeight.Regular;
+        public FontStyle FontStyle { get; set; } = FontStyle.Normal;
+        public float FontSize { get; set; } = 16f;
+        public Color FillColor { get; set; } = Color.White;
+
+        public Text Create(string content)
+        {
+            return new Text(
+                            m_dwFactory,
+                            text: content,
+                            fontFamily: FontFamily,
+                            fontSize: FontSize,
+                            weight: FontWeight,
+                            style: FontStyle,
+                            color: FillColor.ToRawColor4());
+        }
+
+        public Text Create(string text, float fontSize)
+        {
+            return new Text(
+                            m_dwFactory,
+                            text: text,
+                            fontFamily: FontFamily,
+                            fontSize: fontSize,
+                            weight: FontWeight,
+                            style: FontStyle,
+                            color: FillColor.ToRawColor4());
+        }
+
+        public Text Create(string text, float fontSize, Color fillColor)
+        {
+            return new Text(
+                            m_dwFactory,
+                            text: text,
+                            fontFamily: FontFamily,
+                            fontSize: fontSize,
+                            weight: FontWeight,
+                            style: FontStyle,
+                            color: fillColor.ToRawColor4());
+        }
+
+        public Text Create(string text, FontStyle fontStyle)
+        {
+            return new Text(
+                            m_dwFactory,
+                            text: text,
+                            fontFamily: FontFamily,
+                            fontSize: FontSize,
+                            weight: FontWeight,
+                            style: fontStyle,
+                            color: FillColor.ToRawColor4());
+        }
+    }
+}
+

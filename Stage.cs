@@ -1,0 +1,161 @@
+﻿using Pixi2D.Controls;
+using Pixi2D.Events;
+using SharpDX.Direct2D1;
+using SharpDX.Mathematics.Interop;
+using System.Drawing;
+using System.Numerics;
+namespace Pixi2D;
+
+/// <summary>
+/// 场景的根容器。处理 BeginDraw/EndDraw。
+/// </summary>
+public sealed class Stage : Container
+{
+    private DisplayObject? _lastMouseOverObject = null;
+    private DisplayObject? _lastMouseDownObject = null;
+
+    /// <summary>
+    /// 渲染整个场景。
+    /// </summary>
+    /// <param name="renderTarget">D2D 渲染目标。</param>
+    public void Render(RenderTarget renderTarget)
+    {
+        // 以单位矩阵开始递归渲染 
+        base.Render(renderTarget, Matrix3x2.Identity);
+    }
+
+    public void Resize(float newWidth, float newHeight)
+    {
+        OnResize?.Invoke(this, newWidth, newHeight);
+    }
+
+    public event Action<Stage, float, float>? OnResize;
+
+    /// <summary>
+    /// 内部辅助方法，用于处理事件冒泡。
+    /// </summary>
+    /// <param name="target">事件的
+    /// 原始目标。</param>
+    /// <param name="worldPoint">世界坐标。</param>
+    /// <param name="localPoint">目标的本地坐标。</param>
+    /// <param name="eventSelector">一个委托，用于从 DisplayObject 中选择要调用的事件处理器。</param>
+    private static void BubbleEvent(DisplayObject target, PointF worldPoint, PointF localPoint, DisplayObjectEventData? data, Func<DisplayObject, Action<DisplayObjectEvent>?> eventSelector)
+    {
+        var evt = new DisplayObjectEvent
+        {
+            Target = target,
+            CurrentTarget = target,
+            WorldPosition = worldPoint,
+            LocalPosition = localPoint,
+            Data = data,
+        };
+
+        var currentTarget = target;
+        while (currentTarget != null)
+        {
+            evt.CurrentTarget = currentTarget;
+
+            // (例如, eventSelector 可能会返回 currentTarget.OnClick)
+            Action<DisplayObjectEvent>? handler = eventSelector(currentTarget);
+            handler?.Invoke(evt);
+
+            if (evt.PropogationStopped) break; // 如果处理器调用了 StopPropagation()，则停止冒泡
+            currentTarget = currentTarget.Parent;
+        }
+    }
+
+    // --- 公共事件分发器 (由您的应用程序调用) ---
+
+    /// <summary>
+    /// 在鼠标移动时调用此方法。
+    /// </summary>
+    /// <param name="worldPoint">鼠标的屏幕/窗口坐标。</param>
+    public void DispatchMouseMove(PointF worldPoint)
+    {
+        var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
+        // 1. 查找被命中的对象
+        DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
+
+        // 2. 处理 MouseOver / MouseOut
+        if (hitObject != _lastMouseOverObject)
+        {
+            // 鼠标移出了旧对象
+            if (_lastMouseOverObject != null)
+            {
+                var outEvt = new DisplayObjectEvent { Target = _lastMouseOverObject, CurrentTarget = _lastMouseOverObject, WorldPosition = worldPoint };
+                _lastMouseOverObject.OnMouseOut?.Invoke(outEvt); // MouseOut 不冒泡
+            }
+            // 鼠标移入了新对象
+            if (hitObject != null)
+            {
+                var overEvt = new DisplayObjectEvent { Target = hitObject, CurrentTarget = hitObject, WorldPosition = worldPoint, LocalPosition = evtData.LocalPosition };
+                hitObject.OnMouseOver?.Invoke(overEvt); // MouseOver 不冒泡
+            }
+            _lastMouseOverObject = hitObject;
+        }
+
+        // 3. 处理 MouseMove (冒泡)
+        if (hitObject != null)
+        {
+            BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, null, (obj) => obj.OnMouseMove);
+        }
+    }
+
+    /// <summary>
+    /// 在鼠标按下时调用此方法。
+    /// </summary>
+    public void DispatchMouseDown(PointF worldPoint, int button)
+    {
+        var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
+        DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
+
+        _lastMouseDownObject = hitObject; // 跟踪此对象，用于 "click" 检测
+
+        if (hitObject != null)
+        {
+            BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseDown);
+        }
+    }
+
+    /// <summary>
+    /// 在鼠标抬起时调用此方法。
+    /// </summary>
+    public void DispatchMouseUp(PointF worldPoint, int button)
+    {
+        var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
+        DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
+
+        // 1. 触发 MouseUp (冒泡)
+        if (hitObject != null)
+        {
+            BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseUp);
+        }
+
+        // 2. 处理 Click 事件 (冒泡)
+        // 只有在同一个对象上按下和抬起时才触发 Click
+        if (hitObject != null && hitObject == _lastMouseDownObject)
+        {
+            BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnClick);
+        }
+        _lastMouseDownObject = null; // 重置
+    }
+
+    public void DispatchMouseWheel(PointF worldPoint, float deltaY)
+    {
+        var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
+        DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
+        if (hitObject != null)
+        {
+            // 创建一个新的事件对象，包含滚轮数据
+            var wheelEvent = new DisplayObjectEvent
+            {
+                Target = hitObject,
+                CurrentTarget = hitObject,
+                WorldPosition = worldPoint,
+                LocalPosition = evtData.LocalPosition,
+            };
+            // 冒泡触发 MouseWheel 事件
+            BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { MouseWheelDeltaY = deltaY }, (obj) => obj.OnMouseWheel);
+        }
+    }
+}
