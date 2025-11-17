@@ -329,13 +329,15 @@ public class FlowLayout : Container
         AddChild(FlowBreak.Instance);
     }
 
+    public static FlowBreak Break => FlowBreak.Instance;
+
     /// <summary>
     /// 一個用於 FlowList 的標記对象，表示換行（或換列）。
     /// (A marker object for FlowList to indicate a line break (or column break).)
     /// 這是一個輕量級對象，它本身不可見，也不參與點擊測試。
     /// (This is a lightweight object that is not visible and does not participate in hit testing.)
     /// </summary>
-    private sealed class FlowBreak : DisplayObject
+    public sealed class FlowBreak : DisplayObject
     {
         public override bool HitTest(PointF localPoint) => false;
         public override void Render(SharpDX.Direct2D1.RenderTarget renderTarget, Matrix3x2 parentTransform)

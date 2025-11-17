@@ -23,8 +23,8 @@ public class Graphics : DisplayObject
         public RawRectangleF Rect;
         public void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth)
         {
-            if (fillBrush != null) renderTarget.FillRectangle(Rect, fillBrush);
-            if (strokeBrush != null && strokeWidth > 0) renderTarget.DrawRectangle(Rect, strokeBrush, strokeWidth);
+            if (fillBrush is not null) renderTarget.FillRectangle(Rect, fillBrush);
+            if (strokeBrush is not null && strokeWidth > 0) renderTarget.DrawRectangle(Rect, strokeBrush, strokeWidth);
         }
         public RectangleF GetBounds() => new(Rect.Left,
                                              Rect.Top,
@@ -36,8 +36,8 @@ public class Graphics : DisplayObject
         public RoundedRectangle RoundedRect;
         public void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth)
         {
-            if (fillBrush != null) renderTarget.FillRoundedRectangle(RoundedRect, fillBrush);
-            if (strokeBrush != null && strokeWidth > 0) renderTarget.DrawRoundedRectangle(RoundedRect, strokeBrush, strokeWidth);
+            if (fillBrush is not null) renderTarget.FillRoundedRectangle(RoundedRect, fillBrush);
+            if (strokeBrush is not null && strokeWidth > 0) renderTarget.DrawRoundedRectangle(RoundedRect, strokeBrush, strokeWidth);
         }
         public RectangleF GetBounds() => new(RoundedRect.Rect.Left,
                                              RoundedRect.Rect.Top,
@@ -49,8 +49,8 @@ public class Graphics : DisplayObject
         public Ellipse Ellipse;
         public void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth)
         {
-            if (fillBrush != null) renderTarget.FillEllipse(Ellipse, fillBrush);
-            if (strokeBrush != null && strokeWidth > 0) renderTarget.DrawEllipse(Ellipse, strokeBrush, strokeWidth);
+            if (fillBrush is not null) renderTarget.FillEllipse(Ellipse, fillBrush);
+            if (strokeBrush is not null && strokeWidth > 0) renderTarget.DrawEllipse(Ellipse, strokeBrush, strokeWidth);
         }
         public RectangleF GetBounds() => new(Ellipse.Point.X - Ellipse.RadiusX,
                                              Ellipse.Point.Y - Ellipse.RadiusY,
@@ -246,7 +246,7 @@ public class Graphics : DisplayObject
         {
             if (_fillColor.A > 0)
             {
-                if (_fillBrush == null)
+                if (_fillBrush is null)
                     _fillBrush = new SolidColorBrush(renderTarget, _fillColor);
                 else
                     _fillBrush.Color = _fillColor;
@@ -262,7 +262,7 @@ public class Graphics : DisplayObject
         {
             if (_strokeColor.A > 0)
             {
-                if (_strokeBrush == null)
+                if (_strokeBrush is null)
                     _strokeBrush = new SolidColorBrush(renderTarget, _strokeColor);
                 else
                     _strokeBrush.Color = _strokeColor;

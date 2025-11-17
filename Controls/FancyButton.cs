@@ -126,15 +126,15 @@ public class FancyButton : Container
     /// </summary>
     private void UpdateTexture()
     {
-        if (_isPressed && _pressedTexture != null)
+        if (_isPressed && _pressedTexture is not null)
         {
             _sprite.Bitmap = _pressedTexture;
         }
-        else if (_isHovered && _hoverTexture != null)
+        else if (_isHovered && _hoverTexture is not null)
         {
             _sprite.Bitmap = _hoverTexture;
         }
-        else if (_normalTexture != null)
+        else if (_normalTexture is not null)
         {
             _sprite.Bitmap = _normalTexture;
         }

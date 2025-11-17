@@ -90,6 +90,25 @@ public class Text : DisplayObject
     private readonly SharpDX.DirectWrite.Factory _dwFactory;
 
     /// <summary>
+    /// 获取当前的 TextFormat。如果需要，会重新创建。
+    /// </summary>
+    public TextFormat GetTextFormat()
+    {
+        if (_textFormat is null || _isDirty)
+        {
+            _textFormat?.Dispose();
+            _textFormat = new TextFormat(
+                                factory: _dwFactory,
+                                fontFamilyName: _fontFamily,
+                                fontSize: _fontSize,
+                                fontWeight: _fontWeight,
+                                fontStyle: _fontStyle);
+            _isDirty = true; // 标记布局仍需更新
+        }
+        return _textFormat;
+    }
+
+    /// <summary>
     /// 创建一个新的 Text 对象。
     /// </summary>
     /// <param name="text">要显示的文本。</param>
@@ -147,7 +166,7 @@ public class Text : DisplayObject
         {
             if (_fillColor.A > 0)
             {
-                if (_fillBrush == null)
+                if (_fillBrush is null)
                     _fillBrush = new SolidColorBrush(renderTarget, _fillColor);
                 else
                     _fillBrush.Color = _fillColor;
@@ -168,12 +187,12 @@ public class Text : DisplayObject
     {
         // 确保 TextLayout 存在，即使尚未渲染
         // 注意: 第一次 HitTest 可能需要一个有效的 RenderTarget
-        if (_textLayout == null && _cachedRenderTarget != null)
+        if (_textLayout is null && _cachedRenderTarget is not null)
         {
             UpdateResources(_cachedRenderTarget);
         }
 
-        if (_textLayout == null) return false;
+        if (_textLayout is null) return false;
 
         // 使用布局的指标进行简单的 AABB 检查
         var metrics = _textLayout.Metrics;
@@ -191,7 +210,7 @@ public class Text : DisplayObject
         // 1. 确保所有资源 (Format, Layout, Brush) 都是最新的
         UpdateResources(renderTarget);
 
-        if (_textLayout == null || _fillBrush == null) return;
+        if (_textLayout is null || _fillBrush is null) return;
 
         // 2. 计算世界变换
         Matrix3x2 myLocalTransform = GetLocalTransform();
@@ -242,11 +261,13 @@ public class Text : DisplayObject
     {    // 静态 DirectWrite 工厂 (为简单起见，所有 Text 实例共享)
         private static readonly SharpDX.DirectWrite.Factory s_dwFactory = new();
 
-        private static SharpDX.DirectWrite.Factory DwFactory => s_dwFactory;
+        internal static SharpDX.DirectWrite.Factory Shared => s_dwFactory;
 
         private readonly SharpDX.DirectWrite.Factory m_dwFactory = factory;
 
-        public Factory() : this(DwFactory)
+        internal SharpDX.DirectWrite.Factory DwfInstance => m_dwFactory;
+
+        public Factory() : this(Shared)
         {
         }
 

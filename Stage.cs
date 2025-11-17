@@ -14,6 +14,12 @@ public sealed class Stage : Container
     private DisplayObject? _lastMouseOverObject = null;
     private DisplayObject? _lastMouseDownObject = null;
 
+    private DisplayObject? _focusedObject = null;
+    /// <summary>
+    /// 获取当前拥有键盘焦点的对象
+    /// </summary>
+    public DisplayObject? FocusedObject => _focusedObject;
+
     /// <summary>
     /// 渲染整个场景。
     /// </summary>
@@ -30,6 +36,20 @@ public sealed class Stage : Container
     }
 
     public event Action<Stage, float, float>? OnResize;
+
+    /// <summary>
+    /// 设置当前拥有键盘焦点的对象。
+    /// </summary>
+    /// <param name="newFocus">希望获得焦点的对象，或 null 表示失去焦点。</param>
+    public void SetFocus(DisplayObject? newFocus)
+    {
+        if (ReferenceEquals(_focusedObject, newFocus)) return;
+
+        _focusedObject?.OnBlur?.Invoke();
+        _focusedObject = newFocus;
+
+        newFocus?.OnFocus?.Invoke();
+    }
 
     /// <summary>
     /// 内部辅助方法，用于处理事件冒泡。
@@ -51,7 +71,7 @@ public sealed class Stage : Container
         };
 
         var currentTarget = target;
-        while (currentTarget != null)
+        while (currentTarget is not null)
         {
             evt.CurrentTarget = currentTarget;
 
@@ -80,13 +100,13 @@ public sealed class Stage : Container
         if (hitObject != _lastMouseOverObject)
         {
             // 鼠标移出了旧对象
-            if (_lastMouseOverObject != null)
+            if (_lastMouseOverObject is not null)
             {
                 var outEvt = new DisplayObjectEvent { Target = _lastMouseOverObject, CurrentTarget = _lastMouseOverObject, WorldPosition = worldPoint };
                 _lastMouseOverObject.OnMouseOut?.Invoke(outEvt); // MouseOut 不冒泡
             }
             // 鼠标移入了新对象
-            if (hitObject != null)
+            if (hitObject is not null)
             {
                 var overEvt = new DisplayObjectEvent { Target = hitObject, CurrentTarget = hitObject, WorldPosition = worldPoint, LocalPosition = evtData.LocalPosition };
                 hitObject.OnMouseOver?.Invoke(overEvt); // MouseOver 不冒泡
@@ -95,7 +115,7 @@ public sealed class Stage : Container
         }
 
         // 3. 处理 MouseMove (冒泡)
-        if (hitObject != null)
+        if (hitObject is not null)
         {
             BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, null, (obj) => obj.OnMouseMove);
         }
@@ -109,9 +129,19 @@ public sealed class Stage : Container
         var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
         DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
 
+        // 如果点击了可交互对象，它将获得焦点。 
+        if (hitObject is null)
+        {
+            SetFocus(null);
+        }
+        else
+        {
+            SetFocus(hitObject.FindFirstFocusableTarget());
+        }
+
         _lastMouseDownObject = hitObject; // 跟踪此对象，用于 "click" 检测
 
-        if (hitObject != null)
+        if (hitObject is not null)
         {
             BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseDown);
         }
@@ -126,14 +156,14 @@ public sealed class Stage : Container
         DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
 
         // 1. 触发 MouseUp (冒泡)
-        if (hitObject != null)
+        if (hitObject is not null)
         {
             BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseUp);
         }
 
         // 2. 处理 Click 事件 (冒泡)
         // 只有在同一个对象上按下和抬起时才触发 Click
-        if (hitObject != null && hitObject == _lastMouseDownObject)
+        if (hitObject is not null && hitObject == _lastMouseDownObject)
         {
             BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnClick);
         }
@@ -144,7 +174,7 @@ public sealed class Stage : Container
     {
         var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
         DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
-        if (hitObject != null)
+        if (hitObject is not null)
         {
             // 创建一个新的事件对象，包含滚轮数据
             var wheelEvent = new DisplayObjectEvent
@@ -158,4 +188,78 @@ public sealed class Stage : Container
             BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { MouseWheelDeltaY = deltaY }, (obj) => obj.OnMouseWheel);
         }
     }
+
+    #region Keyboard Events
+    /// <summary>
+    /// 在按键按下时调用此方法。
+    /// 事件将分派给当前拥有焦点的对象。
+    /// </summary>
+    /// <param name="keyCode">键码 (例如 Keys.A)</param>
+    /// <param name="ctrl">Ctrl 是否按下</param>
+    /// <param name="alt">Alt 是否按下</param>
+    /// <param name="shift">Shift 是否按下</param>
+    public void DispatchKeyDown(int keyCode, bool ctrl, bool alt, bool shift)
+    {
+        if (_focusedObject is null || _focusedObject.OnKeyDown is null) return;
+
+        var evt = new DisplayObjectEvent
+        {
+            Target = _focusedObject,
+            CurrentTarget = _focusedObject,
+            Data = new DisplayObjectEventData
+            {
+                KeyCode = keyCode,
+                Ctrl = ctrl,
+                Alt = alt,
+                Shift = shift
+            }
+        };
+        _focusedObject.OnKeyDown(evt);
+        // 键盘事件通常不冒泡
+    }
+
+    /// <summary>
+    /// 在按键抬起时调用此方法。
+    /// 事件将分派给当前拥有焦点的对象。
+    /// </summary>
+    public void DispatchKeyUp(int keyCode, bool ctrl, bool alt, bool shift)
+    {
+        if (_focusedObject is null || _focusedObject.OnKeyUp is null) return;
+
+        var evt = new DisplayObjectEvent
+        {
+            Target = _focusedObject,
+            CurrentTarget = _focusedObject,
+            Data = new DisplayObjectEventData
+            {
+                KeyCode = keyCode,
+                Ctrl = ctrl,
+                Alt = alt,
+                Shift = shift
+            }
+        };
+        _focusedObject.OnKeyUp(evt);
+    }
+
+    /// <summary>
+    /// 在输入字符时调用此方法。
+    /// 事件将分派给当前拥有焦点的对象。
+    /// </summary>
+    /// <param name="keyChar">输入的字符</param>
+    public void DispatchKeyPress(char keyChar)
+    {
+        if (_focusedObject is null || _focusedObject.OnKeyPress is null) return;
+
+        var evt = new DisplayObjectEvent
+        {
+            Target = _focusedObject,
+            CurrentTarget = _focusedObject,
+            Data = new DisplayObjectEventData
+            {
+                KeyChar = keyChar
+            }
+        };
+        _focusedObject.OnKeyPress(evt);
+    }
+    #endregion
 }

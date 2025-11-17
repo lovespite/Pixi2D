@@ -44,7 +44,7 @@ public class Sprite : DisplayObject
     /// </summary>
     public override bool HitTest(PointF localPoint)
     {
-        if (Bitmap == null) return false;
+        if (Bitmap is null) return false;
 
         // 在本地坐标中的简单 AABB (轴对齐包围盒) 检查
         var size = Bitmap.Size;
@@ -57,7 +57,7 @@ public class Sprite : DisplayObject
     /// </summary>
     public override void Render(RenderTarget renderTarget, Matrix3x2 parentTransform)
     {
-        if (!Visible || Bitmap == null) return;
+        if (!Visible || Bitmap is null) return;
 
         // 1. 计算此 Sprite 的最终世界变换 (Matrix3x2)
         Matrix3x2 myLocalTransform = GetLocalTransform();

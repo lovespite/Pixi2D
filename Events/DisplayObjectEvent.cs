@@ -45,5 +45,23 @@ public class DisplayObjectEventData
 {
     public int Button { get; internal set; }
     public float MouseWheelDeltaY { get; internal set; }
+
+    // --- Keyboard Data ---
+
+    /// <summary>
+    /// 键码 (例如 Keys.A)
+    /// </summary>
+    public int KeyCode { get; internal set; }
+
+    /// <summary>
+    /// KeyPress 事件的字符
+    /// </summary>
+    public char KeyChar { get; internal set; }
+
+    // --- 修饰键 ---
+    public bool Alt { get; internal set; }
+    public bool Ctrl { get; internal set; }
+    public bool Shift { get; internal set; }
+
     public object? AttachedObject { get; set; }
 }

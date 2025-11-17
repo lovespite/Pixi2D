@@ -61,9 +61,9 @@ public class VirtualScrollList<T> : Panel
         {
             X = width - ScrollBarWidth - 5,
             Y = 5,
-            Visible = false
+            Visible = false,
+            FillColor = new(0.2f, 0.2f, 0.2f, 0.5f)
         };
-        _scrollBar.FillColor = new RawColor4(0.2f, 0.2f, 0.2f, 0.5f);
         _scrollBar.DrawRoundedRectangle(0, 0, ScrollBarWidth, _viewportHeight - 10, 5, 5);
         base.AddChild(_scrollBar);
 
@@ -73,9 +73,9 @@ public class VirtualScrollList<T> : Panel
             X = width - ScrollBarWidth - 5,
             Y = 5,
             Visible = false,
-            Interactive = true
+            Interactive = true,
+            FillColor = new(0.5f, 0.5f, 0.5f, 0.8f)
         };
-        _scrollThumb.FillColor = new RawColor4(0.5f, 0.5f, 0.5f, 0.8f);
         UpdateScrollThumb();
         base.AddChild(_scrollThumb);
 
@@ -358,7 +358,7 @@ public class VirtualScrollList<T> : Panel
     /// </summary>
     private void UpdateVisibleItems()
     {
-        if (ItemRenderer == null || _dataSource.Count == 0)
+        if (ItemRenderer is null || _dataSource.Count == 0)
         {
             ClearVisibleItems();
             return;
@@ -441,7 +441,7 @@ public class VirtualScrollList<T> : Panel
 
         // 获取 Stage 并注册全局鼠标事件
         _stage = GetStage();
-        if (_stage != null)
+        if (_stage is not null)
         {
             _stage.OnMouseMove += OnGlobalMouseMove;
             _stage.OnMouseUp += OnGlobalMouseUp;
@@ -476,7 +476,7 @@ public class VirtualScrollList<T> : Panel
             _isDraggingThumb = false;
 
             // 取消注册全局鼠标事件
-            if (_stage != null)
+            if (_stage is not null)
             {
                 _stage.OnMouseMove -= OnGlobalMouseMove;
                 _stage.OnMouseUp -= OnGlobalMouseUp;
@@ -485,28 +485,13 @@ public class VirtualScrollList<T> : Panel
         }
     }
 
-    /// <summary>
-    /// 获取当前对象所在的 Stage。
-    /// </summary>
-    private Stage? GetStage()
-    {
-        DisplayObject? current = this;
-        while (current != null)
-        {
-            if (current is Stage stage)
-                return stage;
-            current = current.Parent;
-        }
-        return null;
-    }
-
     public override void Dispose()
     {
         _scrollThumb.OnMouseDown -= OnThumbMouseDown;
         this.OnMouseWheel -= HandleMouseWheel;
 
         // 清理全局事件（如果还在拖拽中）
-        if (_stage != null)
+        if (_stage is not null)
         {
             _stage.OnMouseMove -= OnGlobalMouseMove;
             _stage.OnMouseUp -= OnGlobalMouseUp;

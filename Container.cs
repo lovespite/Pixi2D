@@ -86,7 +86,7 @@ public class Container : DisplayObject
 
     public void InsertBefore(DisplayObject child, DisplayObject? beforeChild)
     {
-        int index = beforeChild != null ? children.IndexOf(beforeChild) : children.Count;
+        int index = beforeChild is not null ? children.IndexOf(beforeChild) : children.Count;
         if (index == -1)
         {
             throw new ArgumentException("The specified beforeChild is not a child of this container.", nameof(beforeChild));
@@ -96,8 +96,8 @@ public class Container : DisplayObject
 
     public void InsertAfter(DisplayObject child, DisplayObject? afterChild)
     {
-        int index = afterChild != null ? children.IndexOf(afterChild) : -1;
-        if (index == -1 && afterChild != null)
+        int index = afterChild is not null ? children.IndexOf(afterChild) : -1;
+        if (index == -1 && afterChild is not null)
         {
             throw new ArgumentException("The specified afterChild is not a child of this container.", nameof(afterChild));
         }
@@ -151,7 +151,7 @@ public class Container : DisplayObject
             // 递归检查
             DisplayObject? hitTarget = child.FindHitObject(worldPoint, childWorldTransform, hitEvent);
 
-            if (hitTarget != null)
+            if (hitTarget is not null)
             {
                 // 在子项中找到了命中，立即返回
                 return hitTarget;
@@ -200,7 +200,7 @@ public class Container : DisplayObject
 
                 // 检查是否需要重新创建几何体
                 bool needsRecreate =
-                                    _cachedClipGeometry == null ||
+                                    _cachedClipGeometry is null ||
                                     // _cachedFactory != factory ||
                                     _cachedClipWidth != clipW ||
                                     _cachedClipHeight != clipH;
@@ -257,7 +257,7 @@ public class Container : DisplayObject
             // 注意: 不再在这里 Dispose clipGeometry，因为它现在被缓存了
         }
     }
-
+     
     public override void Dispose()
     {
         base.Dispose();

@@ -44,6 +44,35 @@ public abstract class DisplayObject : IDisposable
     /// </summary>
     public bool Interactive { get; set; } = false;
 
+    /// <summary>
+    /// 是否允许此对象接受焦点。
+    /// </summary>
+    public bool AcceptFocus { get; set; } = false;
+
+    /// <summary>
+    /// 用于指定当此对象获得焦点时，焦点应转移到的目标对象，null 表示焦点留在此对象上。
+    /// </summary>
+    public DisplayObject? FocusTarget { get; set; } = null;
+
+    public DisplayObject? FindFirstFocusableTarget()
+    {
+        if (FocusTarget is not null) return FocusTarget;
+        if (AcceptFocus) return this;
+
+        DisplayObject current = this;
+        while (current.Parent is DisplayObject obj)
+        {
+            if (obj.FocusTarget is not null)
+                return obj.FocusTarget;
+            if (obj.AcceptFocus)
+                return obj;
+
+            current = obj;
+        }
+
+        return null;
+    }
+
     // --- Event Handlers (事件处理器) ---
     public Action<DisplayObjectEvent>? OnClick { get; set; }
     public Action<DisplayObjectEvent>? OnMouseOver { get; set; }
@@ -53,6 +82,23 @@ public abstract class DisplayObject : IDisposable
     public Action<DisplayObjectEvent>? OnMouseUp { get; set; }
     public Action<DisplayObjectEvent>? OnMouseWheel { get; set; }
     public Action<float>? OnUpate { get; set; }
+    /// <summary>
+    /// 键盘按下事件 (需要对象有焦点)
+    /// </summary>
+    public Action<DisplayObjectEvent>? OnKeyDown { get; set; }
+
+    /// <summary>
+    /// 键盘抬起事件 (需要对象有焦点)
+    /// </summary>
+    public Action<DisplayObjectEvent>? OnKeyUp { get; set; }
+
+    /// <summary>
+    /// 字符输入事件 (需要对象有焦点)
+    /// </summary>
+    public Action<DisplayObjectEvent>? OnKeyPress { get; set; }
+
+    public Action? OnFocus { get; set; }
+    public Action? OnBlur { get; set; }
 
     /// <summary>
     /// 递归查找被世界坐标点命中的最顶层 DisplayObject。
@@ -196,6 +242,35 @@ public abstract class DisplayObject : IDisposable
     public DisplayObject SetAnchorCenter()
     {
         return SetAnchor(0.5f, 0.5f);
+    }
+
+    /// <summary>
+    /// 查找当前所在的 Stage。
+    /// </summary>
+    public Stage? GetStage()
+    {
+        DisplayObject? current = this;
+        while (current is not null)
+        {
+            if (current is Stage stage)
+                return stage;
+            current = current.Parent;
+        }
+        return null;
+    }
+
+    public bool IsFocused()
+    {
+        var stage = GetStage();
+        if (stage is null) return false;
+        return ReferenceEquals(stage.FocusedObject, this);
+    }
+
+    public void Focus()
+    {
+        var stage = GetStage();
+        if (stage is null) return;
+        stage.SetFocus(this);
     }
 
     #endregion

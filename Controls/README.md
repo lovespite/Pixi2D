@@ -471,7 +471,7 @@ for (int i = 0; i < 8; i++)
     // 单选行为
     item.OnSelected += (currentItem) =>
     {
-        if (selectedItem != null && selectedItem != currentItem)
+        if (selectedItem is not null && selectedItem != currentItem)
         {
             selectedItem.IsSelected = false;
         }

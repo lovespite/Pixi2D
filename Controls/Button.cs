@@ -45,9 +45,9 @@ public class Button : Container
         // 创建背景
         _background = new Graphics
         {
-            Interactive = true
+            Interactive = true,
+            FillColor = _normalColor,
         };
-        _background.FillColor = _normalColor;
         _background.DrawRoundedRectangle(0, 0, _buttonWidth, _buttonHeight, _cornerRadius, _cornerRadius);
         base.AddChild(_background);
 
@@ -61,7 +61,7 @@ public class Button : Container
 
         // 设置交互
         Interactive = true;
-        _background.Interactive = true;
+        AcceptFocus = true;
 
         // 注册事件
         _background.OnMouseOver += OnBackgroundMouseOver;
@@ -268,6 +268,27 @@ public class Button : Container
     private void OnBackgroundClick(DisplayObjectEvent evt)
     {
         OnButtonClick?.Invoke(this);
+    }
+
+    private bool _hasFocus = false;
+    private RawColor4 _originalBorderColor;
+    public override void Update(float deltaTime)
+    {
+        var hasFocus = IsFocused();
+        if (hasFocus != _hasFocus)
+        {
+            _hasFocus = hasFocus;
+            if (hasFocus)
+            {
+                _originalBorderColor = _borderColor;
+                _borderColor = new(0.0f, 0.6f, 1.0f, 1.0f); // 淡蓝色边框表示聚焦
+            }
+            else
+            {
+                _borderColor = _originalBorderColor;
+            }
+            UpdateBackground();
+        }
     }
 
     public override void Dispose()
