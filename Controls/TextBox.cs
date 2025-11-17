@@ -20,6 +20,8 @@ public class TextBox : Container
     public const int VK_RIGHT = 39;
     public const int VK_HOME = 36;
     public const int VK_END = 35;
+    public const int VK_UP = 38;   // 新增：上箭头
+    public const int VK_DOWN = 40; // 新增：下箭头
 
     // --- 子控件 ---
     private readonly Graphics _background;
@@ -133,7 +135,7 @@ public class TextBox : Container
         _textClipContainer = new Container
         {
             X = _paddingX,
-            // 垂直居中
+            // 垂直居中 (默认单行)
             Y = (_boxHeight - textHeight) / 2,
             ClipContent = true,
             ClipWidth = _boxWidth - (_paddingX * 2),
@@ -181,6 +183,32 @@ public class TextBox : Container
     {
         this.Focus();
         evt.StopPropagation(); // 停止冒泡，防止点击穿透
+
+        // --- 新增：点击设置光标位置 ---
+        var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
+        if (layout == null) return;
+
+        // 1. 计算点击位置相对于 _textDisplay 的坐标
+        // evt.LocalPosition 是相对于 _background (即 TextBox 内部的 0,0)
+        float clickX = evt.LocalPosition.X - (_textClipContainer.X + _textContainer.X);
+        float clickY = evt.LocalPosition.Y - (_textClipContainer.Y + _textContainer.Y);
+
+        try
+        {
+            // 2. 使用 HitTestPoint 找到最近的文本位置
+            var hitTestMetrics = layout.HitTestPoint(clickX, clickY, out var isTrailingHit, out var isInside);
+
+            // 3. 设置光标索引
+            int newCaretIndex = hitTestMetrics.TextPosition + (isTrailingHit ? 1 : 0);
+            _caretIndex = Math.Clamp(newCaretIndex, 0, _textBuilder.Length);
+
+            // 4. 更新光标
+            UpdateCaretPosition();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("MouseDown HitTestPoint failed: " + ex.Message);
+        }
     }
 
     #region Core Event Handlers
@@ -232,27 +260,54 @@ public class TextBox : Container
     {
         if (evt.Data is null) return;
 
+        bool caretMoved = false;
+
         switch (evt.Data.KeyCode)
         {
             case VK_LEFT: // Left Arrow
                 _caretIndex = Math.Max(0, _caretIndex - 1);
-                UpdateCaretPosition();
+                caretMoved = true;
                 break;
 
             case VK_RIGHT: // Right Arrow
                 _caretIndex = Math.Min(_textBuilder.Length, _caretIndex + 1);
-                UpdateCaretPosition();
+                caretMoved = true;
                 break;
 
             case VK_HOME: // Home
                 _caretIndex = 0;
-                UpdateCaretPosition();
+                caretMoved = true;
                 break;
 
             case VK_END: // End
                 _caretIndex = _textBuilder.Length;
-                UpdateCaretPosition();
+                caretMoved = true;
                 break;
+
+            case VK_UP: // Up Arrow
+                if (_multiline)
+                {
+                    MoveCaretVertical(-1); // -1 for Up
+                    caretMoved = true; // MoveCaretVertical 内部会调用 UpdateCaretPosition
+                }
+                break;
+
+            case VK_DOWN: // Down Arrow
+                if (_multiline)
+                {
+                    MoveCaretVertical(1); // 1 for Down
+                    caretMoved = true; // MoveCaretVertical 内部会调用 UpdateCaretPosition
+                }
+                break;
+        }
+
+        if (caretMoved)
+        {
+            // 如果 MoveCaretVertical 没有被调用，则手动更新
+            if (evt.Data.KeyCode != VK_UP && evt.Data.KeyCode != VK_DOWN)
+            {
+                UpdateCaretPosition();
+            }
         }
     }
 
@@ -286,16 +341,62 @@ public class TextBox : Container
                     _textFactory.FontSize + 2, // 最小高度
                     Math.Min(textHeight + _paddingY, _boxHeight - (_paddingY * 2)) // 最大高度
                 );
+
+                // 多行模式，Y 始终在顶部
                 _textClipContainer.Y = _paddingY;
-                _textClipContainer.ClipHeight = newClipHeight;
+                _textClipContainer.ClipHeight = _boxHeight - (_paddingY * 2); // 裁剪区域始终是框的内部高度
             }
         }
         else
         {
-            // 单行，重置裁剪高度
+            // 单行，重置裁剪高度并垂直居中
             float textHeight = _textFactory.FontSize + 2f;
             _textClipContainer.ClipHeight = textHeight + _paddingY;
             _textClipContainer.Y = (_boxHeight - textHeight) / 2;
+        }
+    }
+
+    /// <summary>
+    /// (新增) 处理多行模式下的上/下光标移动。
+    /// </summary>
+    /// <param name="direction">-1 表示上, 1 表示下。</param>
+    private void MoveCaretVertical(int direction)
+    {
+        var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
+        if (layout == null) return;
+
+        try
+        {
+            // 1. 获取当前光标的 (X, Y) 坐标
+            var metrics = layout.HitTestTextPosition(_caretIndex, false, out float currentX, out float currentY);
+            float lineHeight = metrics.Height; // 使用当前行高作为参考
+
+            if (lineHeight <= 0) lineHeight = _textFactory.FontSize; // 回退
+
+            // 2. 计算目标 Y 坐标
+            float targetY = currentY;
+            if (direction < 0) // Up
+            {
+                targetY = currentY - (lineHeight * 0.5f); // 目标 Y 位于上一行的中间
+            }
+            else // Down
+            {
+                targetY = currentY + (lineHeight * 1.5f); // 目标 Y 位于下一行的中间
+            }
+
+            // 3. 使用 HitTestPoint 找到目标 (X, Y) 处最近的文本索引
+            // 我们使用 currentX 和 targetY
+            var hitTestMetrics = layout.HitTestPoint(currentX, targetY, out var isTrailingHit, out var isInside);
+
+            // 4. 设置新的光标索引
+            int newCaretIndex = hitTestMetrics.TextPosition + (isTrailingHit ? 1 : 0);
+
+            _caretIndex = Math.Clamp(newCaretIndex, 0, _textBuilder.Length);
+            UpdateCaretPosition();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("MoveCaretVertical failed: " + ex.Message);
         }
     }
 
