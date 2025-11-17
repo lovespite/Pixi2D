@@ -177,6 +177,64 @@ public class TextBox : Container
         this.OnKeyDown += HandleKeyDown;
         this.OnKeyUp += HandleKeyUp;
         this.OnKeyPress += HandleKeyPress;
+        this.OnMouseWheel += HandleMouseWheel; // 新增：挂接滚轮事件
+    }
+
+    public override void Dispose()
+    {
+        // Unsubscribe from all events
+        this.OnMouseDown -= HandleMouseDown;
+        this.OnKeyDown -= HandleKeyDown;
+        this.OnKeyUp -= HandleKeyUp;
+        this.OnKeyPress -= HandleKeyPress;
+        this.OnMouseWheel -= HandleMouseWheel;
+        _background.OnMouseDown -= HandleMouseDown;
+
+        base.Dispose(); // This will dispose children like _background, _textClipContainer, etc.
+    }
+
+    private void HandleMouseWheel(DisplayObjectEvent evt)
+    {
+        // 仅在多行、有焦点且事件数据存在时滚动
+        if (!_isFocused || !_multiline || evt.Data == null) return;
+
+        float deltaY = evt.Data.MouseWheelDeltaY; // 假设：正值 = 向上滚, 负值 = 向下滚
+        if (deltaY == 0) return;
+
+        var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
+        if (layout == null) return;
+
+        float textHeight = layout.Metrics.Height;
+        float clipHeight = _textClipContainer.ClipHeight ?? 0f;
+
+        // Max scroll (content is moved up, so Y is negative)
+        // 0 is the top (no scroll)
+        float maxScrollY = Math.Max(0, textHeight - clipHeight);
+
+        // 如果内容未溢出，则无需滚动
+        if (maxScrollY <= 0) return;
+
+        // --- 计算滚动量 ---
+        // 每次滚动 3 行
+        float lineHeight = _textFactory.FontSize;
+        if (lineHeight <= 0) lineHeight = 16f; // 默认行高
+        float scrollAmount = (lineHeight * 3) * Math.Sign(deltaY);
+
+        // --- 应用新位置 ---
+        // 向上滚 (deltaY > 0)，内容向下移 (Y 增加，朝 0 靠近)
+        // 向下滚 (deltaY < 0)，内容向上移 (Y 减少，朝 -maxScrollY 靠近)
+        float newY = _textContainer.Y + scrollAmount;
+
+        // --- 限制滚动范围 ---
+        // _textContainer.Y 应该在 [-maxScrollY, 0] 之间
+        _textContainer.Y = Math.Clamp(newY, -maxScrollY, 0f);
+
+        // 阻止事件冒泡 (例如，防止舞台缩放)
+        evt.StopPropagation();
+
+        // 重置光标闪烁
+        _blinkTimer = 0f;
+        _caret.Visible = _isFocused;
     }
 
     private void HandleMouseDown(DisplayObjectEvent evt)
