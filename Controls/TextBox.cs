@@ -801,5 +801,42 @@ public class TextBox : Container
         }
     }
 
+    public void SetSelection(int start, int end)
+    {
+        start = Math.Clamp(start, 0, _textBuilder.Length);
+        end = Math.Clamp(end, 0, _textBuilder.Length);
+        _selectionStart = start;
+        _caretIndex = end;
+        TryUpdateCaretPosition();
+    }
+
+    public void ScrollToBottom()
+    {
+        if (!_multiline) return;
+        var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
+        if (layout == null) return;
+        float textHeight = layout.Metrics.Height;
+        float clipHeight = _textClipContainer.ClipHeight ?? 0f;
+        float maxScrollY = Math.Max(0, textHeight - clipHeight);
+        if (maxScrollY <= 0) return;
+        _textContainer.Y = -maxScrollY;
+    }
+
+    public void ScollToTop()
+    {
+        if (!_multiline) return;
+        _textContainer.Y = 0f;
+    }
+
+    /// <summary>
+    /// 滚动视图以确保光标可见。
+    /// </summary>
+    public void ScrollToCaret()
+    {
+        // 强制重新计算，即使没有标记为 dirty
+        _caretPositionDirty = false; // 避免跳过计算
+        TryUpdateCaretPosition();
+    }
+
     #endregion
 }
