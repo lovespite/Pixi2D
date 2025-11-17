@@ -36,6 +36,7 @@ public class Text : DisplayObject
     private RawColor4 _fillColor;
     private float _maxWidth = float.MaxValue;
     private float _maxHeight = float.MaxValue;
+    private WordWrapping _wordWrapping = WordWrapping.Wrap;
 
     // --- 公共属性 --- 
 
@@ -87,6 +88,24 @@ public class Text : DisplayObject
         set { if (_maxHeight != value) { _maxHeight = value; _isDirty = true; } }
     }
 
+    /// <summary>
+    /// 获取或设置文本是否自动换行。
+    /// true = 自动换行 (Wrap), false = 不换行 (NoWrap).
+    /// </summary>
+    public bool WordWrap
+    {
+        get => _wordWrapping == WordWrapping.Wrap;
+        set
+        {
+            var newMode = value ? WordWrapping.Wrap : WordWrapping.NoWrap;
+            if (_wordWrapping != newMode)
+            {
+                _wordWrapping = newMode;
+                _isDirty = true; // 强制重建 format 和 layout
+            }
+        }
+    }
+
     private readonly SharpDX.DirectWrite.Factory _dwFactory;
 
     /// <summary>
@@ -97,15 +116,45 @@ public class Text : DisplayObject
         if (_textFormat is null || _isDirty)
         {
             _textFormat?.Dispose();
-            _textFormat = new TextFormat(
+            _textFormat =
+                new TextFormat(
                                 factory: _dwFactory,
                                 fontFamilyName: _fontFamily,
                                 fontSize: _fontSize,
                                 fontWeight: _fontWeight,
-                                fontStyle: _fontStyle);
+                                fontStyle: _fontStyle)
+                {
+                    WordWrapping = WordWrapping.Wrap
+                };
             _isDirty = true; // 标记布局仍需更新
         }
+
         return _textFormat;
+    }
+
+    /// <summary>
+    /// (新增) 获取当前或更新后的 TextLayout。
+    /// </summary>
+    public TextLayout? GetTextLayout(RenderTarget? renderTarget = null)
+    {
+        var rt = renderTarget ?? _cachedRenderTarget ?? GetStage()?.GetCachedRenderTarget();
+        if ((_textLayout is null || _isDirty) && rt is not null)
+        {
+            UpdateResources(rt);
+        }
+        return _textLayout;
+    }
+
+    private TextLayout GetTextLayoutInternal()
+    {
+        if (_textLayout is null || _isDirty)
+        {
+            _textLayout?.Dispose();
+            _textLayout = new TextLayout(_dwFactory, _text ?? string.Empty, GetTextFormat(), _maxWidth, _maxHeight);
+            _isDirty = false; // 布局已更新
+        }
+
+        return _textLayout;
     }
 
     /// <summary>
@@ -143,22 +192,7 @@ public class Text : DisplayObject
         // 检查文本样式/内容是否已更改
         if (_isDirty)
         {
-            // 释放旧资源
-            _textFormat?.Dispose();
-            _textLayout?.Dispose();
-
-            // 1. 创建 TextFormat
-            _textFormat = new TextFormat(
-                                        factory: _dwFactory,
-                                        fontFamilyName: _fontFamily,
-                                        fontSize: _fontSize,
-                                        fontWeight: _fontWeight,
-                                        fontStyle: _fontStyle);
-
-            // 2. 创建 TextLayout
-            _textLayout = new TextLayout(_dwFactory, _text ?? string.Empty, _textFormat, _maxWidth, _maxHeight);
-
-            _isDirty = false;
+            GetTextLayoutInternal(); // 使用现有方法重建布局 
         }
 
         // 检查笔刷颜色是否已更改
@@ -180,7 +214,7 @@ public class Text : DisplayObject
         }
     }
 
-    public RectangleF GetTextRect(bool forceUpdate = false, RenderTarget? renderTarget = null)
+    public TextMetrics GetTextRect(bool forceUpdate = false, RenderTarget? renderTarget = null)
     {
         if (forceUpdate)
         {
@@ -194,10 +228,9 @@ public class Text : DisplayObject
             }
         }
 
-        if (_textLayout is null) return RectangleF.Empty;
+        if (_textLayout is null) return default;
 
-        var metrics = _textLayout.Metrics;
-        return new RectangleF(metrics.Left, metrics.Top, metrics.Width, metrics.Height);
+        return _textLayout.Metrics; 
     }
 
     /// <summary>

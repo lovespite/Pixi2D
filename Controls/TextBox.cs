@@ -23,6 +23,8 @@ public class TextBox : Container
 
     // --- 子控件 ---
     private readonly Graphics _background;
+    private readonly Container _textClipContainer; // 用于裁剪
+    private readonly Container _textContainer;     // 用于滚动
     private readonly Text _textDisplay;
     private readonly Graphics _caret; // 光标
     private readonly Text.Factory _textFactory; // 用于创建和测量文本
@@ -33,6 +35,7 @@ public class TextBox : Container
     private int _caretIndex = 0; // 光标在字符串中的索引
     private float _blinkTimer = 0f;
     private const float BlinkRate = 0.5f; // 光标闪烁速率 (秒)
+    private bool _multiline = false;
 
     // --- 样式属性 ---
     private float _boxWidth = 200f;
@@ -41,6 +44,8 @@ public class TextBox : Container
     private RawColor4 _borderColor = new(0.5f, 0.5f, 0.5f, 1.0f);
     private RawColor4 _focusedBorderColor = new(0.0f, 0.6f, 1.0f, 1.0f);
     private float _borderWidth = 1f;
+    private float _paddingX = 5f;
+    private float _paddingY = 2f;
 
     public override float Height
     {
@@ -72,6 +77,37 @@ public class TextBox : Container
     }
 
     /// <summary>
+    /// 获取或设置是否启用多行模式。
+    /// 默认 false (单行，水平滚动)。
+    /// true (多行，垂直换行，内容裁剪)。
+    /// </summary>
+    public bool Multiline
+    {
+        get => _multiline;
+        set
+        {
+            if (_multiline != value)
+            {
+                _multiline = value;
+                _textDisplay.WordWrap = value; // 启用或禁用文本换行
+                if (value)
+                {
+                    // 多行: 按宽度换行，重置滚动
+                    _textDisplay.MaxWidth = _boxWidth - (_paddingX * 2);
+                    _textContainer.X = 0;
+                }
+                else
+                {
+                    // 单行: 不换行，无限宽度
+                    _textDisplay.MaxWidth = float.MaxValue;
+                }
+                UpdateTextDisplay();
+                UpdateTextAndCaret();
+            }
+        }
+    }
+
+    /// <summary>
     /// 创建一个新的文本输入框。
     /// </summary>
     /// <param name="textFactory">用于创建内部 Text 对象的工厂。</param>
@@ -83,6 +119,7 @@ public class TextBox : Container
         _boxWidth = width;
         _boxHeight = height;
 
+        float textHeight = _textFactory.FontSize + 2f; // 估算单行文本高度
         // 1. 创建背景
         _background = new Graphics
         {
@@ -90,26 +127,42 @@ public class TextBox : Container
             FocusTarget = this,
         };
         UpdateBackground();
-        base.AddChild(_background);
+        AddChild(_background);
 
-        // 2. 创建文本显示
+        // 2. 创建裁剪容器
+        _textClipContainer = new Container
+        {
+            X = _paddingX,
+            // 垂直居中
+            Y = (_boxHeight - textHeight) / 2,
+            ClipContent = true,
+            ClipWidth = _boxWidth - (_paddingX * 2),
+            ClipHeight = textHeight + _paddingY // 高度足以容纳光标
+        };
+        AddChild(_textClipContainer);
+
+        // 3. 创建滚动容器 (在裁剪容器内)
+        _textContainer = new Container();
+        _textClipContainer.AddChild(_textContainer);
+
+        // 4. 创建文本显示 (在滚动容器内)
         _textDisplay = _textFactory.Create("");
-        _textDisplay.X = 5f; // 5px 内边距
-        _textDisplay.Y = (_boxHeight - _textDisplay.FontSize) / 2; // 垂直居中
-        _textDisplay.MaxWidth = _boxWidth - 10f; // 限制宽度
-        base.AddChild(_textDisplay);
+        _textDisplay.WordWrap = false; // 默认: 不换行
+        _textDisplay.MaxWidth = float.MaxValue; // 默认: 无限宽度
+        _textContainer.AddChild(_textDisplay);
 
-        // 3. 创建光标 (Caret)
+        // 5. 创建光标 (Caret) (在滚动容器内)
         _caret = new Graphics
         {
             Visible = false,
             FillColor = _textFactory.FillColor.ToRawColor4() // 使用文本颜色
         };
-        _caret.DrawRectangle(0, -1f, 2f, _textDisplay.FontSize + 2); // 光标高度
-        _caret.Y = (_boxHeight - _textDisplay.FontSize) / 2;
-        base.AddChild(_caret);
+        // Y = -1f, 高度 + 2 确保光标略高于和低于文本
+        _caret.DrawRectangle(0, -1f, 2f, _textDisplay.FontSize + 2);
+        _caret.Y = 0; // Y 坐标由 _textContainer 控制
+        _textContainer.AddChild(_caret);
 
-        // 4. 设置交互
+        // 6. 设置交互
         Interactive = true; // 使 TextBox 容器本身可交互
         AcceptFocus = true; // 允许接受焦点
         _background.OnMouseDown += HandleMouseDown; // 背景也响应点击
@@ -130,6 +183,7 @@ public class TextBox : Container
         evt.StopPropagation(); // 停止冒泡，防止点击穿透
     }
 
+    #region Core Event Handlers
     // --- 核心事件处理器 ---
 
     private void HandleKeyPress(DisplayObjectEvent evt)
@@ -139,7 +193,10 @@ public class TextBox : Container
         char c = evt.Data.KeyChar;
 
         // 过滤掉控制字符 (例如 backspace, enter, tab)
-        if (char.IsControl(c)) return;
+        // (多行模式下也许要允许 Enter)
+        if (char.IsControl(c) && (!_multiline || c != '\r')) return;
+
+        if (_multiline && c == '\r') c = '\n'; // 转换为换行符
 
         _textBuilder.Insert(_caretIndex, c);
         _caretIndex++;
@@ -199,6 +256,9 @@ public class TextBox : Container
         }
     }
 
+    #endregion
+
+    #region Rendering Methods
     // --- 更新方法 ---
 
     private void UpdateTextAndCaret()
@@ -210,6 +270,33 @@ public class TextBox : Container
     private void UpdateTextDisplay()
     {
         _textDisplay.Content = _textBuilder.ToString();
+
+        // 如果是多行，我们还需要更新裁剪高度
+        if (_multiline)
+        {
+            var stage = GetStage();
+            if (stage != null)
+            {
+                // 强制更新文本布局以获取高度
+                var rect = _textDisplay.GetTextRect(true, stage.GetCachedRenderTarget());
+                float textHeight = rect.Height;
+
+                // 更新裁剪容器高度，但不超过文本框的总高度
+                float newClipHeight = Math.Max(
+                    _textFactory.FontSize + 2, // 最小高度
+                    Math.Min(textHeight + _paddingY, _boxHeight - (_paddingY * 2)) // 最大高度
+                );
+                _textClipContainer.Y = _paddingY;
+                _textClipContainer.ClipHeight = newClipHeight;
+            }
+        }
+        else
+        {
+            // 单行，重置裁剪高度
+            float textHeight = _textFactory.FontSize + 2f;
+            _textClipContainer.ClipHeight = textHeight + _paddingY;
+            _textClipContainer.Y = (_boxHeight - textHeight) / 2;
+        }
     }
 
     /// <summary>
@@ -217,36 +304,85 @@ public class TextBox : Container
     /// </summary>
     private void UpdateCaretPosition()
     {
-        float caretX = 0f;
-        if (_caretIndex > 0)
+        float caretX = 0f, caretY = 0f, caretHeight = _textFactory.FontSize;
+
+        var stage = GetStage();
+        var rt = stage?.GetCachedRenderTarget();
+        var textLayout = _textDisplay.GetTextLayout(rt); // 获取 TextLayout
+
+        if (textLayout != null)
         {
             try
             {
-                // 使用 Text.Factory 和 Text.GetTextFormat 来测量子字符串 
-                var format = _textDisplay.GetTextFormat();
+                // 使用 HitTestTextPosition 获取光标在文本索引处的准确 (X, Y) 坐标 
+                var metrics = textLayout.HitTestTextPosition(_caretIndex, false, out float htmX, out float htmY);
+                caretX = metrics.Left;
+                caretY = metrics.Top;
 
-                // 创建一个临时的 TextLayout 来测量子字符串
-                var tempLayout = new TextLayout(
-                    _textFactory.DwfInstance,
-                    _textBuilder.ToString(0, _caretIndex), // 测量从开头到光标位置的文本
-                    format,
-                    float.MaxValue,
-                    float.MaxValue);
-
-                // 获取测量宽度
-                caretX = tempLayout.Metrics.WidthIncludingTrailingWhitespace;
-                tempLayout.Dispose();
+                if (metrics.Height > 0)
+                {
+                    caretHeight = metrics.Height;
+                }
             }
             catch (Exception ex)
             {
-                // 异常回退 (例如在 DirectWrite 尚未初始化时)
-                Console.WriteLine("Caret update failed: " + ex.Message);
+                // 异常回退
+                Console.WriteLine("Caret HitTest failed: " + ex.Message);
                 caretX = _caretIndex * _textDisplay.FontSize * 0.6f; // 粗略估算
             }
         }
 
-        // 设置光标位置 (加上文本的内边距)
-        _caret.X = _textDisplay.X + caretX;
+        // --- 更新光标图形 ---
+        _caret.Clear();
+        // Y = -1f, 高度 + 2 确保光标略高于和低于文本
+        _caret.DrawRectangle(0, -1f, 2f, caretHeight + 2f);
+        _caret.X = caretX;
+        _caret.Y = caretY;
+
+        // --- 滚动逻辑 ---
+        float clipWidth = _textClipContainer.ClipWidth ?? 0f;
+        float clipHeight = _textClipContainer.ClipHeight ?? 0f;
+        float textContainerX = _textContainer.X;
+        float textContainerY = _textContainer.Y;
+
+        float viewStartX = -textContainerX;
+        float viewEndX = viewStartX + clipWidth;
+        float viewStartY = -textContainerY;
+        float viewEndY = viewStartY + clipHeight;
+
+        float caretMargin = 4f; // 留出一点边距
+
+        // --- 垂直滚动逻辑 (多行) ---
+        if (_multiline)
+        {
+            if (caretY < viewStartY + caretMargin)
+            {
+                // 光标在可视区域上方，向上滚动
+                _textContainer.Y = -Math.Max(0, caretY - caretMargin);
+            }
+            else if (caretY + caretHeight > viewEndY - caretMargin)
+            {
+                // 光标在可视区域下方，向下滚动
+                _textContainer.Y = -(caretY + caretHeight - clipHeight + caretMargin);
+            }
+            // 否则，光标在视图内，不滚动
+        }
+        // --- 水平滚动逻辑 (单行) ---
+        else
+        {
+            if (caretX < viewStartX + caretMargin)
+            {
+                // 光标在可视区域左侧
+                _textContainer.X = -Math.Max(0, caretX - caretMargin);
+            }
+            else if (caretX > viewEndX - caretMargin)
+            {
+                // 光标在可视区域右侧
+                _textContainer.X = -(caretX - clipWidth + caretMargin);
+            }
+            // 否则，光标在视图内，不滚动
+        }
+        // --- 结束滚动逻辑 ---
 
         // 重置光标闪烁
         _blinkTimer = 0f;
@@ -296,4 +432,6 @@ public class TextBox : Container
             _caret.Visible = false;
         }
     }
+
+    #endregion
 }

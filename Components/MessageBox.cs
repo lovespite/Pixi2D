@@ -271,14 +271,38 @@ partial class MessageBox
     }
 
     /// <summary>
-    /// 异步显示一个带提示和文本输入框的对话框。 
+    /// 异步显示一个带提示和 **单行** 文本输入框的对话框。
     /// </summary>
-    /// <param name="prompt">要显示的提示消息。 </param>
-    /// <param name="defaultText">输入框中的默认文本。 </param>
+    /// <param name="prompt">要显示的提示消息。</param>
+    /// <param name="defaultText">输入框中的默认文本。</param>
     /// <param name="okText">显示在“确认”按钮上的文本</param>
-    /// <param name="cancelText">显示在“取消”按钮上的文本</param> 
-    /// <returns>如果点击 "确认" 则为输入的字符串，如果点击 "取消" 则为 null。 
+    /// <param name="cancelText">显示在“取消”按钮上的文本</param>
+    /// <returns>如果点击 "确认" 则为输入的字符串，如果点击 "取消" 则为 null。</returns>
     public static async Task<string?> Input(string prompt, string? defaultText = null, string? okText = null, string? cancelText = null)
+    {
+        // 调用内部实现，指定为单行
+        return await InputInternal(prompt, defaultText, false, 30f, okText, cancelText);
+    }
+
+    /// <summary>
+    /// 异步显示一个带提示和 **多行** 文本输入框的对话框。
+    /// </summary>
+    /// <param name="prompt">要显示的提示消息。</param>
+    /// <param name="inputHeight">多行输入框的高度。</param>
+    /// <param name="defaultText">输入框中的默认文本。</param>
+    /// <param name="okText">显示在“确认”按钮上的文本</param>
+    /// <param name="cancelText">显示在“取消”按钮上的文本</param>
+    /// <returns>如果点击 "确认" 则为输入的字符串，如果点击 "取消" 则为 null。</returns>
+    public static async Task<string?> Input(string prompt, float inputHeight, string? defaultText = null, string? okText = null, string? cancelText = null)
+    {
+        // 调用内部实现，指定为多行
+        return await InputInternal(prompt, defaultText, true, inputHeight, okText, cancelText);
+    }
+
+    /// <summary>
+    /// 内部 Input 实现，用于处理单行和多行。
+    /// </summary>
+    private static async Task<string?> InputInternal(string prompt, string? defaultText, bool multiline, float inputHeight, string? okText, string? cancelText)
     {
         CheckStaticDependencies();
         var stage = DefaultStage!;
@@ -296,11 +320,13 @@ partial class MessageBox
         var text = textFactory.Create(prompt, 14, Color.White);
         contentLayout.AddChild(text);
         text.MaxWidth = 380;
-        text.Height = text.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget()).Height; // 自动高度
+        var promptTextRect = text.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget());
+        text.Height = promptTextRect.Height; // 自动高度
 
         // 添加输入框
-        var textBox = new TextBox(textFactory, 375, 30)
+        var textBox = new TextBox(textFactory, 375, inputHeight)
         {
+            Multiline = multiline,
             Text = defaultText ?? string.Empty,
         };
         contentLayout.AddChild(textBox);
@@ -311,17 +337,27 @@ partial class MessageBox
 
         var tcs = new TaskCompletionSource<object?>();
 
-        using var mb = new MessageBox(stage, new SizeF(400, 200), contentLayout, [okButton, cancelButton]);
+        // 计算 MessageBox 高度
+        // 基础高度 (Padding + 按钮 + 间隙) = 20 (上下 padding) + 30 (按钮) + 10 (间隙) = 60
+        // 内容高度 = promptHeight + 10 (间隙) + inputHeight
+        float messageBoxHeight = 60 + promptTextRect.Height + 10 + inputHeight;
+        messageBoxHeight = Math.Max(150, messageBoxHeight); // 最小高度
 
-        textBox.OnKeyUp += (evt) =>
+        using var mb = new MessageBox(stage, new SizeF(400, messageBoxHeight + 4), contentLayout, [okButton, cancelButton]);
+
+        // 仅在单行模式下，回车键才确认
+        if (!multiline)
         {
-            // 如果按下回车键则确认输入
-            if (evt.Data?.KeyCode == 13) // Enter key
+            textBox.OnKeyUp += (evt) =>
             {
-                mb.Hide();
-                tcs.TrySetResult(textBox.Text);
-            }
-        };
+                // 如果按下回车键则确认输入
+                if (evt.Data?.KeyCode == 13) // Enter key
+                {
+                    mb.Hide();
+                    tcs.TrySetResult(textBox.Text);
+                }
+            };
+        }
 
         // 自动聚焦到输入框
         mb.OnFocus += textBox.Focus;
