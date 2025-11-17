@@ -1,3 +1,4 @@
+using Pixi2D.Core;
 using SharpDX.DirectWrite;
 using SharpDX.Mathematics.Interop;
 using System.Drawing;

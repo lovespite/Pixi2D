@@ -3,11 +3,11 @@ using SharpDX.Mathematics.Interop;
 using System.Drawing;
 using System.Numerics;
 
-namespace Pixi2D;
+namespace Pixi2D.Core;
 
 // 使用 SharpDX.Direct2D1.Bitmap1 (来自 WIC) 或 SharpDX.Direct2D1.Bitmap (来自 DXGI)
 // 为简单起见，这里我们假设是 Bitmap1
-using D2DBitmap = SharpDX.Direct2D1.Bitmap1;
+using D2DBitmap = Bitmap1;
 /// <summary>
 /// 用于显示位图 (纹理) 的 DisplayObject。
 /// 类似于 PIXI.js 中的 Sprite。
@@ -88,7 +88,7 @@ public class Sprite : DisplayObject
         renderTarget.DrawBitmap(
             Bitmap,
             destRect, // 目标矩形 (在我们的局部坐标系中)
-            this.Alpha, // *这里* 我们应用 Sprite 自己的 Alpha
+            Alpha, // *这里* 我们应用 Sprite 自己的 Alpha
             BitmapInterpolationMode.Linear,
             sourceRect // 源矩形
         );

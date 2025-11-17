@@ -1,5 +1,4 @@
-﻿using Pixi2D;
-using System.Drawing;
+﻿using System.Drawing;
 
 namespace Pixi2D.Events;
 

@@ -4,7 +4,7 @@ using SharpDX.Mathematics.Interop;
 using System.Drawing;
 using System.Numerics;
 
-namespace Pixi2D;
+namespace Pixi2D.Core;
 /// <summary>
 /// 一个可以包含其他 DisplayObject (包括其他 Container) 的容器。
 /// 类似于 PIXI.js 中的 Container。

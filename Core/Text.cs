@@ -5,7 +5,7 @@ using SharpDX.Mathematics.Interop;
 using System.Drawing;
 using System.Numerics;
 
-namespace Pixi2D;
+namespace Pixi2D.Core;
 
 /// <summary>
 /// (新!) 用于显示文本的 DisplayObject。
@@ -178,6 +178,26 @@ public class Text : DisplayObject
             }
             _isBrushDirty = false;
         }
+    }
+
+    public RectangleF GetTextRect(bool forceUpdate = false, RenderTarget? renderTarget = null)
+    {
+        if (forceUpdate)
+        {
+            var rt = renderTarget ?? _cachedRenderTarget ?? GetStage()?.GetCachedRenderTarget();
+
+            // 确保 TextLayout 存在，即使尚未渲染
+            // 注意: 第一次调用可能需要一个有效的 RenderTarget
+            if (_textLayout is null && rt is not null)
+            {
+                UpdateResources(rt);
+            }
+        }
+
+        if (_textLayout is null) return RectangleF.Empty;
+
+        var metrics = _textLayout.Metrics;
+        return new RectangleF(metrics.Left, metrics.Top, metrics.Width, metrics.Height);
     }
 
     /// <summary>

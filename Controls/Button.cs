@@ -1,7 +1,6 @@
+using Pixi2D.Core;
 using Pixi2D.Events;
-using SharpDX.DirectWrite;
 using SharpDX.Mathematics.Interop;
-using System.Drawing;
 
 namespace Pixi2D.Controls;
 
@@ -289,6 +288,8 @@ public class Button : Container
             }
             UpdateBackground();
         }
+
+        base.Update(deltaTime);
     }
 
     public override void Dispose()

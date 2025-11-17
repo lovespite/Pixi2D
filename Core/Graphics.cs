@@ -3,7 +3,7 @@ using SharpDX.Mathematics.Interop;
 using System.Drawing;
 using System.Numerics;
 
-namespace Pixi2D;
+namespace Pixi2D.Core;
 
 /// <summary>
 /// 用于绘制矢量图形 (矩形、圆形等) 的 DisplayObject。

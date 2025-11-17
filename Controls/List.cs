@@ -1,3 +1,5 @@
+using Pixi2D.Core;
+
 namespace Pixi2D.Controls;
 
 /// <summary>

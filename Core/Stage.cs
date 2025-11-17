@@ -4,7 +4,7 @@ using SharpDX.Direct2D1;
 using SharpDX.Mathematics.Interop;
 using System.Drawing;
 using System.Numerics;
-namespace Pixi2D;
+namespace Pixi2D.Core;
 
 /// <summary>
 /// 场景的根容器。处理 BeginDraw/EndDraw。
@@ -20,18 +20,28 @@ public sealed class Stage : Container
     /// </summary>
     public DisplayObject? FocusedObject => _focusedObject;
 
+    private RenderTarget? _cachedRenderTarget;
+
+    public RenderTarget? GetCachedRenderTarget()
+    {
+        return _cachedRenderTarget;
+    }
+
     /// <summary>
     /// 渲染整个场景。
     /// </summary>
     /// <param name="renderTarget">D2D 渲染目标。</param>
     public void Render(RenderTarget renderTarget)
     {
+        Interlocked.CompareExchange(ref _cachedRenderTarget, renderTarget, null);
         // 以单位矩阵开始递归渲染 
-        base.Render(renderTarget, Matrix3x2.Identity);
+        Render(renderTarget, Matrix3x2.Identity);
     }
 
     public void Resize(float newWidth, float newHeight)
     {
+        this.Width = newWidth;
+        this.Height = newHeight;
         OnResize?.Invoke(this, newWidth, newHeight);
     }
 
@@ -84,8 +94,10 @@ public sealed class Stage : Container
         }
     }
 
+
     // --- 公共事件分发器 (由您的应用程序调用) ---
 
+    #region Mouse Events
     /// <summary>
     /// 在鼠标移动时调用此方法。
     /// </summary>
@@ -94,7 +106,7 @@ public sealed class Stage : Container
     {
         var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
         // 1. 查找被命中的对象
-        DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
+        DisplayObject? hitObject = FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
 
         // 2. 处理 MouseOver / MouseOut
         if (hitObject != _lastMouseOverObject)
@@ -127,7 +139,7 @@ public sealed class Stage : Container
     public void DispatchMouseDown(PointF worldPoint, int button)
     {
         var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
-        DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
+        DisplayObject? hitObject = FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
 
         // 如果点击了可交互对象，它将获得焦点。 
         if (hitObject is null)
@@ -153,7 +165,7 @@ public sealed class Stage : Container
     public void DispatchMouseUp(PointF worldPoint, int button)
     {
         var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
-        DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
+        DisplayObject? hitObject = FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
 
         // 1. 触发 MouseUp (冒泡)
         if (hitObject is not null)
@@ -173,7 +185,7 @@ public sealed class Stage : Container
     public void DispatchMouseWheel(PointF worldPoint, float deltaY)
     {
         var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
-        DisplayObject? hitObject = this.FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
+        DisplayObject? hitObject = FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
         if (hitObject is not null)
         {
             // 创建一个新的事件对象，包含滚轮数据
@@ -188,6 +200,7 @@ public sealed class Stage : Container
             BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { MouseWheelDeltaY = deltaY }, (obj) => obj.OnMouseWheel);
         }
     }
+    #endregion
 
     #region Keyboard Events
     /// <summary>

@@ -1,3 +1,4 @@
+using Pixi2D.Core;
 using Pixi2D.Events;
 using SharpDX.Direct2D1;
 using SharpDX.Mathematics.Interop;
