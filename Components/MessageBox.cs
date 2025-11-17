@@ -344,6 +344,7 @@ partial class MessageBox
         messageBoxHeight = Math.Max(150, messageBoxHeight); // 最小高度
 
         using var mb = new MessageBox(stage, new SizeF(400, messageBoxHeight + 4), contentLayout, [okButton, cancelButton]);
+        // 重要！需要在 MessageBox 实例化后再设置这些属性 
 
         // 仅在单行模式下，回车键才确认
         if (!multiline)

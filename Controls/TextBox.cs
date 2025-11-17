@@ -38,6 +38,8 @@ public class TextBox : Container
     private float _blinkTimer = 0f;
     private const float BlinkRate = 0.5f; // 光标闪烁速率 (秒)
     private bool _multiline = false;
+    private bool _caretPositionDirty = true;
+    private bool _displayStateDirty = true;
 
     // --- 样式属性 ---
     private float _boxWidth = 200f;
@@ -45,9 +47,9 @@ public class TextBox : Container
     private RawColor4 _backgroundColor = new(0.1f, 0.1f, 0.1f, 1.0f);
     private RawColor4 _borderColor = new(0.5f, 0.5f, 0.5f, 1.0f);
     private RawColor4 _focusedBorderColor = new(0.0f, 0.6f, 1.0f, 1.0f);
-    private float _borderWidth = 1f;
-    private float _paddingX = 5f;
-    private float _paddingY = 2f;
+    private readonly float _borderWidth = 1f;
+    private readonly float _paddingX = 5f;
+    private readonly float _paddingY = 2f;
 
     public override float Height
     {
@@ -73,8 +75,9 @@ public class TextBox : Container
             _textBuilder.Append(value);
             // 确保光标位置有效
             _caretIndex = Math.Clamp(value.Length, 0, _textBuilder.Length);
-            UpdateTextDisplay();
-            UpdateCaretPosition();
+            TryUpdateTextDisplay();
+            _caretPositionDirty = true; // 标记为脏
+            TryUpdateCaretPosition();
         }
     }
 
@@ -103,7 +106,8 @@ public class TextBox : Container
                     // 单行: 不换行，无限宽度
                     _textDisplay.MaxWidth = float.MaxValue;
                 }
-                UpdateTextDisplay();
+                _caretPositionDirty = true;
+                _displayStateDirty = true;
                 UpdateTextAndCaret();
             }
         }
@@ -261,7 +265,7 @@ public class TextBox : Container
             _caretIndex = Math.Clamp(newCaretIndex, 0, _textBuilder.Length);
 
             // 4. 更新光标
-            UpdateCaretPosition();
+            TryUpdateCaretPosition();
         }
         catch (Exception ex)
         {
@@ -364,7 +368,7 @@ public class TextBox : Container
             // 如果 MoveCaretVertical 没有被调用，则手动更新
             if (evt.Data.KeyCode != VK_UP && evt.Data.KeyCode != VK_DOWN)
             {
-                UpdateCaretPosition();
+                TryUpdateCaretPosition();
             }
         }
     }
@@ -373,46 +377,6 @@ public class TextBox : Container
 
     #region Rendering Methods
     // --- 更新方法 ---
-
-    private void UpdateTextAndCaret()
-    {
-        UpdateTextDisplay();
-        UpdateCaretPosition();
-    }
-
-    private void UpdateTextDisplay()
-    {
-        _textDisplay.Content = _textBuilder.ToString();
-
-        // 如果是多行，我们还需要更新裁剪高度
-        if (_multiline)
-        {
-            var stage = GetStage();
-            if (stage != null)
-            {
-                // 强制更新文本布局以获取高度
-                var rect = _textDisplay.GetTextRect(true, stage.GetCachedRenderTarget());
-                float textHeight = rect.Height;
-
-                // 更新裁剪容器高度，但不超过文本框的总高度
-                float newClipHeight = Math.Max(
-                    _textFactory.FontSize + 2, // 最小高度
-                    Math.Min(textHeight + _paddingY, _boxHeight - (_paddingY * 2)) // 最大高度
-                );
-
-                // 多行模式，Y 始终在顶部
-                _textClipContainer.Y = _paddingY;
-                _textClipContainer.ClipHeight = _boxHeight - (_paddingY * 2); // 裁剪区域始终是框的内部高度
-            }
-        }
-        else
-        {
-            // 单行，重置裁剪高度并垂直居中
-            float textHeight = _textFactory.FontSize + 2f;
-            _textClipContainer.ClipHeight = textHeight + _paddingY;
-            _textClipContainer.Y = (_boxHeight - textHeight) / 2;
-        }
-    }
 
     /// <summary>
     /// (新增) 处理多行模式下的上/下光标移动。
@@ -450,7 +414,7 @@ public class TextBox : Container
             int newCaretIndex = hitTestMetrics.TextPosition + (isTrailingHit ? 1 : 0);
 
             _caretIndex = Math.Clamp(newCaretIndex, 0, _textBuilder.Length);
-            UpdateCaretPosition();
+            TryUpdateCaretPosition();
         }
         catch (Exception ex)
         {
@@ -458,10 +422,45 @@ public class TextBox : Container
         }
     }
 
+    private void UpdateTextAndCaret()
+    {
+        TryUpdateTextDisplay();
+        TryUpdateCaretPosition();
+    }
+
+    private void TryUpdateTextDisplay()
+    {
+        _textDisplay.Content = _textBuilder.ToString();
+
+        // 如果是多行，我们还需要更新裁剪高度
+        if (_multiline)
+        {
+            var stage = GetStage();
+            if (stage is not null)
+            {
+                // 多行模式，Y 始终在顶部
+                _textClipContainer.Y = _paddingY;
+                _textClipContainer.ClipHeight = _boxHeight - (_paddingY * 2); // 裁剪区域始终是框的内部高度
+                _displayStateDirty = false;
+            }
+            else
+            {
+                _displayStateDirty = true; // 标记为脏，等待下一次更新
+            }
+        }
+        else
+        {
+            // 单行，重置裁剪高度并垂直居中
+            float textHeight = _textFactory.FontSize + 2f;
+            _textClipContainer.ClipHeight = textHeight + _paddingY;
+            _textClipContainer.Y = (_boxHeight - textHeight) / 2;
+        }
+    }
+
     /// <summary>
     /// 计算并更新光标的 X 坐标。
     /// </summary>
-    private void UpdateCaretPosition()
+    private void TryUpdateCaretPosition()
     {
         float caretX = 0f, caretY = 0f, caretHeight = _textFactory.FontSize;
 
@@ -469,26 +468,29 @@ public class TextBox : Container
         var rt = stage?.GetCachedRenderTarget();
         var textLayout = _textDisplay.GetTextLayout(rt); // 获取 TextLayout
 
-        if (textLayout != null)
+        if (textLayout is null)
         {
-            try
-            {
-                // 使用 HitTestTextPosition 获取光标在文本索引处的准确 (X, Y) 坐标 
-                var metrics = textLayout.HitTestTextPosition(_caretIndex, false, out float htmX, out float htmY);
-                caretX = metrics.Left;
-                caretY = metrics.Top;
+            _caretPositionDirty = true; // 失败，保持脏标记
+            return;
+        }
 
-                if (metrics.Height > 0)
-                {
-                    caretHeight = metrics.Height;
-                }
-            }
-            catch (Exception ex)
+        try
+        {
+            // 使用 HitTestTextPosition 获取光标在文本索引处的准确 (X, Y) 坐标 
+            var metrics = textLayout.HitTestTextPosition(_caretIndex, false, out float htmX, out float htmY);
+            caretX = metrics.Left;
+            caretY = metrics.Top;
+
+            if (metrics.Height > 0)
             {
-                // 异常回退
-                Console.WriteLine("Caret HitTest failed: " + ex.Message);
-                caretX = _caretIndex * _textDisplay.FontSize * 0.6f; // 粗略估算
+                caretHeight = metrics.Height;
             }
+        }
+        catch (Exception ex)
+        {
+            // 异常回退
+            Console.WriteLine("Caret HitTest failed: " + ex.Message);
+            caretX = _caretIndex * _textDisplay.FontSize * 0.6f; // 粗略估算
         }
 
         // --- 更新光标图形 ---
@@ -546,6 +548,9 @@ public class TextBox : Container
         // 重置光标闪烁
         _blinkTimer = 0f;
         _caret.Visible = _isFocused;
+
+        _caretPositionDirty = false;
+        return;
     }
 
     /// <summary>
@@ -566,6 +571,14 @@ public class TextBox : Container
     public override void Update(float deltaTime)
     {
         base.Update(deltaTime); // 更新子控件 (Text, Graphics)
+        if (_caretPositionDirty)
+        {
+            TryUpdateCaretPosition();
+        }
+        if (_displayStateDirty)
+        {
+            TryUpdateTextDisplay();
+        }
 
         // 检查焦点状态是否改变 
         bool hasFocus = IsFocused();
