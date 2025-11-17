@@ -20,28 +20,36 @@ public class TextBox : Container
     public const int VK_RIGHT = 39;
     public const int VK_HOME = 36;
     public const int VK_END = 35;
-    public const int VK_UP = 38;   // 新增：上箭头
-    public const int VK_DOWN = 40; // 新增：下箭头
+    public const int VK_UP = 38;
+    public const int VK_DOWN = 40;
+    // 用于剪贴板和全选
+    public const int VK_C = 0x43;
+    public const int VK_V = 0x56;
+    public const int VK_X = 0x58;
+    public const int VK_A = 0x41;
 
-    // --- 子控件 ---
+    // --- 子控件  ---
     private readonly Graphics _background;
     private readonly Container _textClipContainer; // 用于裁剪
     private readonly Container _textContainer;     // 用于滚动
+    private readonly Graphics _selectionHighlight; //  用于绘制选中高亮 
     private readonly Text _textDisplay;
-    private readonly Graphics _caret; // 光标
-    private readonly Text.Factory _textFactory; // 用于创建和测量文本
+    private readonly Graphics _caret; // 光标 
+    private readonly Text.Factory _textFactory; // 用于创建和测量文本 
 
-    // --- 内部状态 ---
+    // --- 内部状态  ---
     private readonly StringBuilder _textBuilder = new();
     private bool _isFocused = false;
-    private int _caretIndex = 0; // 光标在字符串中的索引
+    private int _caretIndex = 0; // 光标在字符串中的索引 
+    private int _selectionStart = 0; //  选区的“锚点” 
+    private bool _isSelecting = false; //  鼠标是否按下并移动 
     private float _blinkTimer = 0f;
-    private const float BlinkRate = 0.5f; // 光标闪烁速率 (秒)
+    private const float BlinkRate = 0.5f; // 光标闪烁速率  
     private bool _multiline = false;
     private bool _caretPositionDirty = true;
     private bool _displayStateDirty = true;
 
-    // --- 样式属性 ---
+    // --- 样式属性  ---
     private float _boxWidth = 200f;
     private float _boxHeight = 30f;
     private RawColor4 _backgroundColor = new(0.1f, 0.1f, 0.1f, 1.0f);
@@ -64,7 +72,7 @@ public class TextBox : Container
     }
 
     /// <summary>
-    /// 获取或设置输入框中的文本内容。
+    /// 获取或设置输入框中的文本内容。 
     /// </summary>
     public string Text
     {
@@ -73,10 +81,11 @@ public class TextBox : Container
         {
             _textBuilder.Clear();
             _textBuilder.Append(value);
-            // 确保光标位置有效
+            // 确保光标位置有效 
             _caretIndex = Math.Clamp(value.Length, 0, _textBuilder.Length);
+            _selectionStart = _caretIndex; //  重置选区
             TryUpdateTextDisplay();
-            _caretPositionDirty = true; // 标记为脏
+            _caretPositionDirty = true; // 标记为脏 
             TryUpdateCaretPosition();
         }
     }
@@ -94,16 +103,16 @@ public class TextBox : Container
             if (_multiline != value)
             {
                 _multiline = value;
-                _textDisplay.WordWrap = value; // 启用或禁用文本换行
+                _textDisplay.WordWrap = value; // 启用或禁用文本换行 
                 if (value)
                 {
-                    // 多行: 按宽度换行，重置滚动
+                    // 多行: 按宽度换行，重置滚动 
                     _textDisplay.MaxWidth = _boxWidth - (_paddingX * 2);
                     _textContainer.X = 0;
                 }
                 else
                 {
-                    // 单行: 不换行，无限宽度
+                    // 单行: 不换行，无限宽度 
                     _textDisplay.MaxWidth = float.MaxValue;
                 }
                 _caretPositionDirty = true;
@@ -113,8 +122,48 @@ public class TextBox : Container
         }
     }
 
+    //  检查是否有选区 
+    private bool HasSelection => _selectionStart != _caretIndex;
+
     /// <summary>
-    /// 创建一个新的文本输入框。
+    ///  获取标准化的选区范围 (start, end)。 
+    /// </summary>
+    private (int, int) GetSelectionRange()
+    {
+        int start = Math.Min(_selectionStart, _caretIndex);
+        int end = Math.Max(_selectionStart, _caretIndex);
+        return (start, end);
+    }
+
+    /// <summary>
+    /// 获取选中的文本。
+    /// </summary>
+    private string GetSelectedText()
+    {
+        if (!HasSelection) return string.Empty;
+        (int start, int end) = GetSelectionRange();
+        return _textBuilder.ToString(start, end - start);
+    }
+
+    /// <summary>
+    /// 删除当前选中的文本 。
+    /// </summary>
+    /// <returns>如果删除了选区，则为 true。 </returns>
+    private bool DeleteSelection()
+    {
+        if (!HasSelection) return false;
+
+        (int start, int end) = GetSelectionRange();
+        _textBuilder.Remove(start, end - start);
+        _caretIndex = start;
+        _selectionStart = start; // 清除选区
+
+        return true;
+    }
+
+
+    /// <summary>
+    /// 创建一个新的文本输入框。 
     /// </summary>
     /// <param name="textFactory">用于创建内部 Text 对象的工厂。</param>
     /// <param name="width">输入框宽度。</param>
@@ -139,7 +188,6 @@ public class TextBox : Container
         _textClipContainer = new Container
         {
             X = _paddingX,
-            // 垂直居中 (默认单行)
             Y = (_boxHeight - textHeight) / 2,
             ClipContent = true,
             ClipWidth = _boxWidth - (_paddingX * 2),
@@ -147,41 +195,55 @@ public class TextBox : Container
         };
         AddChild(_textClipContainer);
 
-        // 3. 创建滚动容器 (在裁剪容器内)
+        // 3. 创建滚动容器 
         _textContainer = new Container();
         _textClipContainer.AddChild(_textContainer);
 
-        // 4. 创建文本显示 (在滚动容器内)
+        // 4. 创建选区高亮
+        _selectionHighlight = new Graphics
+        {
+            FillColor = new RawColor4(0.0f, 0.4f, 0.8f, 0.4f), // 半透明蓝
+            Visible = false
+        };
+        _textContainer.AddChild(_selectionHighlight);
+
+        // 5. 创建文本显示
         _textDisplay = _textFactory.Create("");
         _textDisplay.WordWrap = false; // 默认: 不换行
         _textDisplay.MaxWidth = float.MaxValue; // 默认: 无限宽度
         _textContainer.AddChild(_textDisplay);
 
-        // 5. 创建光标 (Caret) (在滚动容器内)
+        // 6. 创建光标
         _caret = new Graphics
         {
             Visible = false,
-            FillColor = _textFactory.FillColor.ToRawColor4() // 使用文本颜色
+            FillColor = _textFactory.FillColor.ToRawColor4() // 使用文本颜色 
         };
-        // Y = -1f, 高度 + 2 确保光标略高于和低于文本
+        // Y = -1f, 高度 + 2 确保光标略高于和低于文本 
         _caret.DrawRectangle(0, -1f, 2f, _textDisplay.FontSize + 2);
         _caret.Y = 0; // Y 坐标由 _textContainer 控制
         _textContainer.AddChild(_caret);
 
-        // 6. 设置交互
-        Interactive = true; // 使 TextBox 容器本身可交互
+        // 7. 设置交互
+        Interactive = true; // 使 TextBox 容器本身可交互 
         AcceptFocus = true; // 允许接受焦点
         _background.OnMouseDown += HandleMouseDown; // 背景也响应点击
 
         // 注册事件
-        // 当点击时，请求 Stage 设置我们为焦点
+        // 当点击时，请求 Stage 设置我们为焦点 
         this.OnMouseDown += HandleMouseDown;
+        this.OnMouseMove += HandleMouseMove; //
+        this.OnMouseUp += HandleMouseUp;     //
+        this.OnMouseOut += HandleMouseUp;    // 防止拖出控件外时仍保持选区
+        _background.OnMouseMove += HandleMouseMove; //
+        _background.OnMouseUp += HandleMouseUp;     //
+        _background.OnMouseOut += HandleMouseUp;    //
 
         // 挂接键盘事件
         this.OnKeyDown += HandleKeyDown;
         this.OnKeyUp += HandleKeyUp;
         this.OnKeyPress += HandleKeyPress;
-        this.OnMouseWheel += HandleMouseWheel; // 新增：挂接滚轮事件
+        this.OnMouseWheel += HandleMouseWheel;
     }
 
     public override void Dispose()
@@ -192,17 +254,24 @@ public class TextBox : Container
         this.OnKeyUp -= HandleKeyUp;
         this.OnKeyPress -= HandleKeyPress;
         this.OnMouseWheel -= HandleMouseWheel;
+        this.OnMouseMove -= HandleMouseMove;
+        this.OnMouseUp -= HandleMouseUp;
+        this.OnMouseOut -= HandleMouseUp;
+
         _background.OnMouseDown -= HandleMouseDown;
+        _background.OnMouseMove -= HandleMouseMove;
+        _background.OnMouseUp -= HandleMouseUp;
+        _background.OnMouseOut -= HandleMouseUp;
 
         base.Dispose(); // This will dispose children like _background, _textClipContainer, etc.
     }
 
     private void HandleMouseWheel(DisplayObjectEvent evt)
     {
-        // 仅在多行、有焦点且事件数据存在时滚动
+        // 仅在多行、有焦点且事件数据存在时滚动 
         if (!_isFocused || !_multiline || evt.Data == null) return;
 
-        float deltaY = evt.Data.MouseWheelDeltaY; // 假设：正值 = 向上滚, 负值 = 向下滚
+        float deltaY = evt.Data.MouseWheelDeltaY;
         if (deltaY == 0) return;
 
         var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
@@ -211,32 +280,18 @@ public class TextBox : Container
         float textHeight = layout.Metrics.Height;
         float clipHeight = _textClipContainer.ClipHeight ?? 0f;
 
-        // Max scroll (content is moved up, so Y is negative)
-        // 0 is the top (no scroll)
         float maxScrollY = Math.Max(0, textHeight - clipHeight);
-
-        // 如果内容未溢出，则无需滚动
         if (maxScrollY <= 0) return;
 
-        // --- 计算滚动量 ---
-        // 每次滚动 3 行
         float lineHeight = _textFactory.FontSize;
         if (lineHeight <= 0) lineHeight = 16f; // 默认行高
         float scrollAmount = (lineHeight * 3) * Math.Sign(deltaY);
 
-        // --- 应用新位置 ---
-        // 向上滚 (deltaY > 0)，内容向下移 (Y 增加，朝 0 靠近)
-        // 向下滚 (deltaY < 0)，内容向上移 (Y 减少，朝 -maxScrollY 靠近)
         float newY = _textContainer.Y + scrollAmount;
-
-        // --- 限制滚动范围 ---
-        // _textContainer.Y 应该在 [-maxScrollY, 0] 之间
         _textContainer.Y = Math.Clamp(newY, -maxScrollY, 0f);
 
-        // 阻止事件冒泡 (例如，防止舞台缩放)
         evt.StopPropagation();
 
-        // 重置光标闪烁
         _blinkTimer = 0f;
         _caret.Visible = _isFocused;
     }
@@ -246,31 +301,97 @@ public class TextBox : Container
         this.Focus();
         evt.StopPropagation(); // 停止冒泡，防止点击穿透
 
-        // --- 新增：点击设置光标位置 ---
+        _isSelecting = true; // 开始选区跟踪
+
         var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
         if (layout == null) return;
 
-        // 1. 计算点击位置相对于 _textDisplay 的坐标
-        // evt.LocalPosition 是相对于 _background (即 TextBox 内部的 0,0)
+        // 1. 计算点击位置
         float clickX = evt.LocalPosition.X - (_textClipContainer.X + _textContainer.X);
         float clickY = evt.LocalPosition.Y - (_textClipContainer.Y + _textContainer.Y);
 
         try
         {
             // 2. 使用 HitTestPoint 找到最近的文本位置
+            //
             var hitTestMetrics = layout.HitTestPoint(clickX, clickY, out var isTrailingHit, out var isInside);
 
             // 3. 设置光标索引
             int newCaretIndex = hitTestMetrics.TextPosition + (isTrailingHit ? 1 : 0);
             _caretIndex = Math.Clamp(newCaretIndex, 0, _textBuilder.Length);
 
+            // 处理 Shift+Click
+            if (evt.Data?.Shift == true)
+            {
+                // Shift+Click: 保持 _selectionStart, 更新 _caretIndex
+            }
+            else
+            {
+                // Simple Click: 重置选区开始
+                _selectionStart = _caretIndex;
+            }
+
             // 4. 更新光标
-            TryUpdateCaretPosition();
+            TryUpdateCaretPosition(); // 这现在也会更新选区高亮
         }
         catch (Exception ex)
         {
             Console.WriteLine("MouseDown HitTestPoint failed: " + ex.Message);
         }
+    }
+
+    /// <summary>
+    /// 处理鼠标移动以实现拖动选择。
+    /// </summary>
+    private void HandleMouseMove(DisplayObjectEvent evt)
+    {
+        if (!_isSelecting || !_isFocused) return; // 仅在拖动时更新
+
+        var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
+        if (layout == null) return;
+
+        float clickX = evt.LocalPosition.X - (_textClipContainer.X + _textContainer.X);
+        float clickY = evt.LocalPosition.Y - (_textClipContainer.Y + _textContainer.Y);
+
+        try
+        {
+            var hitTestMetrics = layout.HitTestPoint(clickX, clickY, out var isTrailingHit, out var isInside);
+
+            int newCaretIndex;
+            // 如果拖动到布局外部，则钳制到开头或结尾
+            if (!isInside)
+            {
+                //
+                if ((clickX < 0 && !_multiline) || (clickY < 0 && clickX < 0))
+                    newCaretIndex = 0;
+                else if ((clickX > layout.Metrics.Width && !_multiline) || (clickY > layout.Metrics.Height))
+                    newCaretIndex = _textBuilder.Length;
+                else
+                    newCaretIndex = hitTestMetrics.TextPosition + (isTrailingHit ? 1 : 0);
+            }
+            else
+            {
+                newCaretIndex = hitTestMetrics.TextPosition + (isTrailingHit ? 1 : 0);
+            }
+
+            _caretIndex = Math.Clamp(newCaretIndex, 0, _textBuilder.Length);
+
+            // TODO: 实现拖动时的自动滚动
+
+            TryUpdateCaretPosition(); // 更新光标和选区高亮
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("MouseMove HitTestPoint failed: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 处理鼠标抬起以停止拖动选择。
+    /// </summary>
+    private void HandleMouseUp(DisplayObjectEvent evt)
+    {
+        _isSelecting = false; // 停止选区跟踪
     }
 
     #region Core Event Handlers
@@ -282,14 +403,16 @@ public class TextBox : Container
 
         char c = evt.Data.KeyChar;
 
-        // 过滤掉控制字符 (例如 backspace, enter, tab)
-        // (多行模式下也许要允许 Enter)
+        // 过滤掉控制字符
         if (char.IsControl(c) && (!_multiline || c != '\r')) return;
 
         if (_multiline && c == '\r') c = '\n'; // 转换为换行符
 
+        DeleteSelection(); // 先删除选区
+
         _textBuilder.Insert(_caretIndex, c);
         _caretIndex++;
+        _selectionStart = _caretIndex; // 清除选区
         UpdateTextAndCaret();
     }
 
@@ -297,22 +420,74 @@ public class TextBox : Container
     {
         if (evt.Data is null) return;
 
+        // --- 剪贴板和全选 ---
+        if (evt.Data.Ctrl)
+        {
+            switch (evt.Data.KeyCode)
+            {
+                case VK_A: // Ctrl+A
+                    _selectionStart = 0;
+                    _caretIndex = _textBuilder.Length;
+                    UpdateTextAndCaret();
+                    return;
+
+                case VK_C: // Ctrl+C
+                    // TODO: 将 GetSelectedText() 复制到系统剪贴板
+                    // 例如: Clipboard.SetText(GetSelectedText());
+                    return;
+
+                case VK_X: // Ctrl+X
+                    // TODO: 将 GetSelectedText() 复制到系统剪贴板
+                    // 例如: Clipboard.SetText(GetSelectedText());
+                    if (DeleteSelection())
+                    {
+                        UpdateTextAndCaret();
+                    }
+                    return;
+
+                case VK_V: // Ctrl+V
+                    // TODO: 从系统剪贴板获取文本
+                    string pasteText = ""; // 例如: = Clipboard.GetText();
+                    if (!string.IsNullOrEmpty(pasteText))
+                    {
+                        DeleteSelection(); // 替换选区
+                        _textBuilder.Insert(_caretIndex, pasteText);
+                        _caretIndex += pasteText.Length;
+                        _selectionStart = _caretIndex;
+                        UpdateTextAndCaret();
+                    }
+                    return;
+            }
+        }
+
+        // --- Deletion ---
         switch (evt.Data.KeyCode)
         {
             case VK_BACKSPACE: // Backspace
-                if (_caretIndex > 0)
+                if (DeleteSelection()) // 优先删除选区
+                {
+                    UpdateTextAndCaret();
+                }
+                else if (_caretIndex > 0)
                 {
                     _textBuilder.Remove(_caretIndex - 1, 1);
                     _caretIndex--;
+                    _selectionStart = _caretIndex; // 清除选区
                     UpdateTextAndCaret();
                 }
                 break;
 
             case VK_DELETE: // Delete
-                if (_caretIndex < _textBuilder.Length)
+                if (DeleteSelection()) // 优先删除选区
+                {
+                    UpdateTextAndCaret();
+                }
+                else if (_caretIndex < _textBuilder.Length)
                 {
                     _textBuilder.Remove(_caretIndex, 1);
-                    UpdateTextAndCaret(); // 光标位置不变，但文本和光标 X 坐标需要更新
+                    // 光标位置不变
+                    _selectionStart = _caretIndex; // 清除选区
+                    UpdateTextAndCaret(); // 文本和光标 X 坐标需要更新
                 }
                 break;
         }
@@ -323,6 +498,7 @@ public class TextBox : Container
         if (evt.Data is null) return;
 
         bool caretMoved = false;
+        bool shiftPressed = evt.Data.Shift; // 检查 Shift 键
 
         switch (evt.Data.KeyCode)
         {
@@ -358,13 +534,19 @@ public class TextBox : Container
                 if (_multiline)
                 {
                     MoveCaretVertical(1); // 1 for Down
-                    caretMoved = true; // MoveCaretVertical 内部会调用 UpdateCaretPosition
+                    caretMoved = true;
                 }
                 break;
         }
 
         if (caretMoved)
         {
+            // 如果没有按 Shift，则折叠选区
+            if (!shiftPressed)
+            {
+                _selectionStart = _caretIndex;
+            }
+
             // 如果 MoveCaretVertical 没有被调用，则手动更新
             if (evt.Data.KeyCode != VK_UP && evt.Data.KeyCode != VK_DOWN)
             {
@@ -379,7 +561,7 @@ public class TextBox : Container
     // --- 更新方法 ---
 
     /// <summary>
-    /// (新增) 处理多行模式下的上/下光标移动。
+    /// 处理多行模式下的上/下光标移动。
     /// </summary>
     /// <param name="direction">-1 表示上, 1 表示下。</param>
     private void MoveCaretVertical(int direction)
@@ -389,25 +571,18 @@ public class TextBox : Container
 
         try
         {
-            // 1. 获取当前光标的 (X, Y) 坐标
+            // 1. 获取当前光标的 (X, Y) 坐标 (Get current caret (X, Y))
             var metrics = layout.HitTestTextPosition(_caretIndex, false, out float currentX, out float currentY);
-            float lineHeight = metrics.Height; // 使用当前行高作为参考
-
-            if (lineHeight <= 0) lineHeight = _textFactory.FontSize; // 回退
+            float lineHeight = metrics.Height;
+            if (lineHeight <= 0) lineHeight = _textFactory.FontSize;
 
             // 2. 计算目标 Y 坐标
-            float targetY = currentY;
-            if (direction < 0) // Up
-            {
-                targetY = currentY - (lineHeight * 0.5f); // 目标 Y 位于上一行的中间
-            }
-            else // Down
-            {
-                targetY = currentY + (lineHeight * 1.5f); // 目标 Y 位于下一行的中间
-            }
+            float targetY = currentY + (direction * lineHeight);
+            // (修正: 目标 Y 应在目标行的中心)
+            if (direction < 0) targetY = currentY - (lineHeight * 0.5f);
+            else targetY = currentY + (lineHeight * 1.5f);
 
             // 3. 使用 HitTestPoint 找到目标 (X, Y) 处最近的文本索引
-            // 我们使用 currentX 和 targetY
             var hitTestMetrics = layout.HitTestPoint(currentX, targetY, out var isTrailingHit, out var isInside);
 
             // 4. 设置新的光标索引
@@ -432,25 +607,22 @@ public class TextBox : Container
     {
         _textDisplay.Content = _textBuilder.ToString();
 
-        // 如果是多行，我们还需要更新裁剪高度
         if (_multiline)
         {
             var stage = GetStage();
             if (stage is not null)
             {
-                // 多行模式，Y 始终在顶部
                 _textClipContainer.Y = _paddingY;
-                _textClipContainer.ClipHeight = _boxHeight - (_paddingY * 2); // 裁剪区域始终是框的内部高度
+                _textClipContainer.ClipHeight = _boxHeight - (_paddingY * 2);
                 _displayStateDirty = false;
             }
             else
             {
-                _displayStateDirty = true; // 标记为脏，等待下一次更新
+                _displayStateDirty = true;
             }
         }
         else
         {
-            // 单行，重置裁剪高度并垂直居中
             float textHeight = _textFactory.FontSize + 2f;
             _textClipContainer.ClipHeight = textHeight + _paddingY;
             _textClipContainer.Y = (_boxHeight - textHeight) / 2;
@@ -458,7 +630,7 @@ public class TextBox : Container
     }
 
     /// <summary>
-    /// 计算并更新光标的 X 坐标。
+    /// 计算并更新光标的 X 坐标 (以及现在的选区)。
     /// </summary>
     private void TryUpdateCaretPosition()
     {
@@ -470,16 +642,16 @@ public class TextBox : Container
 
         if (textLayout is null)
         {
-            _caretPositionDirty = true; // 失败，保持脏标记
+            _caretPositionDirty = true; // 失败，保持脏标记 (Failed, keep dirty flag)
             return;
         }
 
         try
         {
-            // 使用 HitTestTextPosition 获取光标在文本索引处的准确 (X, Y) 坐标 
+            // 使用 HitTestTextPosition 获取光标在文本索引处的准确 (X, Y) 坐标
             var metrics = textLayout.HitTestTextPosition(_caretIndex, false, out float htmX, out float htmY);
-            caretX = metrics.Left;
-            caretY = metrics.Top;
+            caretX = metrics.Left; // 使用 metrics.Left (Corrected: use metrics.Left)
+            caretY = metrics.Top;  // 使用 metrics.Top (Corrected: use metrics.Top)
 
             if (metrics.Height > 0)
             {
@@ -495,10 +667,40 @@ public class TextBox : Container
 
         // --- 更新光标图形 ---
         _caret.Clear();
-        // Y = -1f, 高度 + 2 确保光标略高于和低于文本
         _caret.DrawRectangle(0, -1f, 2f, caretHeight + 2f);
         _caret.X = caretX;
         _caret.Y = caretY;
+
+        // --- 更新选区高亮图形 ---
+        _selectionHighlight.Clear();
+        if (HasSelection)
+        {
+            _selectionHighlight.Visible = true;
+            (int start, int end) = GetSelectionRange();
+
+            try
+            {
+                // 获取选中文本范围的边界框
+                //
+                var hitTestMetrics = textLayout.HitTestTextRange(start, end - start, 0, 0);
+
+                foreach (var rect in hitTestMetrics)
+                {
+                    // 为选区的每个部分绘制一个矩形
+                    _selectionHighlight.DrawRectangle(rect.Left, rect.Top, rect.Width, rect.Height);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Selection HitTestRange failed: " + ex.Message);
+                _selectionHighlight.Visible = false;
+            }
+        }
+        else
+        {
+            _selectionHighlight.Visible = false;
+        }
+
 
         // --- 滚动逻辑 ---
         float clipWidth = _textClipContainer.ClipWidth ?? 0f;
@@ -518,30 +720,24 @@ public class TextBox : Container
         {
             if (caretY < viewStartY + caretMargin)
             {
-                // 光标在可视区域上方，向上滚动
                 _textContainer.Y = -Math.Max(0, caretY - caretMargin);
             }
             else if (caretY + caretHeight > viewEndY - caretMargin)
             {
-                // 光标在可视区域下方，向下滚动
                 _textContainer.Y = -(caretY + caretHeight - clipHeight + caretMargin);
             }
-            // 否则，光标在视图内，不滚动
         }
         // --- 水平滚动逻辑 (单行) ---
         else
         {
             if (caretX < viewStartX + caretMargin)
             {
-                // 光标在可视区域左侧
                 _textContainer.X = -Math.Max(0, caretX - caretMargin);
             }
             else if (caretX > viewEndX - caretMargin)
             {
-                // 光标在可视区域右侧
                 _textContainer.X = -(caretX - clipWidth + caretMargin);
             }
-            // 否则，光标在视图内，不滚动
         }
         // --- 结束滚动逻辑 ---
 
@@ -566,11 +762,11 @@ public class TextBox : Container
     }
 
     /// <summary>
-    /// 每帧更新 (用于检查焦点和光标闪烁)。
+    /// 每帧更新。
     /// </summary>
     public override void Update(float deltaTime)
     {
-        base.Update(deltaTime); // 更新子控件 (Text, Graphics)
+        base.Update(deltaTime); // 更新子控件
         if (_caretPositionDirty)
         {
             TryUpdateCaretPosition();
@@ -580,7 +776,7 @@ public class TextBox : Container
             TryUpdateTextDisplay();
         }
 
-        // 检查焦点状态是否改变 
+        // 检查焦点状态是否改变
         bool hasFocus = IsFocused();
 
         if (hasFocus != _isFocused)
