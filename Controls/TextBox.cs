@@ -3,6 +3,7 @@ using Pixi2D.Events;
 using Pixi2D.Extensions;
 using SharpDX.DirectWrite;
 using SharpDX.Mathematics.Interop;
+using System.Diagnostics;
 using System.Drawing;
 using System.Text;
 
@@ -62,13 +63,19 @@ public class TextBox : Container
     public override float Height
     {
         get => _boxHeight;
-        set => _boxHeight = value;
+        set
+        {
+            _boxHeight = value;
+        }
     }
 
     public override float Width
     {
         get => _boxWidth;
-        set => _boxWidth = value;
+        set
+        {
+            _boxWidth = value;
+        }
     }
 
     /// <summary>
@@ -82,10 +89,11 @@ public class TextBox : Container
             _textBuilder.Clear();
             _textBuilder.Append(value);
             // 确保光标位置有效 
-            _caretIndex = Math.Clamp(value.Length, 0, _textBuilder.Length);
-            _selectionStart = _caretIndex; //  重置选区
-            TryUpdateTextDisplay();
+            _caretIndex = 0;
+            _selectionStart = 0; //  重置选区
             _caretPositionDirty = true; // 标记为脏 
+            _displayStateDirty = true;
+            TryUpdateTextDisplay();
             TryUpdateCaretPosition();
         }
     }
@@ -420,83 +428,6 @@ public class TextBox : Container
     {
         if (evt.Data is null) return;
 
-        // --- 剪贴板和全选 ---
-        if (evt.Data.Ctrl)
-        {
-            switch (evt.Data.KeyCode)
-            {
-                case VK_A: // Ctrl+A
-                    _selectionStart = 0;
-                    _caretIndex = _textBuilder.Length;
-                    UpdateTextAndCaret();
-                    return;
-
-                case VK_C: // Ctrl+C
-                    // TODO: 将 GetSelectedText() 复制到系统剪贴板
-                    // 例如: Clipboard.SetText(GetSelectedText());
-                    return;
-
-                case VK_X: // Ctrl+X
-                    // TODO: 将 GetSelectedText() 复制到系统剪贴板
-                    // 例如: Clipboard.SetText(GetSelectedText());
-                    if (DeleteSelection())
-                    {
-                        UpdateTextAndCaret();
-                    }
-                    return;
-
-                case VK_V: // Ctrl+V
-                    // TODO: 从系统剪贴板获取文本
-                    string pasteText = ""; // 例如: = Clipboard.GetText();
-                    if (!string.IsNullOrEmpty(pasteText))
-                    {
-                        DeleteSelection(); // 替换选区
-                        _textBuilder.Insert(_caretIndex, pasteText);
-                        _caretIndex += pasteText.Length;
-                        _selectionStart = _caretIndex;
-                        UpdateTextAndCaret();
-                    }
-                    return;
-            }
-        }
-
-        // --- Deletion ---
-        switch (evt.Data.KeyCode)
-        {
-            case VK_BACKSPACE: // Backspace
-                if (DeleteSelection()) // 优先删除选区
-                {
-                    UpdateTextAndCaret();
-                }
-                else if (_caretIndex > 0)
-                {
-                    _textBuilder.Remove(_caretIndex - 1, 1);
-                    _caretIndex--;
-                    _selectionStart = _caretIndex; // 清除选区
-                    UpdateTextAndCaret();
-                }
-                break;
-
-            case VK_DELETE: // Delete
-                if (DeleteSelection()) // 优先删除选区
-                {
-                    UpdateTextAndCaret();
-                }
-                else if (_caretIndex < _textBuilder.Length)
-                {
-                    _textBuilder.Remove(_caretIndex, 1);
-                    // 光标位置不变
-                    _selectionStart = _caretIndex; // 清除选区
-                    UpdateTextAndCaret(); // 文本和光标 X 坐标需要更新
-                }
-                break;
-        }
-    }
-
-    private void HandleKeyUp(DisplayObjectEvent evt)
-    {
-        if (evt.Data is null) return;
-
         bool caretMoved = false;
         bool shiftPressed = evt.Data.Shift; // 检查 Shift 键
 
@@ -537,6 +468,34 @@ public class TextBox : Container
                     caretMoved = true;
                 }
                 break;
+
+            case VK_BACKSPACE: // Backspace
+                if (DeleteSelection()) // 优先删除选区
+                {
+                    UpdateTextAndCaret();
+                }
+                else if (_caretIndex > 0)
+                {
+                    _textBuilder.Remove(_caretIndex - 1, 1);
+                    _caretIndex--;
+                    _selectionStart = _caretIndex; // 清除选区
+                    UpdateTextAndCaret();
+                }
+                break;
+
+            case VK_DELETE: // Delete
+                if (DeleteSelection()) // 优先删除选区
+                {
+                    UpdateTextAndCaret();
+                }
+                else if (_caretIndex < _textBuilder.Length)
+                {
+                    _textBuilder.Remove(_caretIndex, 1);
+                    // 光标位置不变
+                    _selectionStart = _caretIndex; // 清除选区
+                    UpdateTextAndCaret(); // 文本和光标 X 坐标需要更新
+                }
+                break;
         }
 
         if (caretMoved)
@@ -547,10 +506,51 @@ public class TextBox : Container
                 _selectionStart = _caretIndex;
             }
 
-            // 如果 MoveCaretVertical 没有被调用，则手动更新
-            if (evt.Data.KeyCode != VK_UP && evt.Data.KeyCode != VK_DOWN)
+            TryUpdateCaretPosition();
+        }
+    }
+
+    private void HandleKeyUp(DisplayObjectEvent evt)
+    {
+        if (evt.Data is null) return;
+
+        // --- 剪贴板和全选 ---
+        if (evt.Data.Ctrl)
+        {
+            switch (evt.Data.KeyCode)
             {
-                TryUpdateCaretPosition();
+                case VK_A: // Ctrl+A
+                    _selectionStart = 0;
+                    _caretIndex = _textBuilder.Length;
+                    UpdateTextAndCaret();
+                    return;
+
+                case VK_C: // Ctrl+C
+                    // TODO: 将 GetSelectedText() 复制到系统剪贴板
+                    // 例如: Clipboard.SetText(GetSelectedText());
+                    return;
+
+                case VK_X: // Ctrl+X
+                    // TODO: 将 GetSelectedText() 复制到系统剪贴板
+                    // 例如: Clipboard.SetText(GetSelectedText());
+                    if (DeleteSelection())
+                    {
+                        UpdateTextAndCaret();
+                    }
+                    return;
+
+                case VK_V: // Ctrl+V
+                    // TODO: 从系统剪贴板获取文本
+                    string pasteText = ""; // 例如: = Clipboard.GetText();
+                    if (!string.IsNullOrEmpty(pasteText))
+                    {
+                        DeleteSelection(); // 替换选区
+                        _textBuilder.Insert(_caretIndex, pasteText);
+                        _caretIndex += pasteText.Length;
+                        _selectionStart = _caretIndex;
+                        UpdateTextAndCaret();
+                    }
+                    return;
             }
         }
     }
@@ -589,11 +589,11 @@ public class TextBox : Container
             int newCaretIndex = hitTestMetrics.TextPosition + (isTrailingHit ? 1 : 0);
 
             _caretIndex = Math.Clamp(newCaretIndex, 0, _textBuilder.Length);
-            TryUpdateCaretPosition();
+            // TryUpdateCaretPosition();
         }
         catch (Exception ex)
         {
-            Console.WriteLine("MoveCaretVertical failed: " + ex.Message);
+            Debug.WriteLine("MoveCaretVertical failed: " + ex.Message);
         }
     }
 
@@ -807,6 +807,13 @@ public class TextBox : Container
         end = Math.Clamp(end, 0, _textBuilder.Length);
         _selectionStart = start;
         _caretIndex = end;
+        TryUpdateCaretPosition();
+    }
+
+    public void SelectAll()
+    {
+        _selectionStart = 0;
+        _caretIndex = _textBuilder.Length;
         TryUpdateCaretPosition();
     }
 

@@ -380,7 +380,7 @@ partial class MessageBox
 
         // 显示后请求焦点
         mb.Focus();
-
+        textBox.SelectAll();
         var result = await tcs.Task;
         return (string?)result;
     }
