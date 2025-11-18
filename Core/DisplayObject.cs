@@ -245,7 +245,6 @@ public abstract class DisplayObject : IDisposable
         return CalculateLocalTransform();
     }
 
-
     /// <summary>
     /// 更新逻辑 (例如, 动画)。
     /// </summary>
@@ -261,7 +260,7 @@ public abstract class DisplayObject : IDisposable
     /// </summary>
     /// <param name="renderTarget">D2D 渲染目标。</param>
     /// <param name="parentTransform">来自父容器的世界变换矩阵。</param>
-    public abstract void Render(RenderTarget renderTarget, Matrix3x2 parentTransform);
+    public abstract void Render(RenderTarget renderTarget, ref Matrix3x2 parentTransform);
 
     /// <summary>
     /// 释放此对象持有的所有非托管资源。
