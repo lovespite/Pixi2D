@@ -68,6 +68,8 @@ public class Button : Container
         _background.OnMouseDown += OnBackgroundMouseDown;
         _background.OnMouseUp += OnBackgroundMouseUp;
         _background.OnClick += OnBackgroundClick;
+
+        this.OnKeyDown += HandleKeyEvent;
     }
 
     /// <summary>
@@ -237,6 +239,15 @@ public class Button : Container
         _label.X = horizontalPadding;
         // Vertical centering
         _label.Y = (_buttonHeight - _label.FontSize) / 2;
+    }
+
+    private void HandleKeyEvent(DisplayObjectEvent @event)
+    {
+        if (@event.Data is null) return;
+        if (@event.Data.KeyCode == 13 || @event.Data.KeyCode == 32) // Enter or Space
+        {
+            OnButtonClick?.Invoke(this);
+        }
     }
 
     private void OnBackgroundMouseOver(DisplayObjectEvent evt)

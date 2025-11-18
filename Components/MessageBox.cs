@@ -31,6 +31,16 @@ public partial class MessageBox : Panel
     private readonly Stage _stage;
 
     /// <summary>
+    /// 当对话框显示时，默认获得焦点的目标对象。默认为null，表示 MessageBox 本身。
+    /// </summary>
+    public DisplayObject? DefaultFocusTarget { get; set; }
+
+    public static float DefaultPadding { get; set; } = 10;
+    public static float DefaultButtonHeight { get; set; } = 30;
+    public static float DefaultBorderRadius { get; set; } = 8;
+    public static float DefaultBorderWidth { get; set; } = 0;
+
+    /// <summary>
     /// 创建一个新的 MessageBox 实例。 
     /// </summary>
     /// <param name="width">对话框宽度。 </param>
@@ -42,37 +52,40 @@ public partial class MessageBox : Panel
         // 1. 初始化遮罩层 
         _overlay = new Graphics
         {
-            Interactive = true, // 阻挡点击穿透 (Blocks click-through)
+            Interactive = true, // 阻挡点击穿透 
             Visible = false,
-            FillColor = new RawColor4(0, 0, 0, 0.5f) // 半透明黑色 (Semi-transparent black)
+            FillColor = new RawColor4(0, 0, 0, 0.5f) // 半透明黑色 
         };
 
         // 2. 配置 MessageBox (自身 - Panel) 
-        SetPadding(10); // 内部留出10像素边距 (10px internal padding)
-        CornerRadius = 8f;
+        SetPadding(DefaultPadding);
+        CornerRadius = DefaultBorderRadius;
         BackgroundColor = new RawColor4(0.2f, 0.2f, 0.25f, 1f);
         BorderColor = new RawColor4(0.4f, 0.4f, 0.4f, 1f);
-        BorderWidth = 1f;
-        Visible = false; // 默认隐藏 (Hidden by default)
+        BorderWidth = DefaultBorderWidth;
+        Visible = false; // 默认隐藏  
 
         // 3. 创建内部布局 (使用 FlowLayout) 
         var mainLayout = new FlowLayout
         {
             Direction = FlowLayout.LayoutDirection.Vertical,
-            Gap = 10,
-            Width = width - 20, // 减去 Panel 的内边距 (Subtract Panel padding) 
+            Width = width - DefaultPadding * 2, // 减去 Panel 的内边距 
+            Gap = 8,
         };
-        base.AddContent(mainLayout); // 添加到 Panel 的 ContentContainer
+        AddContent(mainLayout); // 添加到 Panel 的 ContentContainer
 
         // 4. 创建内容占位符 
-        _contentHolder = new Panel(width - 20, height - 60) // 预留 40px 给按钮 + 10px 间隙
+        _contentHolder = new Panel(
+            width: mainLayout.Width,
+            height: height - DefaultButtonHeight - DefaultPadding * 2 - mainLayout.Gap * 2 // 预留按钮和Padding空间 
+        )
         {
-            BackgroundColor = new RawColor4(0, 0, 0, 0), // 透明背景 (Transparent background)
+            BackgroundColor = new RawColor4(0, 0, 0, 0),
             BorderWidth = 0,
-            ClipContent = true, // 裁剪超出范围的内容 (Clip overflowing content)
-            Width = width - 20,
+            ClipContent = true, // 裁剪超出范围的内容 
             Interactive = true,
             FocusTarget = this,
+            PaddingLeft = 2,
         };
         _contentHolder.AddContent(content);
         mainLayout.AddChild(_contentHolder);
@@ -82,7 +95,7 @@ public partial class MessageBox : Panel
         {
             Direction = FlowLayout.LayoutDirection.Horizontal,
             Gap = 10,
-            Width = width - 20
+            Width = width - DefaultPadding * 2,
         };
         _actionsLayout.AddChildren(actions);
         mainLayout.AddChild(_actionsLayout);
@@ -134,7 +147,7 @@ public partial class MessageBox : Panel
         Visible = true;
         _overlay.Visible = true;
 
-        Focus();
+        (DefaultFocusTarget ?? this).Focus();
     }
 
     private void HandleStageResize(Stage _, float width, float height)
@@ -248,11 +261,14 @@ partial class MessageBox
 
         // 创建按钮
         // (Create buttons)
-        var okButton = new Button(textFactory.Create(okText ?? DefaultOkText), 80, 30);
-        var cancelButton = new Button(textFactory.Create(cancelText ?? DefaultCancelText), 80, 30);
+        var okButton = new Button(textFactory.Create(okText ?? DefaultOkText), 80, 30) { BorderWidth = 2 };
+        var cancelButton = new Button(textFactory.Create(cancelText ?? DefaultCancelText), 80, 30) { BorderWidth = 2 };
 
         var tcs = new TaskCompletionSource<object?>();
-        using var mb = new MessageBox(stage, new SizeF(350, 150), content, [okButton, cancelButton]);
+        using var mb = new MessageBox(stage, new SizeF(350, 150), content, [okButton, cancelButton])
+        {
+            DefaultFocusTarget = okButton,
+        };
 
         okButton.OnButtonClick += (btn) =>
         {
@@ -343,10 +359,13 @@ partial class MessageBox
         // 计算 MessageBox 高度
         // 基础高度 (Padding + 按钮 + 间隙) = 20 (上下 padding) + 30 (按钮) + 10 (间隙) = 60
         // 内容高度 = promptHeight + 10 (间隙) + inputHeight
-        float messageBoxHeight = 60 + promptTextRect.Height + 10 + inputHeight;
+        float messageBoxHeight = 60 + promptTextRect.Height + inputHeight + 16;
         messageBoxHeight = Math.Max(150, messageBoxHeight); // 最小高度
 
-        using var mb = new MessageBox(stage, new SizeF(400, messageBoxHeight + 4), contentLayout, [okButton, cancelButton]);
+        using var mb = new MessageBox(stage, new SizeF(400, messageBoxHeight + 4), contentLayout, [okButton, cancelButton])
+        {
+            DefaultFocusTarget = textBox,
+        };
 
         // 仅在单行模式下，回车键才确认
 
@@ -377,7 +396,7 @@ partial class MessageBox
         };
 
         // 自动聚焦到输入框
-        mb.OnFocus += textBox.Focus;
+        // mb.OnFocus += textBox.Focus;
         mb.Show();
 
         textBox.SelectAll();
