@@ -133,6 +133,8 @@ public partial class MessageBox : Panel
 
         Visible = true;
         _overlay.Visible = true;
+
+        Focus();
     }
 
     private void HandleStageResize(Stage _, float width, float height)
@@ -327,6 +329,7 @@ partial class MessageBox
         var textBox = new TextBox(textFactory, 375, inputHeight)
         {
             Multiline = multiline,
+            RequireShiftForNewLine = multiline,
             Text = defaultText ?? string.Empty,
         };
         contentLayout.AddChild(textBox);
@@ -344,24 +347,21 @@ partial class MessageBox
         messageBoxHeight = Math.Max(150, messageBoxHeight); // 最小高度
 
         using var mb = new MessageBox(stage, new SizeF(400, messageBoxHeight + 4), contentLayout, [okButton, cancelButton]);
-        // 重要！需要在 MessageBox 实例化后再设置这些属性 
 
         // 仅在单行模式下，回车键才确认
-        if (!multiline)
-        {
-            textBox.OnKeyUp += (evt) =>
-            {
-                // 如果按下回车键则确认输入
-                if (evt.Data?.KeyCode == 13) // Enter key
-                {
-                    mb.Hide();
-                    tcs.TrySetResult(textBox.Text);
-                }
-            };
-        }
 
-        // 自动聚焦到输入框
-        mb.OnFocus += textBox.Focus;
+        textBox.OnKeyDown += (evt) =>
+        {
+            bool isEnter = evt.Data?.KeyCode == 13;
+            bool shift = evt.Data?.Shift == true;
+            // 如果按下回车键则确认输入
+            if ((multiline && !shift && isEnter) || (!multiline && !shift && isEnter)) // Enter key
+            {
+                mb.Hide();
+                tcs.TrySetResult(textBox.Text);
+            }
+        };
+
         contentLayout.FocusTarget = textBox;
 
         okButton.OnButtonClick += (btn) =>
@@ -376,10 +376,10 @@ partial class MessageBox
             tcs.TrySetResult(null); // Cancel 返回 null
         };
 
+        // 自动聚焦到输入框
+        mb.OnFocus += textBox.Focus;
         mb.Show();
 
-        // 显示后请求焦点
-        mb.Focus();
         textBox.SelectAll();
         var result = await tcs.Task;
         return (string?)result;

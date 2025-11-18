@@ -23,6 +23,8 @@ public class TextBox : Container
     public const int VK_END = 35;
     public const int VK_UP = 38;
     public const int VK_DOWN = 40;
+    public const int VK_TAB = 9;
+    public const int VK_ENTER = 13;
     // 用于剪贴板和全选
     public const int VK_C = 0x43;
     public const int VK_V = 0x56;
@@ -169,6 +171,15 @@ public class TextBox : Container
         return true;
     }
 
+    /// <summary>
+    /// 指示输入框是否接受 Tab 键作为输入字符。
+    /// </summary>
+    public bool AcceptTab { get; set; } = false;
+
+    /// <summary>
+    /// 指示在多行模式下是否需要按住 Shift 键才能插入新行。
+    /// </summary>
+    public bool RequireShiftForNewLine { get; set; } = false;
 
     /// <summary>
     /// 创建一个新的文本输入框。 
@@ -412,12 +423,15 @@ public class TextBox : Container
         char c = evt.Data.KeyChar;
 
         // 过滤掉控制字符
-        if (char.IsControl(c) && (!_multiline || c != '\r')) return;
+        if (char.IsControl(c)) return;
 
-        if (_multiline && c == '\r') c = '\n'; // 转换为换行符
+        InsertCharToCaret(c);
+    }
 
+    private void InsertCharToCaret(char c)
+    {
+        if (c == '\r') c = '\n'; // 转换为换行符
         DeleteSelection(); // 先删除选区
-
         _textBuilder.Insert(_caretIndex, c);
         _caretIndex++;
         _selectionStart = _caretIndex; // 清除选区
@@ -494,6 +508,21 @@ public class TextBox : Container
                     // 光标位置不变
                     _selectionStart = _caretIndex; // 清除选区
                     UpdateTextAndCaret(); // 文本和光标 X 坐标需要更新
+                }
+                break;
+
+            case VK_TAB: // Tab
+                if (AcceptTab)
+                {
+                    InsertCharToCaret('\t');
+                }
+                break;
+
+            case VK_ENTER: // Enter
+                if (_multiline)
+                {
+                    if (!RequireShiftForNewLine || (RequireShiftForNewLine && shiftPressed))
+                        InsertCharToCaret('\n');
                 }
                 break;
         }
