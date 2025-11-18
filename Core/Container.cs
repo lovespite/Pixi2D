@@ -1,8 +1,11 @@
 ﻿using Pixi2D.Events;
 using SharpDX.Direct2D1;
 using SharpDX.Mathematics.Interop;
+using System.Diagnostics;
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Pixi2D.Core;
 /// <summary>
@@ -11,7 +14,10 @@ namespace Pixi2D.Core;
 /// </summary>
 public class Container : DisplayObject
 {
-    protected readonly List<DisplayObject> children = [];
+    static readonly RawRectangleF DefaultContentBounds = new(float.MinValue, float.MinValue, float.MaxValue, float.MaxValue);
+    private readonly List<DisplayObject> _children = [];
+
+    protected List<DisplayObject> Children => _children;
 
     /// <summary>
     /// 是否启用裁剪。如果为 true，超出裁剪区域的内容将被隐藏。
@@ -32,13 +38,12 @@ public class Container : DisplayObject
     private RectangleGeometry? _cachedClipGeometry;
     private float _cachedClipWidth;
     private float _cachedClipHeight;
-    // private SharpDX.Direct2D1.Factory? _cachedFactory;
 
     public void AddChild(DisplayObject child)
     {
         child.Parent?.RemoveChild(child);
         child.Parent = this;
-        children.Add(child);
+        Children.Add(child);
     }
 
     public void AddChildren(params DisplayObject[] newChildren)
@@ -49,25 +54,9 @@ public class Container : DisplayObject
         }
     }
 
-    public DisplayObject ReplaceChild(DisplayObject newChild, DisplayObject oldChild)
-    {
-        int index = children.IndexOf(oldChild);
-        if (index == -1)
-        {
-            throw new ArgumentException("The specified oldChild is not a child of this container.", nameof(oldChild));
-        }
-        // 移除旧子项
-        oldChild.Parent = null;
-        // 添加新子项
-        newChild.Parent?.RemoveChild(newChild);
-        newChild.Parent = this;
-        children[index] = newChild;
-        return oldChild;
-    }
-
     public void RemoveChild(DisplayObject child)
     {
-        if (children.Remove(child))
+        if (Children.Remove(child))
         {
             child.Parent = null;
         }
@@ -75,18 +64,18 @@ public class Container : DisplayObject
 
     public void InsertChildAt(DisplayObject child, int index)
     {
-        if (index < 0 || index > children.Count)
+        if (index < 0 || index > Children.Count)
         {
             throw new ArgumentOutOfRangeException(nameof(index), "Index is out of range.");
         }
         child.Parent?.RemoveChild(child);
         child.Parent = this;
-        children.Insert(index, child);
+        Children.Insert(index, child);
     }
 
     public void InsertBefore(DisplayObject child, DisplayObject? beforeChild)
     {
-        int index = beforeChild is not null ? children.IndexOf(beforeChild) : children.Count;
+        int index = beforeChild is not null ? Children.IndexOf(beforeChild) : Children.Count;
         if (index == -1)
         {
             throw new ArgumentException("The specified beforeChild is not a child of this container.", nameof(beforeChild));
@@ -96,7 +85,7 @@ public class Container : DisplayObject
 
     public void InsertAfter(DisplayObject child, DisplayObject? afterChild)
     {
-        int index = afterChild is not null ? children.IndexOf(afterChild) : -1;
+        int index = afterChild is not null ? Children.IndexOf(afterChild) : -1;
         if (index == -1 && afterChild is not null)
         {
             throw new ArgumentException("The specified afterChild is not a child of this container.", nameof(afterChild));
@@ -104,25 +93,13 @@ public class Container : DisplayObject
         InsertChildAt(child, index + 1);
     }
 
-    public void ExchangeChildren(DisplayObject childA, DisplayObject childB)
-    {
-        int indexA = children.IndexOf(childA);
-        int indexB = children.IndexOf(childB);
-        if (indexA == -1 || indexB == -1)
-        {
-            throw new ArgumentException("Both children must be direct children of this container.");
-        }
-        children[indexA] = childB;
-        children[indexB] = childA;
-    }
-
     public void ClearChildren()
     {
-        foreach (var child in children)
+        foreach (var child in Children)
         {
             child.Parent = null;
         }
-        children.Clear();
+        Children.Clear();
     }
 
     public override void Update(float deltaTime)
@@ -130,9 +107,9 @@ public class Container : DisplayObject
         base.Update(deltaTime);
 
         // 从后向前遍历，以便在更新期间安全地删除子项
-        for (int i = children.Count - 1; i >= 0; i--)
+        for (int i = Children.Count - 1; i >= 0; i--)
         {
-            children[i].Update(deltaTime);
+            Children[i].Update(deltaTime);
         }
     }
 
@@ -140,16 +117,18 @@ public class Container : DisplayObject
     {
         if (!Visible) return null; // 注意: Container 即使 Interactive=false 也要检查子项
 
-        // 从后向前检查子项 (渲染在最上层的最先检查)
-        for (int i = children.Count - 1; i >= 0; i--)
-        {
-            var child = children[i];
+        // 命中测试 (慢速路径): 总是重新计算变换
+        Matrix3x2 myLocalTransform = CalculateLocalTransform();
+        Matrix3x2 myWorldTransform = myLocalTransform * currentTransform;
 
-            // 计算子项的世界变换
-            Matrix3x2 childWorldTransform = child.GetLocalTransform() * currentTransform;
+
+        // 从后向前检查子项 (渲染在最上层的最先检查)
+        for (int i = Children.Count - 1; i >= 0; i--)
+        {
+            var child = Children[i];
 
             // 递归检查
-            DisplayObject? hitTarget = child.FindHitObject(worldPoint, childWorldTransform, hitEvent);
+            DisplayObject? hitTarget = child.FindHitObject(worldPoint, myWorldTransform, hitEvent);
 
             if (hitTarget is not null)
             {
@@ -161,7 +140,7 @@ public class Container : DisplayObject
         // 没有子项被命中。
         // 检查这个容器本身是否被命中 (这依赖于 base.FindHitObject 和 this.HitTest)
         // 只有当 this.Interactive == true 时才会检查
-        return base.FindHitObject(worldPoint, currentTransform, hitEvent);
+        return base.FindHitObject(worldPoint, myWorldTransform, hitEvent);
     }
 
     /// <summary>
@@ -173,19 +152,47 @@ public class Container : DisplayObject
         return false;
     }
 
+    private LayerParameters _layer;
     /// <summary>
-    /// 已更改: 接受并传递 Matrix3x2。
+    /// (已优化) 接受并传递 Matrix3x2。
     /// </summary>
     public override void Render(RenderTarget renderTarget, Matrix3x2 parentTransform)
     {
         if (!Visible) return;
 
-        // 1. 计算我们自己的变换
-        Matrix3x2 myLocalTransform = GetLocalTransform();
-        Matrix3x2 myWorldTransform = myLocalTransform * parentTransform;
+        // 1. (优化) 计算或获取缓存的变换
+        uint parentVersion = (Parent != null) ? Parent._worldVersion : 0;
+        bool parentDirty = (parentVersion != _parentVersion);
+        bool worldTransformUpdated = false;
+
+        if (_localDirty || parentDirty)
+        {
+            // 只有在“脏”时才重新计算局部变换
+            if (_localDirty)
+            {
+                _localTransform = CalculateLocalTransform();
+                _localDirty = false;
+            }
+
+            // 重新计算世界变换
+            _worldTransform = _localTransform * parentTransform;
+            _parentVersion = parentVersion;
+            _worldVersion++; // 我们的版本已更新
+            _worldDirty = false;
+            worldTransformUpdated = true;
+        }
+        else if (_worldDirty)
+        {
+            // 如果父级没变，我们也没变，但世界变换是脏的 (例如刚变为可见)
+            // 仅使用缓存的 _localTransform 重建
+            _worldTransform = _localTransform * parentTransform;
+            _worldDirty = false;
+            worldTransformUpdated = true;
+        }
+        // ... 否则, _worldTransform 已经是最新的，无需任何操作。
 
         // 2. 如果需要裁剪或透明度，使用图层
-        bool layerPushed = false;
+        bool layerPushed = false, needsRecreate = false;
 
         if (ClipContent || Alpha < 1.0f)
         {
@@ -193,17 +200,15 @@ public class Container : DisplayObject
             float clipH = ClipHeight ?? Height;
 
             // 创建或重用几何遮罩用于裁剪
-            RectangleGeometry? clipGeometry = null;
             if (ClipContent && clipW > 0 && clipH > 0)
             {
                 var factory = renderTarget.Factory;
 
                 // 检查是否需要重新创建几何体
-                bool needsRecreate =
-                                    _cachedClipGeometry is null ||
-                                    // _cachedFactory != factory ||
-                                    _cachedClipWidth != clipW ||
-                                    _cachedClipHeight != clipH;
+                needsRecreate =
+                                _cachedClipGeometry is null ||
+                                _cachedClipWidth != clipW ||
+                                _cachedClipHeight != clipH;
 
                 if (needsRecreate)
                 {
@@ -214,38 +219,31 @@ public class Container : DisplayObject
                     _cachedClipGeometry = new RectangleGeometry(factory, new RawRectangleF(0, 0, clipW, clipH));
                     _cachedClipWidth = clipW;
                     _cachedClipHeight = clipH;
-                    // _cachedFactory = factory;
                 }
-
-                clipGeometry = _cachedClipGeometry;
             }
 
-            var layerParameters = new LayerParameters
+            if (needsRecreate || worldTransformUpdated)
             {
-                ContentBounds = new RawRectangleF(float.MinValue, float.MinValue, float.MaxValue, float.MaxValue),
-                GeometricMask = clipGeometry,
-                MaskTransform = new RawMatrix3x2
+                _layer = new LayerParameters
                 {
-                    M11 = myWorldTransform.M11,
-                    M12 = myWorldTransform.M12,
-                    M21 = myWorldTransform.M21,
-                    M22 = myWorldTransform.M22,
-                    M31 = myWorldTransform.M31,
-                    M32 = myWorldTransform.M32
-                },
-                Opacity = Alpha
-            };
-            renderTarget.PushLayer(ref layerParameters, null);
+                    ContentBounds = DefaultContentBounds,
+                    GeometricMask = _cachedClipGeometry,
+                    MaskTransform = Unsafe.As<Matrix3x2, RawMatrix3x2>(ref _worldTransform),
+                    Opacity = Alpha
+                };
+            }
+
+            renderTarget.PushLayer(ref _layer, null);
             layerPushed = true;
         }
 
         // 3. 递归渲染所有子项
         try
         {
-            foreach (var child in children)
+            foreach (var child in Children)
             {
-                // 子项使用计算好的完整世界变换来渲染
-                child.Render(renderTarget, myWorldTransform);
+                // (优化) 子项使用我们计算好的、缓存的 _worldTransform 来渲染
+                child.Render(renderTarget, _worldTransform);
             }
         }
         finally
@@ -254,10 +252,53 @@ public class Container : DisplayObject
             {
                 renderTarget.PopLayer();
             }
-            // 注意: 不再在这里 Dispose clipGeometry，因为它现在被缓存了
         }
     }
-     
+
+    public DisplayObject? FindChild(string name, bool recursively = false)
+    {
+        if (recursively) return FindChildRecursive(name);
+
+        foreach (var child in Children)
+        {
+            if (child.Name == name)
+            {
+                return child;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 递归查找子对象。默认为广度优先搜索。子类可根据需要修改为深度优先搜索(Stack)。
+    /// </summary>
+    /// <param name="name"></param>
+    /// <returns></returns>
+    protected virtual DisplayObject? FindChildRecursive(string name)
+    {
+        Container current;
+        var stack = new Queue<Container>([this]);
+
+        while (stack.Count > 0)
+        {
+            current = stack.Dequeue();
+            foreach (var child in current.Children)
+            {
+                if (child.Name == name)
+                {
+                    return child;
+                }
+                if (child is Container childContainer)
+                {
+                    stack.Enqueue(childContainer);
+                }
+            }
+        }
+
+        return null;
+    }
+
     public override void Dispose()
     {
         base.Dispose();
@@ -267,10 +308,10 @@ public class Container : DisplayObject
         _cachedClipGeometry = null;
         // _cachedFactory = null;
 
-        foreach (var child in children.ToArray())
+        foreach (var child in Children.ToArray())
         {
             child.Dispose();
         }
-        children.Clear();
+        Children.Clear();
     }
 }

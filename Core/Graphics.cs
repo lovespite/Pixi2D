@@ -2,6 +2,7 @@
 using SharpDX.Mathematics.Interop;
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Pixi2D.Core;
 
@@ -208,28 +209,40 @@ public class Graphics : DisplayObject
     }
 
     /// <summary>
-    /// 渲染所有图形。
+    /// (已优化) 渲染所有图形。
     /// </summary>
     public override void Render(RenderTarget renderTarget, Matrix3x2 parentTransform)
     {
         if (!Visible || _shapes.Count == 0) return;
 
-        // 1. 计算世界变换 (Matrix3x2)
-        Matrix3x2 myLocalTransform = GetLocalTransform();
-        Matrix3x2 myWorldTransform = myLocalTransform * parentTransform;
+        // 1. (优化) 计算或获取缓存的变换
+        uint parentVersion = (Parent != null) ? Parent._worldVersion : 0;
+        bool parentDirty = (parentVersion != _parentVersion);
+
+        if (_localDirty || parentDirty)
+        {
+            if (_localDirty)
+            {
+                _localTransform = CalculateLocalTransform();
+                _localDirty = false;
+            }
+            _worldTransform = _localTransform * parentTransform;
+            _parentVersion = parentVersion;
+            _worldVersion++;
+            _worldDirty = false;
+        }
+        else if (_worldDirty)
+        {
+            _worldTransform = _localTransform * parentTransform;
+            _worldDirty = false;
+        }
+        // ... 否则, _worldTransform 已经是最新的。
+
 
         // 2. 保存并设置变换
         var oldTransform = renderTarget.Transform;
-        // 隐式转换为 RawMatrix3x2
-        renderTarget.Transform = new RawMatrix3x2
-        {
-            M11 = myWorldTransform.M11,
-            M12 = myWorldTransform.M12,
-            M21 = myWorldTransform.M21,
-            M22 = myWorldTransform.M22,
-            M31 = myWorldTransform.M31,
-            M32 = myWorldTransform.M32
-        };
+        // (优化) 使用缓存的 _worldTransform 
+        renderTarget.Transform = Unsafe.As<Matrix3x2, RawMatrix3x2>(ref _worldTransform);
 
         // 3. 管理和更新笔刷 
         //if (!ReferenceEquals(_cachedRenderTarget, renderTarget))

@@ -224,7 +224,7 @@ public class List : Container
     /// </summary>
     public void UpdateLayout()
     {
-        if (children.Count == 0) return;
+        if (Children.Count == 0) return;
 
         float currentPos = 0f;
 
@@ -232,7 +232,7 @@ public class List : Container
         {
             // 垂直布局: 从上到下排列
             currentPos = _paddingTop;
-            foreach (var child in children)
+            foreach (var child in Children)
             {
                 child.X = _paddingLeft;
                 child.Y = currentPos;
@@ -243,7 +243,7 @@ public class List : Container
         {
             // 水平布局: 从左到右排列
             currentPos = _paddingLeft;
-            foreach (var child in children)
+            foreach (var child in Children)
             {
                 child.X = currentPos;
                 child.Y = _paddingTop;
@@ -255,16 +255,16 @@ public class List : Container
     /// <summary>
     /// 获取列表项的数量。
     /// </summary>
-    public int ItemCount => children.Count;
+    public int ItemCount => Children.Count;
 
     /// <summary>
     /// 通过索引获取列表项。
     /// </summary>
     public DisplayObject? GetItemAt(int index)
     {
-        if (index < 0 || index >= children.Count)
+        if (index < 0 || index >= Children.Count)
             return null;
-        return children[index];
+        return Children[index];
     }
 
     /// <summary>
@@ -272,7 +272,7 @@ public class List : Container
     /// </summary>
     public int GetItemIndex(DisplayObject child)
     {
-        return children.IndexOf(child);
+        return Children.IndexOf(child);
     }
 
     /// <summary>
@@ -280,7 +280,7 @@ public class List : Container
     /// </summary>
     public (float width, float height) GetContentSize()
     {
-        if (children.Count == 0)
+        if (Children.Count == 0)
             return (_paddingLeft + _paddingRight, _paddingTop + _paddingBottom);
 
         float totalWidth = _paddingLeft + _paddingRight;
@@ -292,9 +292,9 @@ public class List : Container
             float maxWidth = 0f;
             float sumHeight = 0f;
 
-            for (int i = 0; i < children.Count; i++)
+            for (int i = 0; i < Children.Count; i++)
             {
-                var child = children[i];
+                var child = Children[i];
                 if (child.Width > maxWidth)
                     maxWidth = child.Width;
                 sumHeight += child.Height;
@@ -311,9 +311,9 @@ public class List : Container
             float sumWidth = 0f;
             float maxHeight = 0f;
 
-            for (int i = 0; i < children.Count; i++)
+            for (int i = 0; i < Children.Count; i++)
             {
-                var child = children[i];
+                var child = Children[i];
                 sumWidth += child.Width;
                 if (child.Height > maxHeight)
                     maxHeight = child.Height;
@@ -335,14 +335,14 @@ public class List : Container
     /// <returns>返回该项在主轴方向上的位置，如果索引无效则返回 null。</returns>
     public float? GetItemPosition(int index)
     {
-        if (index < 0 || index >= children.Count)
+        if (index < 0 || index >= Children.Count)
             return null;
 
         float position = _direction == LayoutDirection.Vertical ? _paddingTop : _paddingLeft;
 
         for (int i = 0; i < index; i++)
         {
-            var child = children[i];
+            var child = Children[i];
             position += (_direction == LayoutDirection.Vertical ? child.Height : child.Width) + _itemSpacing;
         }
 

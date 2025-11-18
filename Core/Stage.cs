@@ -28,13 +28,19 @@ public sealed class Stage : Container
     }
 
     /// <summary>
-    /// 渲染整个场景。
+    /// (已优化) 渲染整个场景。
+    /// 此方法现在会触发变换更新和渲染。
     /// </summary>
     /// <param name="renderTarget">D2D 渲染目标。</param>
     public void Render(RenderTarget renderTarget)
     {
         Interlocked.CompareExchange(ref _cachedRenderTarget, renderTarget, null);
-        // 以单位矩阵开始递归渲染 
+
+        // 1. (优化) 触发变换更新
+        // 我们递增自己的版本号，这将强制所有子对象检查更新
+        _worldVersion++;
+
+        // 2. 以单位矩阵开始递归渲染 (Render 内部会处理变换更新)
         Render(renderTarget, Matrix3x2.Identity);
     }
 
@@ -105,7 +111,7 @@ public sealed class Stage : Container
     public void DispatchMouseMove(PointF worldPoint)
     {
         var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
-        // 1. 查找被命中的对象
+        // 1. 查找被命中的对象 (HitTest 会按需计算变换)
         DisplayObject? hitObject = FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
 
         // 2. 处理 MouseOver / MouseOut
@@ -127,10 +133,11 @@ public sealed class Stage : Container
         }
 
         // 3. 处理 MouseMove (冒泡)
-        if (hitObject is not null)
-        {
-            BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, null, (obj) => obj.OnMouseMove);
-        }
+        //if (hitObject is not null)
+        //{
+        //    BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, null, (obj) => obj.OnMouseMove);
+        //}
+        BubbleEvent(hitObject ?? this, worldPoint, evtData.LocalPosition, null, (obj) => obj.OnMouseMove);
     }
 
     /// <summary>
@@ -153,10 +160,11 @@ public sealed class Stage : Container
 
         _lastMouseDownObject = hitObject; // 跟踪此对象，用于 "click" 检测
 
-        if (hitObject is not null)
-        {
-            BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseDown);
-        }
+        //if (hitObject is not null)
+        //{
+        //    BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseDown);
+        //}
+        BubbleEvent(hitObject ?? this, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseDown);
     }
 
     /// <summary>
@@ -175,10 +183,13 @@ public sealed class Stage : Container
 
         // 2. 处理 Click 事件 (冒泡)
         // 只有在同一个对象上按下和抬起时才触发 Click
-        if (hitObject is not null && hitObject == _lastMouseDownObject)
-        {
-            BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnClick);
-        }
+        //if (hitObject is not null && hitObject == _lastMouseDownObject)
+        //{
+        //    BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnClick);
+        //}
+
+        BubbleEvent(hitObject ?? _lastMouseDownObject ?? this, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnClick);
+
         _lastMouseDownObject = null; // 重置
     }
 

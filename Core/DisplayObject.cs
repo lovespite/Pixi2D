@@ -1,6 +1,7 @@
 ﻿using Pixi2D.Core;
 using Pixi2D.Events;
 using SharpDX.Direct2D1;
+using SharpDX.Mathematics.Interop;
 using System.Drawing;
 using System.Numerics;
 
@@ -15,40 +16,101 @@ namespace Pixi2D;
 /// </summary>
 public abstract class DisplayObject : IDisposable
 {
-    public float X { get; set; }
-    public float Y { get; set; }
+    public string? Name { get; set; }
+    // --- 变换属性 ---
+    private float _x, _y, _scaleX = 1.0f, _scaleY = 1.0f, _anchorX = 0.0f, _anchorY = 0.0f, _rotation = 0.0f;
+    private float _width = 0.0f, _height = 0.0f;
+
+    // --- 变换缓存 (优化点) ---
+    protected Matrix3x2 _localTransform;
+    protected Matrix3x2 _worldTransform;
+    protected bool _localDirty = true;
+    protected bool _worldDirty = true;
+
+    public override string ToString()
+    {
+        return Name ?? GetType().Name;
+    }
+
+    /// <summary>
+    /// 跟踪父对象的世界变换版本
+    /// </summary>
+    protected uint _parentVersion = 0;
+    /// <summary>
+    /// 我们自己的世界变换版本
+    /// </summary>
+    internal uint _worldVersion = 1;
+    // --- 
+
+    public float X { get => _x; set { _x = value; Invalidate(); } }
+    public float Y { get => _y; set { _y = value; Invalidate(); } }
     public PointF Position
     {
         get => new(X, Y);
-        set => (X, Y) = (value.X, value.Y);
+        set { (X, Y) = (value.X, value.Y); Invalidate(); } // Invalidate 已在 X/Y setter 中
     }
 
-    public virtual float Height { get; set; } = 0.0f;
-    public virtual float Width { get; set; } = 0.0f;
+    public virtual float Height { get => _height; set { _height = value; Invalidate(); } }
+    public virtual float Width { get => _width; set { _width = value; Invalidate(); } }
     public virtual SizeF Size
     {
         get => new(Width, Height);
-        set => (Width, Height) = (value.Width, value.Height);
+        set { (Width, Height) = (value.Width, value.Height); Invalidate(); } // Invalidate 已在 Width/Height setter 中
     }
 
-    public float Scale { set => ScaleX = ScaleY = value; }
-    public float ScaleX { get; set; } = 1.0f;
-    public float ScaleY { get; set; } = 1.0f;
+    public float Scale { set { ScaleX = ScaleY = value; } } // Setter 会调用 Invalidate
+    public float ScaleX { get => _scaleX; set { _scaleX = value; Invalidate(); } }
+    public float ScaleY { get => _scaleY; set { _scaleY = value; Invalidate(); } }
 
     /// <summary>
     /// 锚点 X 坐标 (0.0 到 1.0，默认为 0)。
     /// 0.0 = 左边缘，0.5 = 中心，1.0 = 右边缘。
     /// 锚点定义了对象的变换原点（旋转、缩放的中心点）。
     /// </summary>
-    public float AnchorX { get; set; } = 0.0f;
+    public float AnchorX { get => _anchorX; set { _anchorX = value; Invalidate(); } }
 
     /// <summary>
     /// 锚点 Y 坐标 (0.0 到 1.0，默认为 0)。
     /// 0.0 = 顶部边缘，0.5 = 中心，1.0 = 底部边缘。
     /// 锚点定义了对象的变换原点（旋转、缩放的中心点）。
     /// </summary>
-    public float AnchorY { get; set; } = 0.0f;
-    public float Anchor { set => AnchorX = AnchorY = value; }
+    public float AnchorY { get => _anchorY; set { _anchorY = value; Invalidate(); } }
+    public float Anchor { set { AnchorX = AnchorY = value; } } // Setter 会调用 Invalidate
+
+    /// <summary>
+    /// 旋转角度 (以弧度为单位)。
+    /// </summary>
+    public float Rotation { get => _rotation; set { _rotation = value; Invalidate(); } }
+
+    /// <summary>
+    /// 标记此对象的局部变换为“脏”，将在下一帧重新计算。
+    /// </summary>
+    public void Invalidate()
+    {
+        _localDirty = true;
+        _worldDirty = true;
+    }
+
+    /// <summary>
+    /// 计算此对象的局部变换矩阵 (仅在需要时)。
+    /// </summary>
+    protected virtual Matrix3x2 CalculateLocalTransform()
+    {
+        // 计算锚点的像素偏移
+        float anchorOffsetX = Width * AnchorX;
+        float anchorOffsetY = Height * AnchorY;
+
+        // 变换顺序:
+        // 1. 平移到锚点位置（使锚点成为原点）
+        // 2. 缩放
+        // 3. 旋转
+        // 4. 平移回去并移动到最终位置
+        return Matrix3x2.CreateTranslation(-anchorOffsetX, -anchorOffsetY) *
+               Matrix3x2.CreateScale(ScaleX, ScaleY) *
+               Matrix3x2.CreateRotation(Rotation) *
+               Matrix3x2.CreateTranslation(X + anchorOffsetX, Y + anchorOffsetY);
+    }
+
 
     /// <summary>
     /// Must be set to true for this object to receive events.
@@ -123,8 +185,14 @@ public abstract class DisplayObject : IDisposable
     {
         if (!Visible || !Interactive) return null;
 
+        // HitTest 是一种“慢速路径”，它需要即时计算变换，
+        // 而不能依赖可能陈旧的缓存。
+        Matrix3x2 localTransform = CalculateLocalTransform();
+        Matrix3x2 worldTransform = localTransform * currentTransform;
+
+
         // 反转矩阵以获得 世界 -> 局部 的变换
-        if (!Matrix3x2.Invert(currentTransform, out var worldToLocal))
+        if (!Matrix3x2.Invert(worldTransform, out var worldToLocal))
         {
             return null; // 矩阵不可逆
         }
@@ -154,11 +222,6 @@ public abstract class DisplayObject : IDisposable
     public abstract bool HitTest(PointF localPoint);
 
     /// <summary>
-    /// 旋转角度 (以弧度为单位)。
-    /// </summary>
-    public float Rotation { get; set; } = 0.0f;
-
-    /// <summary>
     /// 透明度 (0.0 到 1.0)。
     /// </summary>
     public float Alpha { get; set; } = 1.0f;
@@ -171,26 +234,17 @@ public abstract class DisplayObject : IDisposable
     public Container? Parent { get; internal set; }
 
     /// <summary>
-    /// 计算此对象的局部变换矩阵。
-    /// <para>已更改: 返回 Matrix3x2 (用于计算)。</para>
-    /// <para>支持锚点: 变换会围绕 (Width * AnchorX, Height * AnchorY) 进行。</para>
+    /// *（已弃用）计算此对象的局部变换矩阵。
+    /// * 请改用 CalculateLocalTransform()。
     /// </summary>
+    [Obsolete("Use CalculateLocalTransform() for internal calculations or rely on the cached transform during render.", true)]
     public virtual Matrix3x2 GetLocalTransform()
     {
-        // 计算锚点的像素偏移
-        float anchorOffsetX = Width * AnchorX;
-        float anchorOffsetY = Height * AnchorY;
-
-        // 变换顺序:
-        // 1. 平移到锚点位置（使锚点成为原点）
-        // 2. 缩放
-        // 3. 旋转
-        // 4. 平移回去并移动到最终位置
-        return Matrix3x2.CreateTranslation(-anchorOffsetX, -anchorOffsetY) *
-               Matrix3x2.CreateScale(ScaleX, ScaleY) *
-               Matrix3x2.CreateRotation(Rotation) *
-               Matrix3x2.CreateTranslation(X + anchorOffsetX, Y + anchorOffsetY);
+        // 此方法保留（标记为 Obsolete）以防外部依赖，
+        // 但内部应使用 CalculateLocalTransform() 和缓存。
+        return CalculateLocalTransform();
     }
+
 
     /// <summary>
     /// 更新逻辑 (例如, 动画)。

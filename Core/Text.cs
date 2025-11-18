@@ -4,6 +4,7 @@ using SharpDX.DirectWrite;
 using SharpDX.Mathematics.Interop;
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Pixi2D.Core;
 
@@ -39,53 +40,55 @@ public class Text : DisplayObject
     private WordWrapping _wordWrapping = WordWrapping.Wrap;
 
     // --- 公共属性 --- 
+    // (注意: Text 自己的属性 setter 也会调用 Invalidate(),
+    //  这会正确地使 DisplayObject 的 _localDirty 标记生效)
 
     public string Content
     {
         get => _text;
-        set { if (_text != value) { _text = value; _isDirty = true; } }
+        set { if (_text != value) { _text = value; _isDirty = true; Invalidate(); } } // Invalidate
     }
 
     public string FontFamily
     {
         get => _fontFamily;
-        set { if (_fontFamily != value) { _fontFamily = value; _isDirty = true; } }
+        set { if (_fontFamily != value) { _fontFamily = value; _isDirty = true; Invalidate(); } } // Invalidate
     }
 
     public float FontSize
     {
         get => _fontSize;
-        set { if (_fontSize != value) { _fontSize = value; _isDirty = true; } }
+        set { if (_fontSize != value) { _fontSize = value; _isDirty = true; Invalidate(); } } // Invalidate
     }
 
     public FontStyle FontStyle
     {
         get => _fontStyle;
-        set { if (_fontStyle != value) { _fontStyle = value; _isDirty = true; } }
+        set { if (_fontStyle != value) { _fontStyle = value; _isDirty = true; Invalidate(); } } // Invalidate
     }
 
     public FontWeight FontWeight
     {
         get => _fontWeight;
-        set { if (_fontWeight != value) { _fontWeight = value; _isDirty = true; } }
+        set { if (_fontWeight != value) { _fontWeight = value; _isDirty = true; Invalidate(); } } // Invalidate
     }
 
     public RawColor4 FillColor
     {
         get => _fillColor;
-        set { _fillColor = value; _isBrushDirty = true; }
+        set { _fillColor = value; _isBrushDirty = true; } // 颜色不影响变换, 无需 Invalidate()
     }
 
     public float MaxWidth
     {
         get => _maxWidth;
-        set { if (_maxWidth != value) { _maxWidth = value; _isDirty = true; } }
+        set { if (_maxWidth != value) { _maxWidth = value; _isDirty = true; Invalidate(); } } // Invalidate
     }
 
     public float MaxHeight
     {
         get => _maxHeight;
-        set { if (_maxHeight != value) { _maxHeight = value; _isDirty = true; } }
+        set { if (_maxHeight != value) { _maxHeight = value; _isDirty = true; Invalidate(); } } // Invalidate
     }
 
     /// <summary>
@@ -102,6 +105,7 @@ public class Text : DisplayObject
             {
                 _wordWrapping = newMode;
                 _isDirty = true; // 强制重建 format 和 layout
+                Invalidate(); // Invalidate
             }
         }
     }
@@ -230,7 +234,7 @@ public class Text : DisplayObject
 
         if (_textLayout is null) return default;
 
-        return _textLayout.Metrics; 
+        return _textLayout.Metrics;
     }
 
     /// <summary>
@@ -254,32 +258,45 @@ public class Text : DisplayObject
     }
 
     /// <summary>
-    /// 渲染文本。
+    /// (已优化) 渲染文本。
     /// </summary>
     public override void Render(RenderTarget renderTarget, Matrix3x2 parentTransform)
     {
         if (!Visible) return;
 
-        // 1. 确保所有资源 (Format, Layout, Brush) 都是最新的
+        // 1. (优化) 计算或获取缓存的变换
+        uint parentVersion = (Parent != null) ? Parent._worldVersion : 0;
+        bool parentDirty = (parentVersion != _parentVersion);
+
+        if (_localDirty || parentDirty)
+        {
+            if (_localDirty)
+            {
+                _localTransform = CalculateLocalTransform();
+                _localDirty = false;
+            }
+            _worldTransform = _localTransform * parentTransform;
+            _parentVersion = parentVersion;
+            _worldVersion++;
+            _worldDirty = false;
+        }
+        else if (_worldDirty)
+        {
+            _worldTransform = _localTransform * parentTransform;
+            _worldDirty = false;
+        }
+        // ... 否则, _worldTransform 已经是最新的。
+
+
+        // 2. 确保所有 DWrite 资源 (Format, Layout, Brush) 都是最新的
         UpdateResources(renderTarget);
 
         if (_textLayout is null || _fillBrush is null) return;
 
-        // 2. 计算世界变换
-        Matrix3x2 myLocalTransform = GetLocalTransform();
-        Matrix3x2 myWorldTransform = myLocalTransform * parentTransform;
-
         // 3. 保存并设置变换
         var oldTransform = renderTarget.Transform;
-        renderTarget.Transform = new RawMatrix3x2
-        {
-            M11 = myWorldTransform.M11,
-            M12 = myWorldTransform.M12,
-            M21 = myWorldTransform.M21,
-            M22 = myWorldTransform.M22,
-            M31 = myWorldTransform.M31,
-            M32 = myWorldTransform.M32
-        };
+        // (优化) 使用缓存的 _worldTransform 
+        renderTarget.Transform = Unsafe.As<Matrix3x2, RawMatrix3x2>(ref _worldTransform);
 
         // 4. 绘制文本布局
         // 我们在 (0,0) 绘制，因为变换已经处理了 X, Y 位置
@@ -379,4 +396,3 @@ public class Text : DisplayObject
         }
     }
 }
-

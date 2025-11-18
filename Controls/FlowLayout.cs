@@ -253,7 +253,7 @@ public class FlowLayout : Container
     /// </summary>
     public void UpdateLayout()
     {
-        if (children.Count == 0) return;
+        if (Children.Count == 0) return;
 
         float primaryPos = 0f;  // 主軸上的當前位置 (e.g., X for horizontal)
         float crossPos = 0f;    // 交叉軸上的當前位置 (e.g., Y for horizontal)
@@ -266,7 +266,7 @@ public class FlowLayout : Container
             primaryPos = _paddingLeft;
             crossPos = _paddingTop;
 
-            foreach (var child in children)
+            foreach (var child in Children)
             {
                 if (child is FlowBreak)
                 {
@@ -298,7 +298,7 @@ public class FlowLayout : Container
             primaryPos = _paddingTop;
             crossPos = _paddingLeft;
 
-            foreach (var child in children)
+            foreach (var child in Children)
             {
                 if (child is FlowBreak)
                 {

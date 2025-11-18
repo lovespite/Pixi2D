@@ -2,6 +2,7 @@
 using SharpDX.Mathematics.Interop;
 using System.Drawing;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Pixi2D.Core;
 
@@ -53,32 +54,43 @@ public class Sprite : DisplayObject
     }
 
     /// <summary>
-    /// 已更改: 接受 Matrix3x2。
+    /// (已优化) 接受 Matrix3x2。
     /// </summary>
     public override void Render(RenderTarget renderTarget, Matrix3x2 parentTransform)
     {
         if (!Visible || Bitmap is null) return;
 
-        // 1. 计算此 Sprite 的最终世界变换 (Matrix3x2)
-        Matrix3x2 myLocalTransform = GetLocalTransform();
-        Matrix3x2 myWorldTransform = myLocalTransform * parentTransform;
+        // 1. (优化) 计算或获取缓存的变换
+        uint parentVersion = (Parent != null) ? Parent._worldVersion : 0;
+        bool parentDirty = (parentVersion != _parentVersion);
+
+        if (_localDirty || parentDirty)
+        {
+            if (_localDirty)
+            {
+                _localTransform = CalculateLocalTransform();
+                _localDirty = false;
+            }
+            _worldTransform = _localTransform * parentTransform;
+            _parentVersion = parentVersion;
+            _worldVersion++;
+            _worldDirty = false;
+        }
+        else if (_worldDirty)
+        {
+            _worldTransform = _localTransform * parentTransform;
+            _worldDirty = false;
+        }
+        // ... 否则, _worldTransform 已经是最新的。
+
 
         // 2. 保存旧变换 (关键!)
         // renderTarget.Transform 返回 RawMatrix3x2
         var oldTransform = renderTarget.Transform;
 
         // 3. 设置变换
-        // renderTarget.Transform 需要 RawMatrix3x2
-        // C# 将在此处使用 Matrix3x2 -> RawMatrix3x2 的手动转换
-        renderTarget.Transform = new RawMatrix3x2
-        {
-            M11 = myWorldTransform.M11,
-            M12 = myWorldTransform.M12,
-            M21 = myWorldTransform.M21,
-            M22 = myWorldTransform.M22,
-            M31 = myWorldTransform.M31,
-            M32 = myWorldTransform.M32
-        };
+        // (优化) 使用缓存的 _worldTransform 
+        renderTarget.Transform = Unsafe.As<Matrix3x2, RawMatrix3x2>(ref _worldTransform);
 
         // 4. 绘制 (使用支持 Alpha 的重载)
         // ... (绘制逻辑不变) ...
