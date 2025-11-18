@@ -1,5 +1,6 @@
 ﻿using Pixi2D.Controls;
 using Pixi2D.Core;
+using Pixi2D.Events;
 using SharpDX.Mathematics.Interop;
 using System.Drawing;
 
@@ -17,16 +18,28 @@ public partial class MessageBox : Panel
     /// 半透明的模态遮罩层。 
     /// </summary>
     private readonly Graphics _overlay;
+    /// <summary>
+    /// 模态遮罩层
+    /// </summary>
+    public Graphics Overlay => _overlay;
 
     /// <summary>
     /// 容纳自定义内容 (消息, 输入框等) 的内部面板。 
     /// </summary>
     private readonly Panel _contentHolder;
+    /// <summary>
+    /// 容纳自定义内容 (消息, 输入框等) 的内部面板。
+    /// </summary>
+    public Panel ContentHolder => _contentHolder;
 
     /// <summary>
     /// 容纳 "OK", "Cancel" 等按钮的流式布局。 
     /// </summary>
     private readonly FlowLayout _actionsLayout;
+    /// <summary>
+    /// 容纳 "OK", "Cancel" 等按钮的流式布局。 
+    /// </summary>
+    public FlowLayout ActionsLayout => _actionsLayout;
 
     private readonly Stage _stage;
 
@@ -34,6 +47,21 @@ public partial class MessageBox : Panel
     /// 当对话框显示时，默认获得焦点的目标对象。默认为null，表示 MessageBox 本身。
     /// </summary>
     public DisplayObject? DefaultFocusTarget { get; set; }
+
+    /// <summary>
+    /// 当点击遮罩层时触发的事件。
+    /// </summary>
+    public event Action<MessageBox>? OnMaskClick;
+
+    /// <summary>
+    /// 当对话框关闭时触发的事件。
+    /// </summary>
+    public event Action<MessageBox>? OnClose;
+
+    /// <summary>
+    /// 当对话框打开时触发的事件。 
+    /// </summary>
+    public event Action<MessageBox>? OnOpen;
 
     public static float DefaultPadding { get; set; } = 10;
     public static float DefaultButtonHeight { get; set; } = 30;
@@ -56,6 +84,7 @@ public partial class MessageBox : Panel
             Visible = false,
             FillColor = new RawColor4(0, 0, 0, 0.5f) // 半透明黑色 
         };
+        _overlay.OnClick += HandleMaskClick;
 
         // 2. 配置 MessageBox (自身 - Panel) 
         SetPadding(DefaultPadding);
@@ -108,6 +137,11 @@ public partial class MessageBox : Panel
         ResizeAndCenter();
     }
 
+    private void HandleMaskClick(DisplayObjectEvent @event)
+    {
+        OnMaskClick?.Invoke(this);
+    }
+
     /// <summary>
     /// 调整遮罩层和对话框的大小并居中。 
     /// </summary>
@@ -129,10 +163,11 @@ public partial class MessageBox : Panel
     /// <summary>
     /// 隐藏对话框和遮罩层。 
     /// </summary>
-    public void Hide()
+    public void Close()
     {
         this.Visible = false;
         _overlay.Visible = false;
+        OnClose?.Invoke(this);
     }
 
     /// <summary>
@@ -140,7 +175,7 @@ public partial class MessageBox : Panel
     /// </summary>
     /// <param name="contentContainer">要显示的内容容器。 </param>
     /// <param name="actions">要显示的按钮数组。 </param> 
-    public void Show()
+    public void Open()
     {
         // 调整大小和位置 
         ResizeAndCenter();
@@ -149,6 +184,7 @@ public partial class MessageBox : Panel
         _overlay.Visible = true;
 
         (DefaultFocusTarget ?? this).Focus();
+        OnOpen?.Invoke(this);
     }
 
     private void HandleStageResize(Stage _, float width, float height)
@@ -231,11 +267,11 @@ partial class MessageBox
 
         button.OnClick += (btn) =>
         {
-            mb.Hide();
+            mb.Close();
             tcs.SetResult();
         };
 
-        mb.Show();
+        mb.Open();
 
         await tcs.Task;
     }
@@ -273,17 +309,17 @@ partial class MessageBox
 
         okButton.OnButtonClick += (btn) =>
         {
-            mb.Hide();
+            mb.Close();
             tcs.TrySetResult(true);
         };
         cancelButton.OnButtonClick += (btn) =>
         {
-            mb.Hide();
+            mb.Close();
             tcs.TrySetResult(false);
         };
 
 
-        mb.Show();
+        mb.Open();
 
         var result = await tcs.Task;
         return (bool)(result ?? false);
@@ -377,7 +413,7 @@ partial class MessageBox
             // 如果按下回车键则确认输入
             if ((multiline && !shift && isEnter) || (!multiline && !shift && isEnter)) // Enter key
             {
-                mb.Hide();
+                mb.Close();
                 tcs.TrySetResult(textBox.Text);
             }
         };
@@ -386,19 +422,19 @@ partial class MessageBox
 
         okButton.OnButtonClick += (btn) =>
         {
-            mb.Hide();
+            mb.Close();
             tcs.TrySetResult(textBox.Text);
         };
 
         cancelButton.OnButtonClick += (btn) =>
         {
-            mb.Hide();
+            mb.Close();
             tcs.TrySetResult(null); // Cancel 返回 null
         };
 
         // 自动聚焦到输入框
         // mb.OnFocus += textBox.Focus;
-        mb.Show();
+        mb.Open();
 
         textBox.SelectAll();
         var result = await tcs.Task;
