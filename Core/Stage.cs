@@ -134,11 +134,6 @@ public sealed class Stage : Container
             _lastMouseOverObject = hitObject;
         }
 
-        // 3. 处理 MouseMove (冒泡)
-        //if (hitObject is not null)
-        //{
-        //    BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, null, (obj) => obj.OnMouseMove);
-        //}
         BubbleEvent(hitObject ?? this, worldPoint, evtData.LocalPosition, null, (obj) => obj.OnMouseMove);
     }
 
@@ -162,10 +157,6 @@ public sealed class Stage : Container
 
         _lastMouseDownObject = hitObject; // 跟踪此对象，用于 "click" 检测
 
-        //if (hitObject is not null)
-        //{
-        //    BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseDown);
-        //}
         BubbleEvent(hitObject ?? this, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseDown);
     }
 
@@ -177,20 +168,14 @@ public sealed class Stage : Container
         var evtData = new DisplayObjectEvent { WorldPosition = worldPoint };
         DisplayObject? hitObject = FindHitObject(worldPoint, Matrix3x2.Identity, evtData);
 
-        // 1. 触发 MouseUp (冒泡)
-        if (hitObject is not null)
+        // 1. 触发 MouseUp (冒泡) 
+        BubbleEvent(hitObject ?? this, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseUp);
+
+        if (hitObject is not null && ReferenceEquals(hitObject, _lastMouseDownObject))
         {
-            BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnMouseUp);
+            // 2. 触发 Click 事件 (冒泡)
+            BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnClick);
         }
-
-        // 2. 处理 Click 事件 (冒泡)
-        // 只有在同一个对象上按下和抬起时才触发 Click
-        //if (hitObject is not null && hitObject == _lastMouseDownObject)
-        //{
-        //    BubbleEvent(hitObject, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnClick);
-        //}
-
-        BubbleEvent(hitObject ?? _lastMouseDownObject ?? this, worldPoint, evtData.LocalPosition, new DisplayObjectEventData { Button = button }, (obj) => obj.OnClick);
 
         _lastMouseDownObject = null; // 重置
     }
