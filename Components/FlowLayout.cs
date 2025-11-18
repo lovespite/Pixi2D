@@ -2,7 +2,7 @@
 using System.Drawing;
 using System.Numerics;
 
-namespace Pixi2D.Controls;
+namespace Pixi2D.Components;
 
 /// <summary>
 /// 流式佈局容器。 
@@ -320,7 +320,7 @@ public class FlowLayout : Container
 
         List<DisplayObject> currentLine = [];
         // 交叉轴的起始位置 
-        float crossPos = (_direction == LayoutDirection.Horizontal) ? _paddingTop : _paddingLeft;
+        float crossPos = _direction == LayoutDirection.Horizontal ? _paddingTop : _paddingLeft;
 
         for (int i = 0; i < Children.Count; i++)
         {
@@ -407,7 +407,7 @@ public class FlowLayout : Container
 
         // 容器在主轴上的可用宽度  
         // (如果 Width 未设置，则假定无限大) 
-        float layoutWidth = this.Width - PaddingLeft - PaddingRight;
+        float layoutWidth = Width - PaddingLeft - PaddingRight;
         if (layoutWidth <= 0) layoutWidth = totalWidth;
 
         float remainingSpace = Math.Max(0, layoutWidth - totalWidth);
@@ -427,7 +427,7 @@ public class FlowLayout : Container
                 if (visibleItemsCount > 1)
                 {
                     // (包含 Gap)
-                    spacing = (remainingSpace / (visibleItemsCount - 1)) + Gap;
+                    spacing = remainingSpace / (visibleItemsCount - 1) + Gap;
                 }
                 break;
         }
@@ -471,7 +471,7 @@ public class FlowLayout : Container
         totalHeight += Math.Max(0, visibleItemsCount - 1) * Gap;
 
         // 容器在主轴上的可用高度 
-        float layoutHeight = this.Height - PaddingTop - PaddingBottom;
+        float layoutHeight = Height - PaddingTop - PaddingBottom;
         if (layoutHeight <= 0) layoutHeight = totalHeight;
 
         float remainingSpace = Math.Max(0, layoutHeight - totalHeight);
@@ -490,7 +490,7 @@ public class FlowLayout : Container
             case JustifyContent.SpaceBetween:
                 if (visibleItemsCount > 1)
                 {
-                    spacing = (remainingSpace / (visibleItemsCount - 1)) + Gap;
+                    spacing = remainingSpace / (visibleItemsCount - 1) + Gap;
                 }
                 break;
         }
