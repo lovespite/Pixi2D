@@ -341,7 +341,7 @@ public class FlowLayout : Container
     public sealed class FlowBreak : DisplayObject
     {
         public override bool HitTest(PointF localPoint) => false;
-        public override void Render(SharpDX.Direct2D1.RenderTarget renderTarget, Matrix3x2 parentTransform)
+        public override void Render(SharpDX.Direct2D1.RenderTarget renderTarget, ref Matrix3x2 parentTransform)
         {
             // This object does not render anything.
             // (此對象不渲染任何內容。)

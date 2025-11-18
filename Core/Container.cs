@@ -156,7 +156,7 @@ public class Container : DisplayObject
     /// <summary>
     /// (已优化) 接受并传递 Matrix3x2。
     /// </summary>
-    public override void Render(RenderTarget renderTarget, Matrix3x2 parentTransform)
+    public override void Render(RenderTarget renderTarget, ref Matrix3x2 parentTransform)
     {
         if (!Visible) return;
 
@@ -243,7 +243,7 @@ public class Container : DisplayObject
             foreach (var child in Children)
             {
                 // (优化) 子项使用我们计算好的、缓存的 _worldTransform 来渲染
-                child.Render(renderTarget, _worldTransform);
+                child.Render(renderTarget, ref _worldTransform);
             }
         }
         finally

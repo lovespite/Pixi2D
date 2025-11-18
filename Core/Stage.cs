@@ -27,8 +27,10 @@ public sealed class Stage : Container
         return _cachedRenderTarget;
     }
 
+    private Matrix3x2 Identity = Matrix3x2.Identity;
+
     /// <summary>
-    /// (已优化) 渲染整个场景。
+    /// 渲染整个场景。
     /// 此方法现在会触发变换更新和渲染。
     /// </summary>
     /// <param name="renderTarget">D2D 渲染目标。</param>
@@ -41,7 +43,7 @@ public sealed class Stage : Container
         _worldVersion++;
 
         // 2. 以单位矩阵开始递归渲染 (Render 内部会处理变换更新)
-        Render(renderTarget, Matrix3x2.Identity);
+        Render(renderTarget, ref Identity);
     }
 
     public void Resize(float newWidth, float newHeight)

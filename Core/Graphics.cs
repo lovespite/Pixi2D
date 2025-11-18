@@ -211,7 +211,7 @@ public class Graphics : DisplayObject
     /// <summary>
     /// (已优化) 渲染所有图形。
     /// </summary>
-    public override void Render(RenderTarget renderTarget, Matrix3x2 parentTransform)
+    public override void Render(RenderTarget renderTarget, ref Matrix3x2 parentTransform)
     {
         if (!Visible || _shapes.Count == 0) return;
 
