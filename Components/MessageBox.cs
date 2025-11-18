@@ -264,7 +264,6 @@ partial class MessageBox
         var tcs = new TaskCompletionSource();
         var button = new Button(textFactory.Create(DefaultOkText), 80, 30);
         using var mb = new MessageBox(stage, new SizeF(350, 150), content, [button]);
-
         button.OnClick += (btn) =>
         {
             mb.Close();
