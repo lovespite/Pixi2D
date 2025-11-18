@@ -96,6 +96,7 @@ public partial class MessageBox : Panel
             Direction = FlowLayout.LayoutDirection.Horizontal,
             Gap = 10,
             Width = width - DefaultPadding * 2,
+            JustifyMain = FlowLayout.JustifyContent.End, // 按钮靠右排列
         };
         _actionsLayout.AddChildren(actions);
         mainLayout.AddChild(_actionsLayout);
