@@ -1,5 +1,6 @@
 using Pixi2D.Core;
 using Pixi2D.Events;
+using SharpDX;
 using SharpDX.Mathematics.Interop;
 
 namespace Pixi2D.Controls;
@@ -85,6 +86,11 @@ public class VirtualScrollList<T> : Panel
         this.OnMouseWheel += HandleMouseWheel;
 
         Interactive = true;
+    }
+
+    public VirtualScrollList(Size2F size, float itemHeight = 40f)
+        : this(size.Width, size.Height, itemHeight)
+    {
     }
 
     /// <summary>
@@ -395,32 +401,31 @@ public class VirtualScrollList<T> : Panel
         // 创建或更新可见项目
         for (int i = firstVisibleIndex; i <= lastVisibleIndex; i++)
         {
-            if (!_visibleItems.TryGetValue(i, out DisplayObject? item))
-            {
-                // 创建新的可见项
-                var data = _dataSource[i];
-                item = ItemRenderer(data, i);
-
-                // 设置项目位置
-                item.Y = i * _itemHeight - _scrollPosition;
-
-                // 添加点击事件
-                int capturedIndex = i;
-                T capturedData = data;
-                item.OnClick += (evt) =>
-                {
-                    OnItemClick?.Invoke(capturedData, capturedIndex);
-                };
-
-                // 添加到内容容器
-                ContentContainer.AddChild(item);
-
-                _visibleItems[i] = item;
+            if ( _visibleItems.TryGetValue(i, out DisplayObject? item))
+            { 
+                ContentContainer.RemoveChild(item);
+                item.Dispose();
+                _visibleItems.Remove(i);
             }
-            else
+            // 创建新的可见项
+            var data = _dataSource[i];
+            item = ItemRenderer(data, i);
+
+            // 设置项目位置
+            item.Y = i * _itemHeight - _scrollPosition;
+
+            // 添加点击事件
+            int capturedIndex = i;
+            T capturedData = data;
+            item.OnClick += (evt) =>
             {
-                item.Y = i * _itemHeight - _scrollPosition;
-            }
+                OnItemClick?.Invoke(capturedData, capturedIndex);
+            };
+
+            // 添加到内容容器
+            ContentContainer.AddChild(item);
+
+            _visibleItems[i] = item;
         }
     }
 
