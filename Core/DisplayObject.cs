@@ -111,7 +111,6 @@ public abstract class DisplayObject : IDisposable
                Matrix3x2.CreateTranslation(X + anchorOffsetX, Y + anchorOffsetY);
     }
 
-
     /// <summary>
     /// Must be set to true for this object to receive events.
     /// (为 true 时此对象才能接收事件。)

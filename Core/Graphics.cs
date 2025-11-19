@@ -14,11 +14,13 @@ public class Graphics : DisplayObject
 {
     #region 内部形状定义
 
-    private interface IGraphicsShape
+    // 修改接口继承 IDisposable，以便清理缓存的非托管资源 (Geometry)
+    private interface IGraphicsShape : IDisposable
     {
         void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth);
         RectangleF GetBounds(); // 添加获取包围盒的方法
     }
+
     private class GraphicsRectangle : IGraphicsShape
     {
         public RawRectangleF Rect;
@@ -31,7 +33,9 @@ public class Graphics : DisplayObject
                                              Rect.Top,
                                              Rect.Right - Rect.Left,
                                              Rect.Bottom - Rect.Top);
+        public void Dispose() { } // 简单形状无资源需释放
     }
+
     private class GraphicsRoundedRectangle : IGraphicsShape
     {
         public RoundedRectangle RoundedRect;
@@ -44,7 +48,9 @@ public class Graphics : DisplayObject
                                              RoundedRect.Rect.Top,
                                              RoundedRect.Rect.Right - RoundedRect.Rect.Left,
                                              RoundedRect.Rect.Bottom - RoundedRect.Rect.Top);
+        public void Dispose() { }
     }
+
     private class GraphicsEllipse : IGraphicsShape
     {
         public Ellipse Ellipse;
@@ -57,6 +63,97 @@ public class Graphics : DisplayObject
                                              Ellipse.Point.Y - Ellipse.RadiusY,
                                              Ellipse.RadiusX * 2,
                                              Ellipse.RadiusY * 2);
+        public void Dispose() { }
+    }
+
+    private class GraphicsCurve : IGraphicsShape
+    {
+        public PointF[] Points = [];
+        public float Tension;
+
+        // 缓存 PathGeometry 
+        private PathGeometry? _cachedGeometry;
+
+        public void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth)
+        {
+            if (Points.Length < 2 || (strokeBrush is null && fillBrush is null)) return;
+
+            // 检查缓存是否有效。如果 Factory 改变了（极少见，但可能发生在设备丢失重建时），也需要重建。 
+            if (_cachedGeometry == null || _cachedGeometry.Factory.NativePointer != renderTarget.Factory.NativePointer)
+            {
+                // 释放旧资源
+                Dispose();
+                // 重建几何体
+                _cachedGeometry = BuildGeometry(renderTarget.Factory);
+            }
+
+            // 绘制路径 
+            if (strokeBrush is not null && strokeWidth > 0)
+            {
+                renderTarget.DrawGeometry(_cachedGeometry, strokeBrush, strokeWidth);
+            }
+        }
+
+        private PathGeometry BuildGeometry(Factory factory)
+        {
+            var geometry = new PathGeometry(factory);
+            using (var sink = geometry.Open())
+            {
+                sink.BeginFigure(new RawVector2(Points[0].X, Points[0].Y), FigureBegin.Hollow);
+
+                // 计算 Cardinal Spline (基数样条) 的张力系数
+                float scale = (1.0f - Tension) / 2.0f;
+
+                for (int i = 0; i < Points.Length - 1; i++)
+                {
+                    PointF p0 = (i == 0) ? Points[0] : Points[i - 1];
+                    PointF p1 = Points[i];
+                    PointF p2 = Points[i + 1];
+                    PointF p3 = (i == Points.Length - 2) ? Points[i + 1] : Points[i + 2];
+
+                    float t1x = (p2.X - p0.X) * scale;
+                    float t1y = (p2.Y - p0.Y) * scale;
+                    float t2x = (p3.X - p1.X) * scale;
+                    float t2y = (p3.Y - p1.Y) * scale;
+
+                    float c1x = p1.X + t1x / 3.0f;
+                    float c1y = p1.Y + t1y / 3.0f;
+                    float c2x = p2.X - t2x / 3.0f;
+                    float c2y = p2.Y - t2y / 3.0f;
+
+                    sink.AddBezier(new BezierSegment()
+                    {
+                        Point1 = new RawVector2(c1x, c1y),
+                        Point2 = new RawVector2(c2x, c2y),
+                        Point3 = new RawVector2(p2.X, p2.Y)
+                    });
+                }
+
+                sink.EndFigure(FigureEnd.Open);
+                sink.Close();
+            }
+            return geometry;
+        }
+
+        public RectangleF GetBounds()
+        {
+            if (Points.Length == 0) return RectangleF.Empty;
+            float minX = Points[0].X, minY = Points[0].Y, maxX = Points[0].X, maxY = Points[0].Y;
+            foreach (var p in Points)
+            {
+                if (p.X < minX) minX = p.X;
+                if (p.Y < minY) minY = p.Y;
+                if (p.X > maxX) maxX = p.X;
+                if (p.Y > maxY) maxY = p.Y;
+            }
+            return new RectangleF(minX, minY, maxX - minX, maxY - minY);
+        }
+
+        public void Dispose()
+        {
+            _cachedGeometry?.Dispose();
+            _cachedGeometry = null;
+        }
     }
 
     #endregion
@@ -120,6 +217,11 @@ public class Graphics : DisplayObject
     /// </summary> 
     public void Clear()
     {
+        // 清除时必须释放所有形状持有的资源 
+        foreach (var shape in _shapes)
+        {
+            shape.Dispose();
+        }
         _shapes.Clear();
         _boundsDirty = true;
     }
@@ -209,7 +311,25 @@ public class Graphics : DisplayObject
     }
 
     /// <summary>
-    /// (已优化) 渲染所有图形。
+    /// 绘制一条穿过指定点数组的平滑曲线 (Cardinal Spline)。
+    /// </summary>
+    /// <param name="points">定义曲线的锚点数组。</param>
+    /// <param name="tension">曲线的张力 (0.0f - 1.0f)。0.0f 表示最平滑 (Catmull-Rom)，1.0f 表示直线。</param>
+    public void DrawCurve(PointF[] points, float tension = 0.0f)
+    {
+        if (points.Length < 2) return;
+
+        // 复制点数组以防外部修改影响绘制 
+        _shapes.Add(new GraphicsCurve
+        {
+            Points = [.. points],
+            Tension = tension
+        });
+        _boundsDirty = true;
+    }
+
+    /// <summary>
+    /// 渲染所有图形。
     /// </summary>
     public override void Render(RenderTarget renderTarget, ref Matrix3x2 parentTransform)
     {
@@ -300,8 +420,7 @@ public class Graphics : DisplayObject
 
     /// <summary>
     /// 释放笔刷资源。
-    /// </summary>
-    // ... (Dispose 逻辑不变) ...
+    /// </summary> 
     public override void Dispose()
     {
         base.Dispose();
@@ -310,6 +429,6 @@ public class Graphics : DisplayObject
         _fillBrush = null;
         _strokeBrush = null;
         //_cachedRenderTarget = null;
-        Clear();
+        Clear(); // Clear 会负责 dispose 所有的形状
     }
 }

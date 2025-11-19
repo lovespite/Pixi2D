@@ -38,6 +38,9 @@ public class Sprite : DisplayObject
     {
         Bitmap = bitmap;
         ownsBitmap = disposeBitmapWithSprite;
+
+        Width = bitmap.Size.Width;
+        Height = bitmap.Size.Height;
     }
 
     /// <summary>

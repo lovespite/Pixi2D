@@ -27,7 +27,18 @@ public sealed class Stage : Container
         return _cachedRenderTarget;
     }
 
+    public void SetCachedRenderTarget(RenderTarget? renderTarget)
+    {
+        Interlocked.Exchange(ref _cachedRenderTarget, renderTarget);
+    }
+
     private Matrix3x2 Identity = Matrix3x2.Identity;
+
+    public Stage()
+    {
+        Interactive = true;
+        AcceptFocus = true;
+    }
 
     /// <summary>
     /// 渲染整个场景。
@@ -148,7 +159,7 @@ public sealed class Stage : Container
         // 如果点击了可交互对象，它将获得焦点。 
         if (hitObject is null)
         {
-            SetFocus(null);
+            SetFocus(this.FindFirstFocusableTarget());
         }
         else
         {
