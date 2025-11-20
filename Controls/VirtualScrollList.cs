@@ -2,6 +2,7 @@ using Pixi2D.Core;
 using Pixi2D.Events;
 using SharpDX;
 using SharpDX.Mathematics.Interop;
+using System.Drawing;
 
 namespace Pixi2D.Controls;
 
@@ -88,8 +89,8 @@ public class VirtualScrollList<T> : Panel
         Interactive = true;
     }
 
-    public VirtualScrollList(Size2F size, float itemHeight = 40f)
-        : this(size.Width, size.Height, itemHeight)
+    public VirtualScrollList(SizeF itemSize)
+        : this(itemSize.Width, itemSize.Height, itemSize.Height)
     {
     }
 
@@ -189,7 +190,7 @@ public class VirtualScrollList<T> : Panel
     /// </summary>
     public void AddItems(IEnumerable<T> items)
     {
-        _dataSource.AddRange(items); 
+        _dataSource.AddRange(items);
         UpdateScrollBar();
         UpdateVisibleItems();
     }
