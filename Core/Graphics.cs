@@ -183,6 +183,27 @@ public partial class Graphics : DisplayObject
     }
 
     /// <summary>
+    /// 绘制一条带箭头的线条或曲线。
+    /// </summary>
+    /// <param name="points">定义线条的点。</param>
+    /// <param name="type">箭头类型 (Single: 终点箭头, Dual: 双向箭头)。</param>
+    /// <param name="arrowSize">箭头的大小 (边长)。</param>
+    /// <param name="tension">曲线张力 (0 表示直线)。</param>
+    public void DrawArrowLine(PointF[] points, ArrowType type, float arrowSize, float tension = 0.0f)
+    {
+        if (points.Length < 2) return;
+
+        _shapes.Add(new GraphicsArrowLine
+        {
+            Points = [.. points],
+            Type = type,
+            ArrowSize = arrowSize,
+            Tension = tension
+        });
+        _boundsDirty = true;
+    }
+
+    /// <summary>
     /// 渲染所有图形。
     /// </summary>
     public override void Render(RenderTarget renderTarget, ref Matrix3x2 parentTransform)

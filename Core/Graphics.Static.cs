@@ -3,6 +3,7 @@ using SharpDX.Mathematics.Interop;
 using System.Drawing;
 using System.Numerics;
 
+namespace Pixi2D.Core;
 // Graphics 内部形状定义
 
 partial class Graphics
