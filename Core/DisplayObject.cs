@@ -27,6 +27,8 @@ public abstract class DisplayObject : IDisposable
     protected bool _localDirty = true;
     protected bool _worldDirty = true;
 
+    public object? Tag { get; set; } = null;
+
     public override string ToString()
     {
         return Name ?? GetType().Name;
@@ -268,6 +270,7 @@ public abstract class DisplayObject : IDisposable
     {
         // 默认不执行任何操作，子类应重写它
         Parent?.RemoveChild(this);
+        Tag = null;
     }
 
     #region Helper Methods

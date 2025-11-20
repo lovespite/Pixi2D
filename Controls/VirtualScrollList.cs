@@ -167,6 +167,8 @@ public class VirtualScrollList<T> : Panel
     {
         _dataSource.Clear();
         _dataSource.AddRange(data);
+        // 数据源彻底改变，必须清除可见项缓存，否则会显示旧数据
+        ClearVisibleItems();
         ScrollPosition = 0f;
         UpdateScrollBar();
         UpdateVisibleItems();
@@ -187,7 +189,7 @@ public class VirtualScrollList<T> : Panel
     /// </summary>
     public void AddItems(IEnumerable<T> items)
     {
-        _dataSource.AddRange(items);
+        _dataSource.AddRange(items); 
         UpdateScrollBar();
         UpdateVisibleItems();
     }
@@ -201,6 +203,8 @@ public class VirtualScrollList<T> : Panel
             throw new ArgumentOutOfRangeException(nameof(index));
 
         _dataSource.Insert(index, item);
+        // 插入会导致后续索引偏移，必须清除缓存以防复用错误的数据视图
+        ClearVisibleItems();
         UpdateScrollBar();
         UpdateVisibleItems();
     }
@@ -214,6 +218,8 @@ public class VirtualScrollList<T> : Panel
             throw new ArgumentOutOfRangeException(nameof(index));
 
         _dataSource.RemoveAt(index);
+        // 移除会导致后续索引偏移，必须清除缓存
+        ClearVisibleItems();
         UpdateScrollBar();
         UpdateVisibleItems();
     }
@@ -226,6 +232,8 @@ public class VirtualScrollList<T> : Panel
         bool removed = _dataSource.Remove(item);
         if (removed)
         {
+            // 移除会导致后续索引偏移，必须清除缓存
+            ClearVisibleItems();
             UpdateScrollBar();
             UpdateVisibleItems();
         }
@@ -241,6 +249,14 @@ public class VirtualScrollList<T> : Panel
             throw new ArgumentOutOfRangeException(nameof(index));
 
         _dataSource[index] = item;
+
+        // 针对特定索引清除缓存，强制下次更新时重建
+        if (_visibleItems.TryGetValue(index, out var displayObject))
+        {
+            ContentContainer.RemoveChild(displayObject);
+            displayObject.Dispose();
+            _visibleItems.Remove(index);
+        }
         UpdateVisibleItems();
     }
 
@@ -298,6 +314,8 @@ public class VirtualScrollList<T> : Panel
     /// </summary>
     public void Refresh()
     {
+        // 强制清除缓存
+        ClearVisibleItems();
         UpdateVisibleItems();
     }
 
@@ -384,9 +402,11 @@ public class VirtualScrollList<T> : Panel
         firstVisibleIndex = Math.Max(0, firstVisibleIndex - bufferSize);
         lastVisibleIndex = Math.Min(_dataSource.Count - 1, lastVisibleIndex + bufferSize);
 
-        // 移除不再可见的项目
-        var indicesToRemove = _visibleItems.Keys.Where(index =>
-            index < firstVisibleIndex || index > lastVisibleIndex).ToList();
+        // 1. 移除不再可见的项目
+        // 使用 ToList 创建副本以便在遍历时修改字典
+        var indicesToRemove = _visibleItems.Keys
+            .Where(index => index < firstVisibleIndex || index > lastVisibleIndex)
+            .ToList();
 
         foreach (var index in indicesToRemove)
         {
@@ -398,34 +418,36 @@ public class VirtualScrollList<T> : Panel
             }
         }
 
-        // 创建或更新可见项目
+        // 2. 创建或更新可见项目
         for (int i = firstVisibleIndex; i <= lastVisibleIndex; i++)
         {
-            if ( _visibleItems.TryGetValue(i, out DisplayObject? item))
-            { 
-                ContentContainer.RemoveChild(item);
-                item.Dispose();
-                _visibleItems.Remove(i);
+            // 优化：如果该索引的项目已存在，仅更新位置，不再销毁重建！
+            if (_visibleItems.TryGetValue(i, out var existingItem))
+            {
+                existingItem.Y = i * _itemHeight - _scrollPosition;
+                continue;
             }
-            // 创建新的可见项
+
+            // 只有不存在时，才创建新项
             var data = _dataSource[i];
-            item = ItemRenderer(data, i);
+            var newItem = ItemRenderer(data, i);
 
             // 设置项目位置
-            item.Y = i * _itemHeight - _scrollPosition;
+            newItem.Y = i * _itemHeight - _scrollPosition;
 
             // 添加点击事件
+            // 注意：闭包捕获变量
             int capturedIndex = i;
             T capturedData = data;
-            item.OnClick += (evt) =>
+            newItem.OnClick += (evt) =>
             {
                 OnItemClick?.Invoke(capturedData, capturedIndex);
             };
 
             // 添加到内容容器
-            ContentContainer.AddChild(item);
+            ContentContainer.AddChild(newItem);
 
-            _visibleItems[i] = item;
+            _visibleItems[i] = newItem;
         }
     }
 

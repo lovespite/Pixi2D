@@ -240,7 +240,7 @@ public class Container : DisplayObject
         // 3. 递归渲染所有子项
         try
         {
-            foreach (var child in Children)
+            foreach (var child in  Children.ToArray())
             {
                 // (优化) 子项使用我们计算好的、缓存的 _worldTransform 来渲染
                 child.Render(renderTarget, ref _worldTransform);
