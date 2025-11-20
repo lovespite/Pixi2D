@@ -1,10 +1,16 @@
 ﻿using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Linq.Expressions;
-using System.Reflection;
-using Pixi2D.Core;
 
-namespace Pixi2D.Core;
+namespace Pixi2D.Components;
+
+/// <summary>
+/// 动画更新回调委托。
+/// </summary>
+/// <param name="sender">触发 Animator 本身</param>
+/// <param name="factor">
+/// 计算后的进度因子，范围为 0.0 到 1.0，
+/// </param>
+public delegate void AnimatorUpdateCallback(Animator sender, float factor);
 
 /// <summary>
 /// 定义动画的缓动算法类型。
@@ -55,9 +61,10 @@ public class Animator
 
     // --- 实例字段 ---
     private readonly DisplayObject _target;
+    public DisplayObject Target => _target;
 
     // 存储动画轨道：Setter委托, 初始值, 结束值
-    private readonly List<AnimationTrack> _tracks = new();
+    private readonly List<AnimationTrack> _tracks = [];
 
     private readonly float _duration;
     private readonly float _totalDelay;
@@ -67,30 +74,40 @@ public class Animator
     private float _delayTimer;  // 倒计时 Delay
     private bool _isPlaying;
 
+
     // 任务源，用于 Task 属性
     private readonly TaskCompletionSource<bool> _tcs = new();
 
     /// <summary>
     /// 内部结构，用于存储单条属性的动画信息
     /// </summary>
-    private readonly struct AnimationTrack
+    private readonly struct AnimationTrack(Action<object, float> setter, float startValue, float endValue)
     {
-        public readonly Action<object, float> Setter;
-        public readonly float StartValue;
-        public readonly float EndValue;
-
-        public AnimationTrack(Action<object, float> setter, float startValue, float endValue)
-        {
-            Setter = setter;
-            StartValue = startValue;
-            EndValue = endValue;
-        }
+        public readonly Action<object, float> Setter = setter;
+        public readonly float StartValue = startValue;
+        public readonly float EndValue = endValue;
     }
 
     /// <summary>
-    /// 动画完成时触发的事件。
+    /// Occurs when the operation has completed successfully.
     /// </summary>
+    /// <remarks>
+    /// Only triggered when the animation finishes naturally.
+    /// </remarks>
     public event Action? OnCompleted;
+     
+    /// <summary>
+    /// Occurs when the associated process or operation has stopped.
+    /// </summary>
+    /// <remarks>Subscribers are notified when the process completes or is stopped. </remarks>
+    public event Action? OnStopped;
+
+    /// <summary>
+    /// Occurs when the animator updates its state during an animation cycle.
+    /// </summary>
+    /// <remarks>Subscribe to this event to perform custom actions or respond to changes each time the
+    /// animator advances. The event is typically raised on each animation frame.</remarks>
+    public event AnimatorUpdateCallback? Animating;
 
     /// <summary>
     /// 表示整个动画任务。
@@ -106,7 +123,7 @@ public class Animator
     /// <param name="duration">动画持续时间 (秒)。</param>
     /// <param name="easing">缓动算法。</param>
     /// <param name="delay">启动延迟时间 (秒)。</param>
-    public Animator(DisplayObject target, object properties, float duration, EasingFunction easing = EasingFunction.Linear, float delay = 0f)
+    public Animator(DisplayObject target, object? properties, float duration, EasingFunction easing = EasingFunction.Linear, float delay = 0f)
     {
         _target = target ?? throw new ArgumentNullException(nameof(target));
         _duration = Math.Max(0, duration);
@@ -133,6 +150,7 @@ public class Animator
 
         Cleanup();
         _tcs.TrySetCanceled();
+        OnStopped?.Invoke();
     }
 
     /// <summary>
@@ -153,14 +171,15 @@ public class Animator
         {
             Cleanup();
             _tcs.TrySetCanceled();
+            OnStopped?.Invoke();
         }
     }
 
     // --- 内部逻辑 ---
 
-    private void ParseProperties(object properties)
+    private void ParseProperties(object? properties)
     {
-        if (properties == null) return;
+        if (properties is null) return;
 
         var targetType = _target.GetType();
         // 获取匿名对象的所有属性（即用户想要动画的属性名和目标值）
@@ -174,7 +193,7 @@ public class Animator
             var (Getter, Setter) = GetAccessors(targetType, propName);
 
             // 如果 accessors 为默认值，说明目标对象上没有这个 float 属性，或者不可读写
-            if (Getter == null || Setter == null)
+            if (Getter is null || Setter is null)
                 continue;
 
             // 2. 获取当前值作为 StartValue
@@ -204,7 +223,7 @@ public class Animator
         var propertyInfo = type.GetProperty(propertyName);
 
         // 验证属性是否存在且为 float 类型且可读写
-        if (propertyInfo == null ||
+        if (propertyInfo is null ||
             propertyInfo.PropertyType != typeof(float) ||
             !propertyInfo.CanRead ||
             !propertyInfo.CanWrite)
@@ -277,18 +296,19 @@ public class Animator
             track.Setter(_target, current);
         }
 
-        // 6. 检查完成
-        if (t >= 1f)
-        {
-            Complete();
-        }
+        // 6. 触发更新回调
+        Animating?.Invoke(this, factor);
+
+        // 7. 检查完成
+        if (t >= 1f) Complete();
     }
 
     private void Complete()
     {
         Cleanup();
-        OnCompleted?.Invoke();
         _tcs.TrySetResult(true);
+        OnStopped?.Invoke();    
+        OnCompleted?.Invoke();
     }
 
     private void Cleanup()

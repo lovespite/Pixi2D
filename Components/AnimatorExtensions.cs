@@ -1,4 +1,4 @@
-﻿namespace Pixi2D.Core;
+﻿namespace Pixi2D.Components;
 
 public static class AnimatorExtensions
 {
@@ -23,6 +23,24 @@ public static class AnimatorExtensions
     public static Animator Animate(this DisplayObject target, object properties, float duration, EasingFunction easing = EasingFunction.Linear, float delay = 0f)
     {
         return new Animator(target, properties, duration, easing, delay);
+    }
+
+    /// <summary>
+    /// 创建并播放一个自定义更新回调的动画。<br />可用于实现更复杂的动画效果。
+    /// </summary>
+    /// <param name="target">目标对象。</param>
+    /// <param name="duration">持续时间 (秒)。</param>
+    /// <param name="cb">
+    /// 更新回调函数，接收当前进度 (0 到 1 之间的浮点数) 作为参数。
+    /// </param>
+    /// <param name="easing">缓动函数。</param>
+    /// <param name="delay">延迟时间 (秒)。</param>
+    /// <returns>创建的 Animator 实例，可用于控制或等待。</returns>
+    public static Animator Animate(this DisplayObject target, float duration, AnimatorUpdateCallback cb, EasingFunction easing = EasingFunction.Linear, float delay = 0f)
+    {
+        var a = new Animator(target, null, duration, easing, delay);
+        a.Animating += cb;
+        return a;
     }
 
     #region Move Animations
