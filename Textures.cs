@@ -100,7 +100,7 @@ public static class Textures
     {
         EnsureInitialized();
         try
-        { 
+        {
             using var data = await SharedClient.GetStreamAsync(url);
             Add(name, data);
         }
@@ -198,7 +198,7 @@ public static class Textures
     /// 获取纹理。不存在时返回一个空的纹理(Empty)。
     /// </summary>
     /// <param name="name">纹理名称。</param>
-    /// <returns>对应的 Bitmap1，如果未找到则返回 Empty 纹理。</returns>
+    /// <returns>对应的 Bitmap1，如果未找到则返回 错误 纹理。</returns>
     public static Bitmap1 Get(string name)
     {
         if (_cache.TryGetValue(name, out var bitmap))
@@ -206,7 +206,7 @@ public static class Textures
             return bitmap;
         }
 
-        return Empty;
+        return E;
     }
 
     /// <summary>

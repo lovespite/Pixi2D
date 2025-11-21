@@ -295,6 +295,19 @@ public class VirtualScrollList<T> : Panel
     }
 
     /// <summary>
+    /// Scrolls the view to bring the specified item into view, if it exists in the data source.
+    /// </summary>
+    /// <param name="item">The item to scroll into view. If the item is not found in the data source, no action is taken.</param>
+    public void ScrollToItem(T item)
+    {
+        int index = _dataSource.IndexOf(item);
+        if (index >= 0)
+        {
+            ScrollToIndex(index);
+        }
+    }
+
+    /// <summary>
     /// 滚动到顶部。
     /// </summary>
     public void ScrollToTop()

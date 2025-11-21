@@ -312,7 +312,7 @@ public class FlowLayout : Container
     #endregion
 
     /// <summary>
-    /// (已重写) 重新計算所有子項的位置，支持对齐。 
+    /// 重新計算所有子項的位置，支持对齐。 
     /// </summary>
     public void UpdateLayout()
     {
@@ -352,7 +352,35 @@ public class FlowLayout : Container
             float lineCrossSize = GetLineCrossSize(currentLine);
             LayoutLine(currentLine, crossPos, lineCrossSize);
         }
+
+        if (!AutoSize) return;
+        // --- 计算并更新容器的总宽高 ---
+        float contentRight = 0f;
+        float contentBottom = 0f;
+
+        foreach (var child in Children)
+        {
+            if (!child.Visible || child is FlowBreak) continue;
+
+            float right = child.X + child.Width;
+            float bottom = child.Y + child.Height;
+
+            if (right > contentRight) contentRight = right;
+            if (bottom > contentBottom) contentBottom = bottom;
+        }
+
+        // 确保容器尺寸至少包含 Padding，并包裹所有子元素
+        float newWidth = Math.Max(contentRight + PaddingRight, PaddingLeft + PaddingRight);
+        float newHeight = Math.Max(contentBottom + PaddingBottom, PaddingTop + PaddingBottom);
+
+        if (this.Width != newWidth) this.Width = newWidth;
+        if (this.Height != newHeight) this.Height = newHeight;
     }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the control automatically adjusts its size to fit its content.
+    /// </summary>
+    public bool AutoSize { get; set; } = false;
 
     /// <summary>
     /// 辅助方法：计算一行/一列在交叉轴上的最大尺寸。 
@@ -540,7 +568,7 @@ public class FlowLayout : Container
     {
         public override bool HitTest(PointF localPoint) => false;
         public override void Render(SharpDX.Direct2D1.RenderTarget renderTarget, ref Matrix3x2 parentTransform)
-        { 
+        {
             // (此對象不渲染任何內容。)
         }
 

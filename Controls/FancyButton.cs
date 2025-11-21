@@ -1,5 +1,6 @@
 using Pixi2D.Core;
 using Pixi2D.Events;
+using Pixi2D.Extensions;
 using SharpDX.Direct2D1;
 using System.Drawing;
 
@@ -13,7 +14,9 @@ using D2DBitmap = SharpDX.Direct2D1.Bitmap1;
 /// </summary>
 public class FancyButton : Container
 {
+    private readonly Graphics _bg;
     private readonly Sprite _sprite;
+    public Sprite Sprite => _sprite;
 
     private D2DBitmap? _normalTexture;
     private D2DBitmap? _hoverTexture;
@@ -22,13 +25,27 @@ public class FancyButton : Container
     private bool _isHovered = false;
     private bool _isPressed = false;
 
+    private bool _bgDirty = true;
+    private float _padding = 0f;
+    private float _borderRadius = 0f;
     private float _buttonWidth;
     private float _buttonHeight;
+    private float _borderWitdh = 0f;
+    private Color _borderColor = Color.Transparent;
+    private Color _backgroundColor = Color.Transparent;
+    private float _backgroundAlpha = 1f;
+    private Shape _buttonShape = Shape.Round;
 
     /// <summary>
     /// 当按钮被点击时触发。
     /// </summary>
     public event Action<FancyButton>? OnButtonClick;
+
+    public enum Shape
+    {
+        Round,
+        Rectangle,
+    }
 
     /// <summary>
     /// 创建一个新的图像按钮。
@@ -38,20 +55,26 @@ public class FancyButton : Container
     /// <param name="pressedTexture">按下状态的纹理 (可选，如果为 null 则使用 hoverTexture 或 normalTexture)。</param>
     public FancyButton(D2DBitmap normalTexture, D2DBitmap? hoverTexture = null, D2DBitmap? pressedTexture = null)
     {
+        _bg = new Graphics()
+        {
+            Interactive = false,
+        };
         _normalTexture = normalTexture ?? throw new ArgumentNullException(nameof(normalTexture));
         _hoverTexture = hoverTexture;
         _pressedTexture = pressedTexture;
 
         // 使用普通纹理的尺寸作为按钮尺寸
-        _buttonWidth = normalTexture.Size.Width;
-        _buttonHeight = normalTexture.Size.Height;
+        _buttonWidth = normalTexture.Size.Width + _padding * 2;
+        _buttonHeight = normalTexture.Size.Height + _padding * 2;
 
         // 创建 Sprite 显示纹理
         _sprite = new Sprite(normalTexture, disposeBitmapWithSprite: false)
         {
-            Interactive = true
+            Interactive = true,
+            X = _padding,
+            Y = _padding,
         };
-        base.AddChild(_sprite);
+        AddChildren(_bg, _sprite);
 
         // 设置交互
         Interactive = true;
@@ -63,6 +86,100 @@ public class FancyButton : Container
         _sprite.OnMouseDown += OnSpriteMouseDown;
         _sprite.OnMouseUp += OnSpriteMouseUp;
         _sprite.OnClick += OnSpriteClick;
+    }
+
+    public float Padding
+    {
+        get => _padding;
+        set
+        {
+            _padding = value;
+            _sprite.X = _padding;
+            _sprite.Y = _padding;
+            _buttonWidth = (_normalTexture?.Size.Width ?? 0) + _padding * 2;
+            _buttonHeight = (_normalTexture?.Size.Height ?? 0) + _padding * 2;
+            _bgDirty = true;
+        }
+    }
+
+    public float BorderWitdh
+    {
+        get => _borderWitdh;
+        set
+        {
+            _borderWitdh = value;
+            _bgDirty = true;
+        }
+    }
+
+    public float BorderRadius
+    {
+        get => _borderRadius;
+        set
+        {
+            _borderRadius = value;
+            _bgDirty = true;
+        }
+    }
+
+    public Color BorderColor
+    {
+        get => _borderColor;
+        set
+        {
+            _borderColor = value;
+            _bgDirty = true;
+        }
+    }
+
+    public Color BackgroudColor
+    {
+        get => _backgroundColor;
+        set
+        {
+            _backgroundColor = value;
+            _bgDirty = true;
+        }
+    }
+
+    public float BackgroundAlpha
+    {
+        get => _backgroundAlpha;
+        set
+        {
+            _backgroundAlpha = value;
+            _bgDirty = true;
+        }
+    }
+
+    public Shape ButtonShape
+    {
+        get => _buttonShape;
+        set
+        {
+            _buttonShape = value;
+            _bgDirty = true;
+        }
+    }
+
+    private void UpdateBackground()
+    {
+        _bg.Clear();
+        _bgDirty = false;
+        _bg.StrokeWidth = _borderWitdh;
+        _bg.StrokeColor = _borderColor.ToRawColor4();
+        _bg.FillColor = _backgroundColor.ApplyAlpha(_backgroundAlpha).ToRawColor4();
+
+        switch (_buttonShape)
+        {
+            case Shape.Round:
+                _bg.DrawEllipse(_buttonWidth / 2, _buttonHeight / 2, _buttonWidth / 2, _buttonHeight / 2);
+                break;
+            case Shape.Rectangle:
+            default:
+                _bg.DrawRoundedRectangle(0, 0, _buttonWidth, _buttonHeight, _borderRadius, _borderRadius);
+                break;
+        }
     }
 
     /// <summary>
@@ -144,6 +261,7 @@ public class FancyButton : Container
     private void OnSpriteMouseOver(DisplayObjectEvent evt)
     {
         _isHovered = true;
+        OnMouseOver?.Invoke(evt);
         UpdateTexture();
     }
 
@@ -151,24 +269,35 @@ public class FancyButton : Container
     {
         _isHovered = false;
         _isPressed = false;
+        OnMouseOut?.Invoke(evt);
         UpdateTexture();
     }
 
     private void OnSpriteMouseDown(DisplayObjectEvent evt)
     {
         _isPressed = true;
+        OnMouseDown?.Invoke(evt);
         UpdateTexture();
     }
 
     private void OnSpriteMouseUp(DisplayObjectEvent evt)
     {
         _isPressed = false;
+        OnMouseUp?.Invoke(evt);
         UpdateTexture();
     }
 
     private void OnSpriteClick(DisplayObjectEvent evt)
     {
         OnButtonClick?.Invoke(this);
+    }
+
+    public override void Update(float deltaTime)
+    {
+        base.Update(deltaTime);
+
+        if (!_bgDirty) return;
+        UpdateBackground();
     }
 
     public override void Dispose()

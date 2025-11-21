@@ -240,7 +240,7 @@ public class Container : DisplayObject
         // 3. 递归渲染所有子项
         try
         {
-            foreach (var child in  Children.ToArray())
+            foreach (var child in Children.ToArray())
             {
                 // (优化) 子项使用我们计算好的、缓存的 _worldTransform 来渲染
                 child.Render(renderTarget, ref _worldTransform);
@@ -255,15 +255,15 @@ public class Container : DisplayObject
         }
     }
 
-    public DisplayObject? FindChild(string name, bool recursively = false)
+    public T? FindChild<T>(string name, bool recursively = false) where T : DisplayObject
     {
-        if (recursively) return FindChildRecursive(name);
+        if (recursively) return FindChildRecursive<T>(name);
 
         foreach (var child in Children)
         {
-            if (child.Name == name)
+            if (child.Name == name && child is T tChild)
             {
-                return child;
+                return tChild;
             }
         }
 
@@ -275,7 +275,7 @@ public class Container : DisplayObject
     /// </summary>
     /// <param name="name"></param>
     /// <returns></returns>
-    protected virtual DisplayObject? FindChildRecursive(string name)
+    protected virtual T? FindChildRecursive<T>(string name) where T : DisplayObject
     {
         Container current;
         var stack = new Queue<Container>([this]);
@@ -285,9 +285,9 @@ public class Container : DisplayObject
             current = stack.Dequeue();
             foreach (var child in current.Children)
             {
-                if (child.Name == name)
+                if (child.Name == name && child is T tChild)
                 {
-                    return child;
+                    return tChild;
                 }
                 if (child is Container childContainer)
                 {

@@ -300,6 +300,7 @@ public class Text : DisplayObject
 
         // 4. 绘制文本布局
         // 我们在 (0,0) 绘制，因为变换已经处理了 X, Y 位置
+        _fillBrush.Opacity = Alpha;
         renderTarget.DrawTextLayout(
             new RawVector2(0, 0),
             _textLayout,

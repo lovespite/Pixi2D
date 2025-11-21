@@ -40,15 +40,15 @@ public class ListItem : Container
         // 创建背景
         _background = new Graphics
         {
-            Interactive = true
+            Interactive = true,
+            FillColor = _normalColor
         };
-        _background.FillColor = _normalColor;
         _background.DrawRectangle(0, 0, _itemWidth, _itemHeight);
-        base.AddChild(_background);
+        AddChild(_background);
 
         // 创建内容容器
         _contentContainer = new Container();
-        base.AddChild(_contentContainer);
+        AddChild(_contentContainer);
 
         // 设置交互
         Interactive = true;
@@ -58,6 +58,8 @@ public class ListItem : Container
         _background.OnMouseOver += OnBackgroundMouseOver;
         _background.OnMouseOut += OnBackgroundMouseOut;
     }
+
+    public ListItem(SizeF size) : this(size.Width, size.Height) { }
 
     /// <summary>
     /// 列表项的宽度。

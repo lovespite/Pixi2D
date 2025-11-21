@@ -20,6 +20,16 @@ public static class ColorExtensions
         );
     }
 
+    public static Color ApplyAlpha(this Color color, float alpha)
+    {
+        return Color.FromArgb(
+            (int)(color.A * alpha),
+            color.R,
+            color.G,
+            color.B
+        );
+    }
+
     public static RawColor4 ToRawColor4(this Color color)
     {
         return new RawColor4(
