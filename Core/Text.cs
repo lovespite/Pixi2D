@@ -22,7 +22,12 @@ public class Text : DisplayObject
     }
 
     private RenderTarget? _cachedRenderTarget;
+
+    // Brushes
     private SolidColorBrush? _fillBrush;
+    private SolidColorBrush? _backgroundBrush;
+    private SolidColorBrush? _borderBrush;
+
     private TextFormat? _textFormat;
     private TextLayout? _textLayout;
 
@@ -34,10 +39,18 @@ public class Text : DisplayObject
     private float _fontSize;
     private FontStyle _fontStyle;
     private FontWeight _fontWeight;
+
+    // Colors
     private RawColor4 _fillColor;
+    private RawColor4 _backgroundColor = new(0, 0, 0, 0); // 默认透明
+    private RawColor4 _borderColor = new(0, 0, 0, 0); // 默认透明
+
+    // Layout & Style
     private float _maxWidth = float.MaxValue;
     private float _maxHeight = float.MaxValue;
     private WordWrapping _wordWrapping = WordWrapping.Wrap;
+    private float _borderWidth = 0f;
+    private float _cornerRadius = 0f;
 
     // --- 公共属性 --- 
     // (注意: Text 自己的属性 setter 也会调用 Invalidate(),
@@ -77,6 +90,30 @@ public class Text : DisplayObject
     {
         get => _fillColor;
         set { _fillColor = value; _isBrushDirty = true; } // 颜色不影响变换, 无需 Invalidate()
+    }
+
+    public RawColor4 BackgroundColor
+    {
+        get => _backgroundColor;
+        set { _backgroundColor = value; _isBrushDirty = true; }
+    }
+
+    public RawColor4 BorderColor
+    {
+        get => _borderColor;
+        set { _borderColor = value; _isBrushDirty = true; }
+    }
+
+    public float BorderWidth
+    {
+        get => _borderWidth;
+        set { _borderWidth = value; Invalidate(); } // 边框宽度可能影响视觉边界(虽然不影响TextLayout本身)
+    }
+
+    public float CornerRadius
+    {
+        get => _cornerRadius;
+        set { _cornerRadius = value; Invalidate(); }
     }
 
     public float MaxWidth
@@ -188,7 +225,13 @@ public class Text : DisplayObject
         if (_cachedRenderTarget != renderTarget)
         {
             _fillBrush?.Dispose();
+            _backgroundBrush?.Dispose();
+            _borderBrush?.Dispose();
+
             _fillBrush = null;
+            _backgroundBrush = null;
+            _borderBrush = null;
+
             _cachedRenderTarget = renderTarget;
             _isBrushDirty = true; // 强制重建笔刷
         }
@@ -202,6 +245,7 @@ public class Text : DisplayObject
         // 检查笔刷颜色是否已更改
         if (_isBrushDirty)
         {
+            // 1. Fill Brush
             if (_fillColor.A > 0)
             {
                 if (_fillBrush is null)
@@ -214,6 +258,35 @@ public class Text : DisplayObject
                 _fillBrush?.Dispose();
                 _fillBrush = null;
             }
+
+            // 2. Background Brush
+            if (_backgroundColor.A > 0)
+            {
+                if (_backgroundBrush is null)
+                    _backgroundBrush = new SolidColorBrush(renderTarget, _backgroundColor);
+                else
+                    _backgroundBrush.Color = _backgroundColor;
+            }
+            else
+            {
+                _backgroundBrush?.Dispose();
+                _backgroundBrush = null;
+            }
+
+            // 3. Border Brush
+            if (_borderColor.A > 0)
+            {
+                if (_borderBrush is null)
+                    _borderBrush = new SolidColorBrush(renderTarget, _borderColor);
+                else
+                    _borderBrush.Color = _borderColor;
+            }
+            else
+            {
+                _borderBrush?.Dispose();
+                _borderBrush = null;
+            }
+
             _isBrushDirty = false;
         }
     }
@@ -253,6 +326,8 @@ public class Text : DisplayObject
 
         // 使用布局的指标进行简单的 AABB 检查
         var metrics = _textLayout.Metrics;
+        // 如果有边框宽度，命中测试也应该考虑进去吗？通常文本点击是基于内容的。
+        // 这里我们使用 Metrics 的宽高，它包含了文本的实际占用范围。
         return localPoint.X >= metrics.Left && localPoint.X < metrics.Left + metrics.Width &&
                localPoint.Y >= metrics.Top && localPoint.Y < metrics.Top + metrics.Height;
     }
@@ -291,22 +366,64 @@ public class Text : DisplayObject
         // 2. 确保所有 DWrite 资源 (Format, Layout, Brush) 都是最新的
         UpdateResources(renderTarget);
 
-        if (_textLayout is null || _fillBrush is null) return;
+        if (_textLayout is null) return;
 
         // 3. 保存并设置变换
         var oldTransform = renderTarget.Transform;
         // (优化) 使用缓存的 _worldTransform 
         renderTarget.Transform = Unsafe.As<Matrix3x2, RawMatrix3x2>(ref _worldTransform);
 
-        // 4. 绘制文本布局
-        // 我们在 (0,0) 绘制，因为变换已经处理了 X, Y 位置
-        _fillBrush.Opacity = Alpha;
-        renderTarget.DrawTextLayout(
-            new RawVector2(0, 0),
-            _textLayout,
-            _fillBrush,
-            DrawTextOptions.None // 或 DrawTextOptions.Clip (如果需要)
-        );
+        // 获取文本尺寸
+        var metrics = _textLayout.Metrics;
+        float width = metrics.Width;
+        float height = metrics.Height;
+
+        // --- 绘制背景 ---
+        if (_backgroundBrush is not null)
+        {
+            _backgroundBrush.Opacity = Alpha;
+            if (_cornerRadius > 0)
+            {
+                renderTarget.FillRoundedRectangle(
+                    new RoundedRectangle { Rect = new RawRectangleF(0, 0, width, height), RadiusX = _cornerRadius, RadiusY = _cornerRadius },
+                    _backgroundBrush
+                );
+            }
+            else
+            {
+                renderTarget.FillRectangle(new RawRectangleF(0, 0, width, height), _backgroundBrush);
+            }
+        }
+
+        // --- 绘制文本 ---
+        if (_fillBrush is not null)
+        {
+            _fillBrush.Opacity = Alpha;
+            renderTarget.DrawTextLayout(
+                new RawVector2(0, 0),
+                _textLayout,
+                _fillBrush,
+                DrawTextOptions.None // 或 DrawTextOptions.Clip (如果需要)
+            );
+        }
+
+        // --- 绘制边框 ---
+        if (_borderBrush is not null && _borderWidth > 0)
+        {
+            _borderBrush.Opacity = Alpha;
+            if (_cornerRadius > 0)
+            {
+                renderTarget.DrawRoundedRectangle(
+                    new RoundedRectangle { Rect = new RawRectangleF(0, 0, width, height), RadiusX = _cornerRadius, RadiusY = _cornerRadius },
+                    _borderBrush,
+                    _borderWidth
+                );
+            }
+            else
+            {
+                renderTarget.DrawRectangle(new RawRectangleF(0, 0, width, height), _borderBrush, _borderWidth);
+            }
+        }
 
         // 5. 恢复变换
         renderTarget.Transform = oldTransform;
@@ -321,10 +438,14 @@ public class Text : DisplayObject
         _textFormat?.Dispose();
         _textLayout?.Dispose();
         _fillBrush?.Dispose();
+        _backgroundBrush?.Dispose();
+        _borderBrush?.Dispose();
 
         _textFormat = null;
         _textLayout = null;
         _fillBrush = null;
+        _backgroundBrush = null;
+        _borderBrush = null;
         _cachedRenderTarget = null;
     }
 

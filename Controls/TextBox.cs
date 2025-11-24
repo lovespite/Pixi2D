@@ -554,23 +554,19 @@ public class TextBox : Container
                     UpdateTextAndCaret();
                     return;
 
-                case VK_C: // Ctrl+C
-                    // TODO: 将 GetSelectedText() 复制到系统剪贴板
-                    // 例如: Clipboard.SetText(GetSelectedText());
+                case VK_C: // Ctrl+C 
+                    GetStage()?.SetClipboardText(GetSelectedText());
                     return;
 
                 case VK_X: // Ctrl+X
-                    // TODO: 将 GetSelectedText() 复制到系统剪贴板
-                    // 例如: Clipboard.SetText(GetSelectedText());
+                    GetStage()?.SetClipboardText(GetSelectedText());
                     if (DeleteSelection())
                     {
                         UpdateTextAndCaret();
                     }
                     return;
-
-                case VK_V: // Ctrl+V
-                    // TODO: 从系统剪贴板获取文本
-                    string pasteText = ""; // 例如: = Clipboard.GetText();
+                case VK_V: // Ctrl+V 
+                    var pasteText = GetStage()?.GetClipboardText();
                     if (!string.IsNullOrEmpty(pasteText))
                     {
                         DeleteSelection(); // 替换选区

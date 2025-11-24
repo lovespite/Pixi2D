@@ -1,4 +1,5 @@
-﻿using Pixi2D.Controls;
+﻿using Pixi2D.Components;
+using Pixi2D.Controls;
 using Pixi2D.Events;
 using SharpDX.Direct2D1;
 using SharpDX.Mathematics.Interop;
@@ -21,6 +22,19 @@ public sealed class Stage : Container
     public DisplayObject? FocusedObject => _focusedObject;
 
     private RenderTarget? _cachedRenderTarget;
+    public IClipboardProvider? ClipboardProvider { get; set; }
+
+    public bool SetClipboardText(string text)
+    {
+        if (ClipboardProvider is null) return false;
+        return ClipboardProvider.SetText(text);
+    }
+
+    public string? GetClipboardText()
+    {
+        if (ClipboardProvider is null) return null;
+        return ClipboardProvider.GetText();
+    }
 
     public RenderTarget? GetCachedRenderTarget()
     {
