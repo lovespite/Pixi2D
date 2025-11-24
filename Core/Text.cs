@@ -9,18 +9,11 @@ using System.Runtime.CompilerServices;
 namespace Pixi2D.Core;
 
 /// <summary>
-/// (新!) 用于显示文本的 DisplayObject。
-/// 使用 DirectWrite。
+/// 用于显示文本的 DisplayObject。<br />
+/// 基于 DirectWrite。
 /// </summary>
 public class Text : DisplayObject
 {
-    /// <summary>
-    /// 在您的应用程序退出时调用此方法以清理静态 DirectWrite 资源。
-    /// </summary>
-    public static void DisposeDirectWriteFactory()
-    {
-    }
-
     private RenderTarget? _cachedRenderTarget;
 
     // Brushes

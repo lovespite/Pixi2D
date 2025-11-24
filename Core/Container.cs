@@ -1,6 +1,7 @@
 ﻿using Pixi2D.Events;
 using SharpDX.Direct2D1;
 using SharpDX.Mathematics.Interop;
+using System.Collections;
 using System.Diagnostics;
 using System.Drawing;
 using System.Numerics;
@@ -12,7 +13,7 @@ namespace Pixi2D.Core;
 /// 一个可以包含其他 DisplayObject (包括其他 Container) 的容器。
 /// 类似于 PIXI.js 中的 Container。
 /// </summary>
-public class Container : DisplayObject
+public class Container : DisplayObject, IReadOnlyList<DisplayObject>
 {
     static readonly RawRectangleF DefaultContentBounds = new(float.MinValue, float.MinValue, float.MaxValue, float.MaxValue);
     private readonly List<DisplayObject> _children = [];
@@ -33,6 +34,10 @@ public class Container : DisplayObject
     /// 裁剪区域的高度。如果为 null，使用容器的 Height。
     /// </summary>
     public float? ClipHeight { get; set; } = null;
+
+    public int Count => ((IReadOnlyCollection<DisplayObject>)_children).Count;
+
+    public DisplayObject this[int index] => ((IReadOnlyList<DisplayObject>)_children)[index];
 
     // 缓存 RectangleGeometry 以避免每帧创建
     private RectangleGeometry? _cachedClipGeometry;
@@ -313,5 +318,15 @@ public class Container : DisplayObject
             child.Dispose();
         }
         Children.Clear();
+    }
+
+    public IEnumerator<DisplayObject> GetEnumerator()
+    {
+        return ((IEnumerable<DisplayObject>)_children).GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return ((IEnumerable)_children).GetEnumerator();
     }
 }

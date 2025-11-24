@@ -14,16 +14,23 @@ public partial class Graphics : DisplayObject
 {
     private readonly List<IGraphicsShape> _shapes = [];
 
-    // private RenderTarget? _cachedRenderTarget;
+    // --- 笔刷 (Brushes) ---
+    // 改为基类 Brush 以支持 SolidColorBrush 和 LinearGradientBrush
+    private Brush? _activeFillBrush;
+    private Brush? _activeStrokeBrush;
 
-    // 笔刷 (Brushes)
-    private SolidColorBrush? _fillBrush;
-    private SolidColorBrush? _strokeBrush;
+    // --- 渐变资源管理 ---
+    private GradientStopCollection? _fillGradientStops;
+    private GradientStopCollection? _strokeGradientStops;
 
-    // 颜色和样式
+    // --- 颜色和样式定义 ---
     private RawColor4 _fillColor = new(0, 0, 0, 0); // 默认透明填充
-
     private RawColor4 _strokeColor = new(0, 0, 0, 0); // 默认透明边框
+
+    // 渐变定义 (如果非空，则优先于纯色)
+    private LinearGradientDef? _fillGradient;
+    private LinearGradientDef? _strokeGradient;
+
     private bool _isFillDirty = true;
     private bool _isStrokeDirty = true;
 
@@ -31,6 +38,30 @@ public partial class Graphics : DisplayObject
 
     private RectangleF _cachedBounds = RectangleF.Empty;
     private bool _boundsDirty = true;
+
+    /// <summary>
+    /// 渐变断点结构
+    /// </summary>
+    public struct GradientStop
+    {
+        public float Position;
+        public RawColor4 Color;
+        public GradientStop(float position, RawColor4 color)
+        {
+            Position = position;
+            Color = color;
+        }
+    }
+
+    /// <summary>
+    /// 内部线性渐变定义
+    /// </summary>
+    private struct LinearGradientDef
+    {
+        public PointF Start;
+        public PointF End;
+        public GradientStop[] Stops;
+    }
 
     public RectangleF GetBounds(bool forceUpdate = false)
     {
@@ -41,7 +72,8 @@ public partial class Graphics : DisplayObject
     }
 
     /// <summary>
-    /// 获取或设置填充颜色 (包括 Alpha)。
+    /// 获取或设置填充颜色 (纯色)。
+    /// 设置此属性会清除任何已设置的渐变填充。
     /// </summary>
     public RawColor4 FillColor
     {
@@ -49,12 +81,14 @@ public partial class Graphics : DisplayObject
         set
         {
             _fillColor = value;
+            _fillGradient = null; // 清除渐变
             _isFillDirty = true;
         }
     }
 
     /// <summary>
-    /// 获取或设置边框颜色 (包括 Alpha)。
+    /// 获取或设置边框颜色 (纯色)。
+    /// 设置此属性会清除任何已设置的渐变边框。
     /// </summary>
     public RawColor4 StrokeColor
     {
@@ -62,8 +96,58 @@ public partial class Graphics : DisplayObject
         set
         {
             _strokeColor = value;
+            _strokeGradient = null; // 清除渐变
             _isStrokeDirty = true;
         }
+    }
+
+    /// <summary>
+    /// 设置线性渐变填充。
+    /// </summary>
+    /// <param name="start">渐变起点坐标（本地坐标）。</param>
+    /// <param name="end">渐变终点坐标（本地坐标）。</param>
+    /// <param name="startColor">起始颜色。</param>
+    /// <param name="endColor">结束颜色。</param>
+    public void SetFillLinearGradient(PointF start, PointF end, RawColor4 startColor, RawColor4 endColor)
+    {
+        SetFillLinearGradient(start, end,
+            new GradientStop(0.0f, startColor),
+            new GradientStop(1.0f, endColor));
+    }
+
+    /// <summary>
+    /// 设置线性渐变填充 (多断点)。
+    /// </summary>
+    /// <param name="start">渐变起点。</param>
+    /// <param name="end">渐变终点。</param>
+    /// <param name="stops">颜色断点数组。</param>
+    public void SetFillLinearGradient(PointF start, PointF end, params GradientStop[] stops)
+    {
+        _fillGradient = new LinearGradientDef { Start = start, End = end, Stops = stops };
+        _isFillDirty = true;
+    }
+
+    /// <summary>
+    /// 设置线性渐变边框。
+    /// </summary>
+    /// <param name="start">渐变起点坐标（本地坐标）。</param>
+    /// <param name="end">渐变终点坐标（本地坐标）。</param>
+    /// <param name="startColor">起始颜色。</param>
+    /// <param name="endColor">结束颜色。</param>
+    public void SetStrokeLinearGradient(PointF start, PointF end, RawColor4 startColor, RawColor4 endColor)
+    {
+        SetStrokeLinearGradient(start, end,
+            new GradientStop(0.0f, startColor),
+            new GradientStop(1.0f, endColor));
+    }
+
+    /// <summary>
+    /// 设置线性渐变边框 (多断点)。
+    /// </summary>
+    public void SetStrokeLinearGradient(PointF start, PointF end, params GradientStop[] stops)
+    {
+        _strokeGradient = new LinearGradientDef { Start = start, End = end, Stops = stops };
+        _isStrokeDirty = true;
     }
 
     /// <summary>
@@ -87,15 +171,9 @@ public partial class Graphics : DisplayObject
     {
         UpdateBounds(); // 确保包围盒是最新的
         if (_cachedBounds.IsEmpty) return false;
-
-        // 注意: 这是一个简化的包围盒检查。
-        // 它不检查像素完美的命中，只是检查点是否在包含所有形状的矩形内。
         return _cachedBounds.Contains(localPoint);
     }
 
-    /// <summary>
-    /// 更新此 Graphics 对象的包围盒。
-    /// </summary>
     private void UpdateBounds()
     {
         if (!_boundsDirty) return;
@@ -123,9 +201,8 @@ public partial class Graphics : DisplayObject
         _boundsDirty = false;
     }
 
-    /// <summary>
-    /// 绘制一个矩形。
-    /// </summary> 
+    // --- 绘图方法 ---
+
     public void DrawRectangle(float x, float y, float width, float height)
     {
         _shapes.Add(new GraphicsRectangle
@@ -135,9 +212,6 @@ public partial class Graphics : DisplayObject
         _boundsDirty = true;
     }
 
-    /// <summary>
-    /// 绘制一个圆角矩形。
-    /// </summary> 
     public void DrawRoundedRectangle(float x, float y, float width, float height, float radiusX, float radiusY)
     {
         _shapes.Add(new GraphicsRoundedRectangle
@@ -152,9 +226,6 @@ public partial class Graphics : DisplayObject
         _boundsDirty = true;
     }
 
-    /// <summary>
-    /// 绘制一个椭圆 (或圆形)。
-    /// </summary> 
     public void DrawEllipse(float centerX, float centerY, float radiusX, float radiusY)
     {
         _shapes.Add(new GraphicsEllipse
@@ -164,16 +235,9 @@ public partial class Graphics : DisplayObject
         _boundsDirty = true;
     }
 
-    /// <summary>
-    /// 绘制一条穿过指定点数组的平滑曲线 (Cardinal Spline)。
-    /// </summary>
-    /// <param name="points">定义曲线的锚点数组。</param>
-    /// <param name="tension">曲线的张力 (0.0f - 1.0f)。0.0f 表示最平滑 (Catmull-Rom)，1.0f 表示直线。</param>
     public void DrawCurve(PointF[] points, float tension = 0.0f)
     {
         if (points.Length < 2) return;
-
-        // 复制点数组以防外部修改影响绘制 
         _shapes.Add(new GraphicsCurve
         {
             Points = [.. points],
@@ -182,17 +246,9 @@ public partial class Graphics : DisplayObject
         _boundsDirty = true;
     }
 
-    /// <summary>
-    /// 绘制一条带箭头的线条或曲线。
-    /// </summary>
-    /// <param name="points">定义线条的点。</param>
-    /// <param name="type">箭头类型 (Single: 终点箭头, Dual: 双向箭头)。</param>
-    /// <param name="arrowSize">箭头的大小 (边长)。</param>
-    /// <param name="tension">曲线张力 (0 表示直线)。</param>
     public void DrawArrowLine(PointF[] points, ArrowType type, float arrowSize, float tension = 0.0f)
     {
         if (points.Length < 2) return;
-
         _shapes.Add(new GraphicsArrowLine
         {
             Points = [.. points],
@@ -210,7 +266,7 @@ public partial class Graphics : DisplayObject
     {
         if (!Visible || _shapes.Count == 0) return;
 
-        // 1. (优化) 计算或获取缓存的变换
+        // 1. 变换计算
         uint parentVersion = (Parent != null) ? Parent._worldVersion : 0;
         bool parentDirty = (parentVersion != _parentVersion);
 
@@ -231,66 +287,106 @@ public partial class Graphics : DisplayObject
             _worldTransform = _localTransform * parentTransform;
             _worldDirty = false;
         }
-        // ... 否则, _worldTransform 已经是最新的。
 
-
-        // 2. 保存并设置变换
+        // 2. 设置变换
         var oldTransform = renderTarget.Transform;
-        // (优化) 使用缓存的 _worldTransform 
         renderTarget.Transform = Unsafe.As<Matrix3x2, RawMatrix3x2>(ref _worldTransform);
 
-        // 3. 管理和更新笔刷 
-        //if (!ReferenceEquals(_cachedRenderTarget, renderTarget))
-        //{
-        //    _fillBrush?.Dispose();
-        //    _strokeBrush?.Dispose();
-        //    _fillBrush = null;
-        //    _strokeBrush = null;
-        //    _cachedRenderTarget = renderTarget;
-        //    _isFillDirty = true; // 强制重建
-        //    _isStrokeDirty = true; // 强制重建
-        //}
-        if (_isFillDirty)
-        {
-            if (_fillColor.A > 0)
-            {
-                if (_fillBrush is null)
-                    _fillBrush = new SolidColorBrush(renderTarget, _fillColor);
-                else
-                    _fillBrush.Color = _fillColor;
-            }
-            else
-            {
-                _fillBrush?.Dispose();
-                _fillBrush = null;
-            }
-            _isFillDirty = false;
-        }
-        if (_isStrokeDirty)
-        {
-            if (_strokeColor.A > 0)
-            {
-                if (_strokeBrush is null)
-                    _strokeBrush = new SolidColorBrush(renderTarget, _strokeColor);
-                else
-                    _strokeBrush.Color = _strokeColor;
-            }
-            else
-            {
-                _strokeBrush?.Dispose();
-                _strokeBrush = null;
-            }
-            _isStrokeDirty = false;
-        }
+        // 3. 更新笔刷资源
+        UpdateBrushes(renderTarget);
 
         // 4. 遍历并渲染所有形状
+        // 只有当笔刷非空时才传递，形状内部会判断是否为 null
         foreach (var shape in _shapes)
         {
-            shape.Render(renderTarget, _fillBrush!, _strokeBrush!, StrokeWidth);
+            shape.Render(renderTarget, _activeFillBrush!, _activeStrokeBrush!, StrokeWidth);
         }
 
         // 5. 恢复变换
         renderTarget.Transform = oldTransform;
+    }
+
+    private void UpdateBrushes(RenderTarget renderTarget)
+    {
+        // 检查 Fill Brush
+        if (_isFillDirty)
+        {
+            // 清理旧资源
+            _activeFillBrush?.Dispose();
+            _activeFillBrush = null;
+            _fillGradientStops?.Dispose();
+            _fillGradientStops = null;
+
+            if (_fillGradient.HasValue)
+            {
+                // 创建线性渐变画笔
+                var def = _fillGradient.Value;
+                var sharpDXStops = new SharpDX.Direct2D1.GradientStop[def.Stops.Length];
+                for (int i = 0; i < def.Stops.Length; i++)
+                {
+                    sharpDXStops[i] = new SharpDX.Direct2D1.GradientStop
+                    {
+                        Position = def.Stops[i].Position,
+                        Color = def.Stops[i].Color
+                    };
+                }
+
+                _fillGradientStops = new GradientStopCollection(renderTarget, sharpDXStops);
+                var props = new LinearGradientBrushProperties
+                {
+                    StartPoint = new RawVector2(def.Start.X, def.Start.Y),
+                    EndPoint = new RawVector2(def.End.X, def.End.Y)
+                };
+
+                _activeFillBrush = new LinearGradientBrush(renderTarget, props, _fillGradientStops);
+            }
+            else if (_fillColor.A > 0)
+            {
+                // 创建纯色画笔
+                _activeFillBrush = new SolidColorBrush(renderTarget, _fillColor);
+            }
+
+            _isFillDirty = false;
+        }
+
+        // 检查 Stroke Brush
+        if (_isStrokeDirty)
+        {
+            _activeStrokeBrush?.Dispose();
+            _activeStrokeBrush = null;
+            _strokeGradientStops?.Dispose();
+            _strokeGradientStops = null;
+
+            if (_strokeGradient.HasValue)
+            {
+                // 创建线性渐变画笔
+                var def = _strokeGradient.Value;
+                var sharpDXStops = new SharpDX.Direct2D1.GradientStop[def.Stops.Length];
+                for (int i = 0; i < def.Stops.Length; i++)
+                {
+                    sharpDXStops[i] = new SharpDX.Direct2D1.GradientStop
+                    {
+                        Position = def.Stops[i].Position,
+                        Color = def.Stops[i].Color
+                    };
+                }
+
+                _strokeGradientStops = new GradientStopCollection(renderTarget, sharpDXStops);
+                var props = new LinearGradientBrushProperties
+                {
+                    StartPoint = new RawVector2(def.Start.X, def.Start.Y),
+                    EndPoint = new RawVector2(def.End.X, def.End.Y)
+                };
+
+                _activeStrokeBrush = new LinearGradientBrush(renderTarget, props, _strokeGradientStops);
+            }
+            else if (_strokeColor.A > 0)
+            {
+                _activeStrokeBrush = new SolidColorBrush(renderTarget, _strokeColor);
+            }
+
+            _isStrokeDirty = false;
+        }
     }
 
     /// <summary>
@@ -299,11 +395,17 @@ public partial class Graphics : DisplayObject
     public override void Dispose()
     {
         base.Dispose();
-        _fillBrush?.Dispose();
-        _strokeBrush?.Dispose();
-        _fillBrush = null;
-        _strokeBrush = null;
-        //_cachedRenderTarget = null;
+
+        _activeFillBrush?.Dispose();
+        _activeStrokeBrush?.Dispose();
+        _fillGradientStops?.Dispose();
+        _strokeGradientStops?.Dispose();
+
+        _activeFillBrush = null;
+        _activeStrokeBrush = null;
+        _fillGradientStops = null;
+        _strokeGradientStops = null;
+
         Clear(); // Clear 会负责 dispose 所有的形状
     }
 }

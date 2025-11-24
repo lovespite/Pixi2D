@@ -28,14 +28,14 @@ partial class Graphics
     // 修改接口继承 IDisposable，以便清理缓存的非托管资源 (Geometry)
     private interface IGraphicsShape : IDisposable
     {
-        void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth);
+        void Render(RenderTarget renderTarget, Brush fillBrush, Brush strokeBrush, float strokeWidth);
         RectangleF GetBounds(); // 添加获取包围盒的方法
     }
 
     private class GraphicsRectangle : IGraphicsShape
     {
         public RawRectangleF Rect;
-        public void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth)
+        public void Render(RenderTarget renderTarget, Brush fillBrush, Brush strokeBrush, float strokeWidth)
         {
             if (fillBrush is not null) renderTarget.FillRectangle(Rect, fillBrush);
             if (strokeBrush is not null && strokeWidth > 0) renderTarget.DrawRectangle(Rect, strokeBrush, strokeWidth);
@@ -50,7 +50,7 @@ partial class Graphics
     private class GraphicsRoundedRectangle : IGraphicsShape
     {
         public RoundedRectangle RoundedRect;
-        public void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth)
+        public void Render(RenderTarget renderTarget, Brush fillBrush, Brush strokeBrush, float strokeWidth)
         {
             if (fillBrush is not null) renderTarget.FillRoundedRectangle(RoundedRect, fillBrush);
             if (strokeBrush is not null && strokeWidth > 0) renderTarget.DrawRoundedRectangle(RoundedRect, strokeBrush, strokeWidth);
@@ -65,7 +65,7 @@ partial class Graphics
     private class GraphicsEllipse : IGraphicsShape
     {
         public Ellipse Ellipse;
-        public void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth)
+        public void Render(RenderTarget renderTarget, Brush fillBrush, Brush strokeBrush, float strokeWidth)
         {
             if (fillBrush is not null) renderTarget.FillEllipse(Ellipse, fillBrush);
             if (strokeBrush is not null && strokeWidth > 0) renderTarget.DrawEllipse(Ellipse, strokeBrush, strokeWidth);
@@ -85,7 +85,7 @@ partial class Graphics
         // 缓存 PathGeometry 
         private PathGeometry? _cachedGeometry;
 
-        public void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth)
+        public void Render(RenderTarget renderTarget, Brush fillBrush, Brush strokeBrush, float strokeWidth)
         {
             if (Points.Length < 2 || (strokeBrush is null && fillBrush is null)) return;
 
@@ -177,7 +177,7 @@ partial class Graphics
         private PathGeometry? _cachedLineGeometry;
         private PathGeometry? _cachedArrowGeometry;
 
-        public void Render(RenderTarget renderTarget, SolidColorBrush fillBrush, SolidColorBrush strokeBrush, float strokeWidth)
+        public void Render(RenderTarget renderTarget, Brush fillBrush, Brush strokeBrush, float strokeWidth)
         {
             if (Points.Length < 2) return;
 

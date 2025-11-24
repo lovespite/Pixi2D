@@ -30,10 +30,6 @@ public class FancyButton : Container
     private float _borderRadius = 0f;
     private float _buttonWidth;
     private float _buttonHeight;
-    private float _borderWitdh = 0f;
-    private Color _borderColor = Color.Transparent;
-    private Color _backgroundColor = Color.Transparent;
-    private float _backgroundAlpha = 1f;
     private Shape _buttonShape = Shape.Round;
 
     /// <summary>
@@ -88,6 +84,8 @@ public class FancyButton : Container
         _sprite.OnClick += OnSpriteClick;
     }
 
+    public Graphics Background => _bg;
+
     public float Padding
     {
         get => _padding;
@@ -104,12 +102,8 @@ public class FancyButton : Container
 
     public float BorderWitdh
     {
-        get => _borderWitdh;
-        set
-        {
-            _borderWitdh = value;
-            _bgDirty = true;
-        }
+        get => _bg.StrokeWidth; 
+        set => _bg.StrokeWidth = value;
     }
 
     public float BorderRadius
@@ -124,32 +118,14 @@ public class FancyButton : Container
 
     public Color BorderColor
     {
-        get => _borderColor;
-        set
-        {
-            _borderColor = value;
-            _bgDirty = true;
-        }
+        get => _bg.StrokeColor.ToColor(); 
+        set => _bg.StrokeColor = value.ToRawColor4();
     }
 
-    public Color BackgroudColor
+    public Color BackgroundColor
     {
-        get => _backgroundColor;
-        set
-        {
-            _backgroundColor = value;
-            _bgDirty = true;
-        }
-    }
-
-    public float BackgroundAlpha
-    {
-        get => _backgroundAlpha;
-        set
-        {
-            _backgroundAlpha = value;
-            _bgDirty = true;
-        }
+        get => _bg.FillColor.ToColor(); 
+        set => _bg.FillColor = value.ToRawColor4();
     }
 
     public Shape ButtonShape
@@ -162,13 +138,10 @@ public class FancyButton : Container
         }
     }
 
-    private void UpdateBackground()
+    public void UpdateBackground()
     {
         _bg.Clear();
         _bgDirty = false;
-        _bg.StrokeWidth = _borderWitdh;
-        _bg.StrokeColor = _borderColor.ToRawColor4();
-        _bg.FillColor = _backgroundColor.ApplyAlpha(_backgroundAlpha).ToRawColor4();
 
         switch (_buttonShape)
         {
