@@ -240,9 +240,9 @@ partial class MessageBox
     /// </summary>
     private static void CheckStaticDependencies()
     {
-        if (TextFactory == null)
+        if (TextFactory is null)
             throw new InvalidOperationException("MessageBox.TextFactory must be set before using static methods.");
-        if (DefaultStage == null)
+        if (DefaultStage is null)
             throw new InvalidOperationException("MessageBox.DefaultStage must be set before using static methods.");
     }
 

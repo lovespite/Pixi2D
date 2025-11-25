@@ -294,7 +294,7 @@ public class FancyText : DisplayObject
 
     private void UpdateLayoutIfNeeded()
     {
-        if (!_isLayoutDirty && _textLayout != null) return;
+        if (!_isLayoutDirty && _textLayout is not null) return;
 
         // 1. 释放旧资源
         _textFormat?.Dispose();
@@ -340,7 +340,7 @@ public class FancyText : DisplayObject
         if (!Visible) return;
 
         // 1. 标准变换计算 (复制自 DisplayObject)
-        uint parentVersion = (Parent != null) ? Parent._worldVersion : 0;
+        uint parentVersion = (Parent is not null) ? Parent._worldVersion : 0;
         if (_localDirty || parentVersion != _parentVersion)
         {
             if (_localDirty) { _localTransform = CalculateLocalTransform(); _localDirty = false; }
@@ -361,7 +361,7 @@ public class FancyText : DisplayObject
         // 3. 资源更新 (画笔)
         UpdateBrushes(renderTarget);
 
-        if (_textLayout == null) return;
+        if (_textLayout is null) return;
 
         // 4. 设置变换
         var oldTransform = renderTarget.Transform;
@@ -371,7 +371,7 @@ public class FancyText : DisplayObject
         var bgRect = new RawRectangleF(0, 0, _calculatedWidth, _calculatedHeight);
 
         // --- 绘制背景 ---
-        if (_backgroundBrush != null)
+        if (_backgroundBrush is not null)
         {
             if (_cornerRadius > 0)
             {
@@ -387,7 +387,7 @@ public class FancyText : DisplayObject
         }
 
         // --- 绘制边框 ---
-        if (_borderBrush != null && _borderWidth > 0)
+        if (_borderBrush is not null && _borderWidth > 0)
         {
             if (_cornerRadius > 0)
             {
@@ -404,7 +404,7 @@ public class FancyText : DisplayObject
         }
 
         // --- 绘制文本 ---
-        if (_textBrush != null)
+        if (_textBrush is not null)
         {
             // 文本需要根据 Padding 偏移
             renderTarget.DrawTextLayout(

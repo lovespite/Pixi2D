@@ -213,7 +213,7 @@ public partial class Graphics : DisplayObject
         if (!Visible || _shapes.Count == 0) return;
 
         // 1. 变换计算
-        uint parentVersion = (Parent != null) ? Parent._worldVersion : 0;
+        uint parentVersion = (Parent is not null) ? Parent._worldVersion : 0;
         bool parentDirty = (parentVersion != _parentVersion);
 
         if (_localDirty || parentDirty)

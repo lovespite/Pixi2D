@@ -76,7 +76,7 @@ public class IconLabel : Container
             if (_icon.Bitmap != value)
             {
                 _icon.Bitmap = value;
-                if (value != null)
+                if (value is not null)
                 {
                     _icon.Width = value.Size.Width;
                     _icon.Height = value.Size.Height;

@@ -64,7 +64,7 @@ public class Sprite : DisplayObject
         if (!Visible || Bitmap is null) return;
 
         // 1. (优化) 计算或获取缓存的变换
-        uint parentVersion = (Parent != null) ? Parent._worldVersion : 0;
+        uint parentVersion = (Parent is not null) ? Parent._worldVersion : 0;
         bool parentDirty = (parentVersion != _parentVersion);
 
         if (_localDirty || parentDirty)

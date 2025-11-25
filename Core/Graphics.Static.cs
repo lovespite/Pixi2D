@@ -90,7 +90,7 @@ partial class Graphics
             if (Points.Length < 2 || (strokeBrush is null && fillBrush is null)) return;
 
             // 检查缓存是否有效。如果 Factory 改变了（极少见，但可能发生在设备丢失重建时），也需要重建。 
-            if (_cachedGeometry == null || _cachedGeometry.Factory.NativePointer != renderTarget.Factory.NativePointer)
+            if (_cachedGeometry is null || _cachedGeometry.Factory.NativePointer != renderTarget.Factory.NativePointer)
             {
                 // 释放旧资源
                 Dispose();
@@ -182,20 +182,20 @@ partial class Graphics
             if (Points.Length < 2) return;
 
             // 重建几何体
-            if (_cachedLineGeometry == null || _cachedLineGeometry.Factory.NativePointer != renderTarget.Factory.NativePointer)
+            if (_cachedLineGeometry is null || _cachedLineGeometry.Factory.NativePointer != renderTarget.Factory.NativePointer)
             {
                 Dispose();
                 BuildGeometries(renderTarget.Factory);
             }
 
             // 1. 绘制线条 (Stroke)
-            if (strokeBrush != null && strokeWidth > 0 && _cachedLineGeometry != null)
+            if (strokeBrush is not null && strokeWidth > 0 && _cachedLineGeometry is not null)
             {
                 renderTarget.DrawGeometry(_cachedLineGeometry, strokeBrush, strokeWidth);
             }
 
             // 2. 绘制箭头 (Fill) - 使用 StrokeColor 填充箭头
-            if (strokeBrush != null && _cachedArrowGeometry != null)
+            if (strokeBrush is not null && _cachedArrowGeometry is not null)
             {
                 renderTarget.FillGeometry(_cachedArrowGeometry, strokeBrush);
             }

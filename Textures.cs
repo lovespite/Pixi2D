@@ -237,7 +237,7 @@ public static class Textures
 
     private static void EnsureInitialized()
     {
-        if (_context == null || _imagingFactory == null)
+        if (_context is null || _imagingFactory is null)
             throw new InvalidOperationException("Texture manager must be initialized with a RenderTarget first.");
     }
 

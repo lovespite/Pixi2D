@@ -288,13 +288,13 @@ public class TextBox : Container
     private void HandleMouseWheel(DisplayObjectEvent evt)
     {
         // 仅在多行、有焦点且事件数据存在时滚动 
-        if (!_isFocused || !_multiline || evt.Data == null) return;
+        if (!_isFocused || !_multiline || evt.Data is null) return;
 
         float deltaY = evt.Data.MouseWheelDeltaY;
         if (deltaY == 0) return;
 
         var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
-        if (layout == null) return;
+        if (layout is null) return;
 
         float textHeight = layout.Metrics.Height;
         float clipHeight = _textClipContainer.ClipHeight ?? 0f;
@@ -323,7 +323,7 @@ public class TextBox : Container
         _isSelecting = true; // 开始选区跟踪
 
         var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
-        if (layout == null) return;
+        if (layout is null) return;
 
         // 1. 计算点击位置
         float clickX = evt.LocalPosition.X - (_textClipContainer.X + _textContainer.X);
@@ -367,7 +367,7 @@ public class TextBox : Container
         if (!_isSelecting || !_isFocused) return; // 仅在拖动时更新
 
         var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
-        if (layout == null) return;
+        if (layout is null) return;
 
         float clickX = evt.LocalPosition.X - (_textClipContainer.X + _textContainer.X);
         float clickY = evt.LocalPosition.Y - (_textClipContainer.Y + _textContainer.Y);
@@ -592,7 +592,7 @@ public class TextBox : Container
     private void MoveCaretVertical(int direction)
     {
         var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
-        if (layout == null) return;
+        if (layout is null) return;
 
         try
         {
@@ -846,7 +846,7 @@ public class TextBox : Container
     {
         if (!_multiline) return;
         var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
-        if (layout == null) return;
+        if (layout is null) return;
         float textHeight = layout.Metrics.Height;
         float clipHeight = _textClipContainer.ClipHeight ?? 0f;
         float maxScrollY = Math.Max(0, textHeight - clipHeight);

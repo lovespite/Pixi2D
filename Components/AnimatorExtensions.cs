@@ -97,7 +97,6 @@ public static class AnimatorExtensions
 
     #endregion
 
-
     #region Fade Animations
     /// <summary>
     /// 快速创建透明度动画 (修改 Alpha 属性)。
