@@ -68,6 +68,17 @@ public class TextBox : Container
         set
         {
             _boxHeight = value;
+            if (_multiline)
+            {
+                _textClipContainer.Y = _paddingY;
+                _textClipContainer.ClipHeight = _boxHeight - (_paddingY * 2);
+            }
+            else
+            {
+                float textHeight = _textFactory.FontSize + 2f;
+                _textClipContainer.Y = (_boxHeight - textHeight) / 2;
+                _textClipContainer.ClipHeight = textHeight + _paddingY;
+            }
         }
     }
 
@@ -77,6 +88,7 @@ public class TextBox : Container
         set
         {
             _boxWidth = value;
+            _textClipContainer.ClipWidth = _boxWidth - (_paddingX * 2);
         }
     }
 

@@ -72,6 +72,9 @@ public class FlowLayout : Container
     private float _paddingTop = 0f;
     private float _paddingRight = 0f;
     private float _paddingBottom = 0f;
+    public float Padding { set => _paddingLeft = _paddingRight = _paddingTop = _paddingBottom = value; }
+    public float PaddingHorizontal { set => _paddingLeft = _paddingRight = value; }
+    public float PaddingVertical { set => _paddingTop = _paddingBottom = value; }
 
     // --- 新增对齐属性 ---
     private JustifyContent _justifyMain = JustifyContent.Start;

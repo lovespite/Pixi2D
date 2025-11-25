@@ -373,6 +373,7 @@ public class FancyText : DisplayObject
         // --- 绘制背景 ---
         if (_backgroundBrush is not null)
         {
+            _backgroundBrush.Opacity = Alpha;
             if (_cornerRadius > 0)
             {
                 renderTarget.FillRoundedRectangle(
@@ -389,6 +390,7 @@ public class FancyText : DisplayObject
         // --- 绘制边框 ---
         if (_borderBrush is not null && _borderWidth > 0)
         {
+            _borderBrush.Opacity = Alpha;
             if (_cornerRadius > 0)
             {
                 renderTarget.DrawRoundedRectangle(
@@ -406,6 +408,7 @@ public class FancyText : DisplayObject
         // --- 绘制文本 ---
         if (_textBrush is not null)
         {
+            _textBrush.Opacity = Alpha;
             // 文本需要根据 Padding 偏移
             renderTarget.DrawTextLayout(
                 new RawVector2(_paddingLeft, _paddingTop),

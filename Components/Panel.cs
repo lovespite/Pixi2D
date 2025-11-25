@@ -126,6 +126,7 @@ public class Panel : Container
                 }
                 UpdateBackground();
                 UpdateClipSize();
+                
             }
         }
     }

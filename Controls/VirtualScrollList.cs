@@ -19,6 +19,7 @@ public class VirtualScrollList<T> : Panel
     private readonly Graphics _scrollThumb;
 
     private float _viewportHeight = 300f;
+    private float _viewportWidth = 200f;
     private float _itemHeight = 40f;
     private float _scrollPosition = 0f;
     private float _maxScrollPosition = 0f;
@@ -52,6 +53,7 @@ public class VirtualScrollList<T> : Panel
     {
         ContentContainer.Interactive = true;
         _viewportHeight = height;
+
         _itemHeight = itemHeight;
 
         // 启用内容裁剪（内容区域不包含滚动条）
@@ -89,8 +91,8 @@ public class VirtualScrollList<T> : Panel
         Interactive = true;
     }
 
-    public VirtualScrollList(SizeF itemSize)
-        : this(itemSize.Width, itemSize.Height, itemSize.Height)
+    public VirtualScrollList(SizeF itemSize, float itemHeight)
+        : this(itemSize.Width, itemSize.Height, itemHeight)
     {
     }
 
@@ -122,6 +124,27 @@ public class VirtualScrollList<T> : Panel
             if (_viewportHeight != value)
             {
                 _viewportHeight = Math.Max(50, value);
+                UpdateScrollBar();
+                UpdateVisibleItems();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the width of the viewport area, in pixels.
+    /// </summary>
+    /// <remarks>Changing this property updates the visible content region and adjusts the scroll bar position
+    /// accordingly. The value should be set to a positive number to ensure proper layout.</remarks>
+    public float ViewportWidth
+    {
+        get => _viewportWidth;
+        set
+        {
+            if (_viewportWidth != value)
+            {
+                _viewportWidth = value;
+                _scrollBar.X = value - ScrollBarWidth - 5;
+                _scrollThumb.X = value - ScrollBarWidth - 5;
                 UpdateScrollBar();
                 UpdateVisibleItems();
             }
@@ -525,6 +548,21 @@ public class VirtualScrollList<T> : Panel
                 _stage = null;
             }
         }
+    }
+
+    private bool _forceUpate = false;
+    public void ForceUpdateVisibleItems()
+    {
+        _forceUpate = true;
+    }
+
+    public override void Update(float deltaTime)
+    {
+        base.Update(deltaTime);
+        if (!_forceUpate) return;
+        _forceUpate = false;
+        ClearVisibleItems();
+        UpdateVisibleItems();
     }
 
     public override void Dispose()

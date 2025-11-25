@@ -5,14 +5,14 @@ public static class InfiniteAnimatorExtensions
     /// <summary>
     /// 创建并开始一个无限动画器。
     /// </summary>
-    public static InfiniteAnimator InfiniteAnimate(this DisplayObject target, object properties, float duration, EasingFunction easing = EasingFunction.Linear, InfiniteLoopMode loopMode = InfiniteLoopMode.Restart)
+    public static InfiniteAnimator InfiniteAnimate(this DisplayObject target, object properties, float duration, bool restoreOnStop = true, EasingFunction easing = EasingFunction.Linear, InfiniteLoopMode loopMode = InfiniteLoopMode.Restart)
     {
-        return new InfiniteAnimator(target, properties, duration, easing, loopMode);
+        return new InfiniteAnimator(target, properties, duration, easing, loopMode, restoreOnStop);
     }
 
-    public static InfiniteAnimator InfiniteAnimate(this DisplayObject target, float duration, InfiniteAnimatorUpdateCallback cb, EasingFunction easing = EasingFunction.Linear, InfiniteLoopMode loopMode = InfiniteLoopMode.Restart)
+    public static InfiniteAnimator InfiniteAnimate(this DisplayObject target, float duration, InfiniteAnimatorUpdateCallback cb, bool restoreOnStop = true, EasingFunction easing = EasingFunction.Linear, InfiniteLoopMode loopMode = InfiniteLoopMode.Restart)
     {
-        var animator = new InfiniteAnimator(target, null, duration, easing, loopMode);
+        var animator = new InfiniteAnimator(target, null, duration, easing, loopMode, restoreOnStop);
         animator.Animating += cb;
         return animator;
     }
@@ -26,9 +26,9 @@ public static class InfiniteAnimatorExtensions
     /// <param name="loopMode">循环模式 (Restart 或 PingPong)。</param>
     /// <param name="easing">缓动函数。</param>
     /// <returns>InfiniteAnimator 实例，可用于手动停止。</returns>
-    public static InfiniteAnimator AnimateLoop(this DisplayObject target, object properties, float duration, InfiniteLoopMode loopMode = InfiniteLoopMode.Restart, EasingFunction easing = EasingFunction.Linear)
+    public static InfiniteAnimator AnimateLoop(this DisplayObject target, object properties, float duration, bool restoreOnStop = true, InfiniteLoopMode loopMode = InfiniteLoopMode.Restart, EasingFunction easing = EasingFunction.Linear)
     {
-        return new InfiniteAnimator(target, properties, duration, easing, loopMode);
+        return new InfiniteAnimator(target, properties, duration, easing, loopMode, restoreOnStop);
     }
 
     /// <summary>
@@ -37,26 +37,26 @@ public static class InfiniteAnimatorExtensions
     /// 但由于 InfiniteAnimator 是基于 StartValue 和 EndValue 插值的，
     /// 所以要在视觉上实现无缝旋转，StartValue (0) 和 EndValue (360) 的视觉状态必须一致。
     /// </summary>
-    public static InfiniteAnimator RotateLoop(this DisplayObject target, float targetRotation, float duration, EasingFunction easing = EasingFunction.Linear)
+    public static InfiniteAnimator RotateLoop(this DisplayObject target, float targetRotation, float duration, bool restoreOnStop = true, EasingFunction easing = EasingFunction.Linear)
     {
-        return new InfiniteAnimator(target, new { Rotation = targetRotation }, duration, easing, InfiniteLoopMode.Restart);
+        return new InfiniteAnimator(target, new { Rotation = targetRotation }, duration, easing, InfiniteLoopMode.Restart, restoreOnStop);
     }
 
     /// <summary>
     /// 像呼吸一样缩放 (PingPong 模式)。
     /// </summary>
-    public static InfiniteAnimator ScaleBreath(this DisplayObject target, float targetScale, float duration, EasingFunction easing = EasingFunction.CircleEaseInOut)
+    public static InfiniteAnimator ScaleBreath(this DisplayObject target, float targetScale, float duration, bool restoreOnStop = true, EasingFunction easing = EasingFunction.CircleEaseInOut)
     {
-        return new InfiniteAnimator(target, new { ScaleX = targetScale, ScaleY = targetScale }, duration, easing, InfiniteLoopMode.PingPong);
+        return new InfiniteAnimator(target, new { ScaleX = targetScale, ScaleY = targetScale }, duration, easing, InfiniteLoopMode.PingPong, restoreOnStop);
     }
 
     /// <summary>
     /// 像呼吸一样闪烁 (PingPong 模式)。
     /// </summary>
-    public static InfiniteAnimator AlphaBreath(this DisplayObject target, float minAlpha, float duration, EasingFunction easing = EasingFunction.Linear)
+    public static InfiniteAnimator AlphaBreath(this DisplayObject target, float minAlpha, float duration, bool restoreOnStop = true, EasingFunction easing = EasingFunction.Linear)
     {
         // 注意：InfiniteAnimator 构造时会读取当前 Alpha 作为 StartValue。
         // 如果想要在 minAlpha 和 当前Alpha 之间闪烁，确保调用时 Alpha 是最大值。
-        return new InfiniteAnimator(target, new { Alpha = minAlpha }, duration, easing, InfiniteLoopMode.PingPong);
+        return new InfiniteAnimator(target, new { Alpha = minAlpha }, duration, easing, InfiniteLoopMode.PingPong, restoreOnStop);
     }
 }

@@ -59,7 +59,11 @@ public abstract class DisplayObject : IDisposable
     public virtual SizeF Size
     {
         get => new(Width, Height);
-        set { (Width, Height) = (value.Width, value.Height); Invalidate(); } // Invalidate 已在 Width/Height setter 中
+        set
+        {
+            (Width, Height) = (value.Width, value.Height);
+            Invalidate();
+        } // Invalidate 已在 Width/Height setter 中
     }
 
     public float Scale { set { ScaleX = ScaleY = value; } } // Setter 会调用 Invalidate

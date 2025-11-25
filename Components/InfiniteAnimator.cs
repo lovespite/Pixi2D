@@ -51,6 +51,11 @@ public class InfiniteAnimator
     public event InfiniteAnimatorUpdateCallback? Animating;
 
     /// <summary>
+    /// 指示 Stop 被调用时，是否恢复至最初状态。
+    /// </summary>
+    public bool RestoreOnStop { get; set; }
+
+    /// <summary>
     /// 内部结构，用于存储单条属性的动画信息
     /// </summary>
     private readonly struct AnimationTrack(Action<object, float> setter, float startValue, float endValue)
@@ -68,13 +73,15 @@ public class InfiniteAnimator
     /// <param name="duration">单次循环的持续时间。</param>
     /// <param name="easing">缓动函数。</param>
     /// <param name="loopMode">循环模式 (Restart 或 PingPong)。</param>
-    public InfiniteAnimator(DisplayObject target, object? properties, float duration, EasingFunction easing = EasingFunction.Linear, InfiniteLoopMode loopMode = InfiniteLoopMode.Restart)
+    public InfiniteAnimator(DisplayObject target, object? properties, float duration, EasingFunction easing = EasingFunction.Linear, InfiniteLoopMode loopMode = InfiniteLoopMode.Restart, bool restoreOnStop = true)
     {
         _target = target ?? throw new ArgumentNullException(nameof(target));
         _duration = Math.Max(0.001f, duration); // 防止除以零
         _easing = easing;
         _loopMode = loopMode;
         _elapsedTime = 0f;
+
+        RestoreOnStop = restoreOnStop;
 
         // 解析属性
         ParseProperties(properties);
@@ -91,6 +98,16 @@ public class InfiniteAnimator
     public void Stop()
     {
         if (!_isPlaying) return;
+
+        // 如果需要恢复初始状态
+        if (RestoreOnStop)
+        {
+            foreach (var track in _tracks)
+            {
+                track.Setter(_target, track.StartValue);
+            }
+        }
+
         Cleanup();
         OnStopped?.Invoke();
     }
