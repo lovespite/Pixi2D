@@ -16,10 +16,11 @@ public class ListItem : Container
     private readonly Graphics _background;
     private readonly Container _contentContainer;
 
-    private RawColor4 _normalColor = new(0.0f, 0.0f, 0.0f, 0f);     // 普通状态颜色
-    private RawColor4 _hoverColor = new(0.3f, 0.3f, 0.3f, 1.0f);      // 悬停状态颜色
+    private BrushStyle _normalStyle = new(new(0.0f, 0.0f, 0.0f, 0f));     // 普通状态颜色
+    private BrushStyle _hoverStyle = new(new(0.3f, 0.3f, 0.3f, 1.0f));      // 悬停状态颜色
 
     private bool _isHovered = false;
+    private bool _isActive = false;
 
     private float _itemWidth = 200f;
     private float _itemHeight = 40f;
@@ -41,7 +42,7 @@ public class ListItem : Container
         _background = new Graphics
         {
             Interactive = true,
-            FillColor = _normalColor
+            FillStyle = _normalStyle,
         };
         _background.DrawRectangle(0, 0, _itemWidth, _itemHeight);
         AddChild(_background);
@@ -96,12 +97,12 @@ public class ListItem : Container
     /// <summary>
     /// 普通状态的背景颜色。
     /// </summary>
-    public RawColor4 NormalColor
+    public BrushStyle NormalStyle
     {
-        get => _normalColor;
+        get => _normalStyle;
         set
         {
-            _normalColor = value;
+            _normalStyle = value;
             UpdateBackgroundColor();
         }
     }
@@ -109,10 +110,10 @@ public class ListItem : Container
     /// <summary>
     /// 悬停状态的背景颜色。
     /// </summary>
-    public RawColor4 HoverColor
+    public BrushStyle HoverStyle
     {
-        get => _hoverColor;
-        set { _hoverColor = value; }
+        get => _hoverStyle;
+        set { _hoverStyle = value; }
     }
 
     /// <summary>
@@ -139,6 +140,12 @@ public class ListItem : Container
         _contentContainer.ClearChildren();
     }
 
+    public void SetActive(bool isActive)
+    {
+        _isActive = isActive;
+        UpdateBackgroundColor();
+    }
+
     /// <summary>
     /// 更新背景图形。
     /// </summary>
@@ -154,13 +161,13 @@ public class ListItem : Container
     /// </summary>
     private void UpdateBackgroundColor()
     {
-        if (_isHovered)
+        if (_isHovered || _isActive)
         {
-            _background.FillColor = _hoverColor;
+            _background.FillStyle = _hoverStyle;
         }
         else
         {
-            _background.FillColor = _normalColor;
+            _background.FillStyle = _normalStyle;
         }
     }
 

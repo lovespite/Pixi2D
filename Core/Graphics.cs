@@ -23,13 +23,8 @@ public partial class Graphics : DisplayObject
     private GradientStopCollection? _fillGradientStops;
     private GradientStopCollection? _strokeGradientStops;
 
-    // --- 颜色和样式定义 ---
-    private RawColor4 _fillColor = new(0, 0, 0, 0); // 默认透明填充
-    private RawColor4 _strokeColor = new(0, 0, 0, 0); // 默认透明边框
-
-    // 渐变定义 (如果非空，则优先于纯色)
-    private LinearGradientDef? _fillGradient;
-    private LinearGradientDef? _strokeGradient;
+    private BrushStyle _fillStyle = new(new(0, 0, 0, 0));
+    private BrushStyle _strokeStyle = new(new(0, 0, 0, 0));
 
     private bool _isFillDirty = true;
     private bool _isStrokeDirty = true;
@@ -38,30 +33,6 @@ public partial class Graphics : DisplayObject
 
     private RectangleF _cachedBounds = RectangleF.Empty;
     private bool _boundsDirty = true;
-
-    /// <summary>
-    /// 渐变断点结构
-    /// </summary>
-    public struct GradientStop
-    {
-        public float Position;
-        public RawColor4 Color;
-        public GradientStop(float position, RawColor4 color)
-        {
-            Position = position;
-            Color = color;
-        }
-    }
-
-    /// <summary>
-    /// 内部线性渐变定义
-    /// </summary>
-    private struct LinearGradientDef
-    {
-        public PointF Start;
-        public PointF End;
-        public GradientStop[] Stops;
-    }
 
     public RectangleF GetBounds(bool forceUpdate = false)
     {
@@ -77,11 +48,10 @@ public partial class Graphics : DisplayObject
     /// </summary>
     public RawColor4 FillColor
     {
-        get => _fillColor;
+        get => _fillStyle.SolidColor;
         set
         {
-            _fillColor = value;
-            _fillGradient = null; // 清除渐变
+            _fillStyle = new(value);
             _isFillDirty = true;
         }
     }
@@ -92,62 +62,38 @@ public partial class Graphics : DisplayObject
     /// </summary>
     public RawColor4 StrokeColor
     {
-        get => _strokeColor;
+        get => _strokeStyle.SolidColor;
         set
         {
-            _strokeColor = value;
-            _strokeGradient = null; // 清除渐变
+            _strokeStyle = new(value);
             _isStrokeDirty = true;
         }
     }
 
     /// <summary>
-    /// 设置线性渐变填充。
+    /// Gets or sets the brush style used to fill shapes.
     /// </summary>
-    /// <param name="start">渐变起点坐标（本地坐标）。</param>
-    /// <param name="end">渐变终点坐标（本地坐标）。</param>
-    /// <param name="startColor">起始颜色。</param>
-    /// <param name="endColor">结束颜色。</param>
-    public void SetFillLinearGradient(PointF start, PointF end, RawColor4 startColor, RawColor4 endColor)
+    public BrushStyle FillStyle
     {
-        SetFillLinearGradient(start, end,
-            new GradientStop(0.0f, startColor),
-            new GradientStop(1.0f, endColor));
+        get => _fillStyle;
+        set
+        {
+            _fillStyle = value;
+            _isFillDirty = true;
+        }
     }
 
     /// <summary>
-    /// 设置线性渐变填充 (多断点)。
+    /// Gets or sets the style used to render the stroke of the shape.
     /// </summary>
-    /// <param name="start">渐变起点。</param>
-    /// <param name="end">渐变终点。</param>
-    /// <param name="stops">颜色断点数组。</param>
-    public void SetFillLinearGradient(PointF start, PointF end, params GradientStop[] stops)
+    public BrushStyle StrokeStyle
     {
-        _fillGradient = new LinearGradientDef { Start = start, End = end, Stops = stops };
-        _isFillDirty = true;
-    }
-
-    /// <summary>
-    /// 设置线性渐变边框。
-    /// </summary>
-    /// <param name="start">渐变起点坐标（本地坐标）。</param>
-    /// <param name="end">渐变终点坐标（本地坐标）。</param>
-    /// <param name="startColor">起始颜色。</param>
-    /// <param name="endColor">结束颜色。</param>
-    public void SetStrokeLinearGradient(PointF start, PointF end, RawColor4 startColor, RawColor4 endColor)
-    {
-        SetStrokeLinearGradient(start, end,
-            new GradientStop(0.0f, startColor),
-            new GradientStop(1.0f, endColor));
-    }
-
-    /// <summary>
-    /// 设置线性渐变边框 (多断点)。
-    /// </summary>
-    public void SetStrokeLinearGradient(PointF start, PointF end, params GradientStop[] stops)
-    {
-        _strokeGradient = new LinearGradientDef { Start = start, End = end, Stops = stops };
-        _isStrokeDirty = true;
+        get => _strokeStyle;
+        set
+        {
+            _strokeStyle = value;
+            _isStrokeDirty = true;
+        }
     }
 
     /// <summary>
@@ -292,6 +238,9 @@ public partial class Graphics : DisplayObject
         var oldTransform = renderTarget.Transform;
         renderTarget.Transform = Unsafe.As<Matrix3x2, RawMatrix3x2>(ref _worldTransform);
 
+        // 2.5 更新包围盒
+        UpdateBounds();
+
         // 3. 更新笔刷资源
         UpdateBrushes(renderTarget);
 
@@ -317,33 +266,27 @@ public partial class Graphics : DisplayObject
             _fillGradientStops?.Dispose();
             _fillGradientStops = null;
 
-            if (_fillGradient.HasValue)
+            if (_fillStyle.IsGradient)
             {
-                // 创建线性渐变画笔
-                var def = _fillGradient.Value;
-                var sharpDXStops = new SharpDX.Direct2D1.GradientStop[def.Stops.Length];
-                for (int i = 0; i < def.Stops.Length; i++)
-                {
-                    sharpDXStops[i] = new SharpDX.Direct2D1.GradientStop
-                    {
-                        Position = def.Stops[i].Position,
-                        Color = def.Stops[i].Color
-                    };
-                }
+                var sX = _fillStyle.IsRelativePosition ? _cachedBounds.Width * _fillStyle.Start.X : _fillStyle.Start.X;
+                var sY = _fillStyle.IsRelativePosition ? _cachedBounds.Height * _fillStyle.Start.Y : _fillStyle.Start.Y;
+                var eX = _fillStyle.IsRelativePosition ? _cachedBounds.Width * _fillStyle.End.X : _fillStyle.End.X;
+                var eY = _fillStyle.IsRelativePosition ? _cachedBounds.Height * _fillStyle.End.Y : _fillStyle.End.Y;
 
-                _fillGradientStops = new GradientStopCollection(renderTarget, sharpDXStops);
+                // 创建线性渐变画笔  
+                _fillGradientStops = new GradientStopCollection(renderTarget, _fillStyle.Stops);
                 var props = new LinearGradientBrushProperties
                 {
-                    StartPoint = new RawVector2(def.Start.X, def.Start.Y),
-                    EndPoint = new RawVector2(def.End.X, def.End.Y)
+                    StartPoint = new RawVector2(sX, sY),
+                    EndPoint = new RawVector2(eX, eY)
                 };
 
                 _activeFillBrush = new LinearGradientBrush(renderTarget, props, _fillGradientStops);
             }
-            else if (_fillColor.A > 0)
+            else if (_fillStyle.SolidColor.A > 0)
             {
                 // 创建纯色画笔
-                _activeFillBrush = new SolidColorBrush(renderTarget, _fillColor);
+                _activeFillBrush = new SolidColorBrush(renderTarget, _fillStyle.SolidColor);
             }
 
             _isFillDirty = false;
@@ -357,32 +300,26 @@ public partial class Graphics : DisplayObject
             _strokeGradientStops?.Dispose();
             _strokeGradientStops = null;
 
-            if (_strokeGradient.HasValue)
+            if (_strokeStyle.IsGradient)
             {
-                // 创建线性渐变画笔
-                var def = _strokeGradient.Value;
-                var sharpDXStops = new SharpDX.Direct2D1.GradientStop[def.Stops.Length];
-                for (int i = 0; i < def.Stops.Length; i++)
-                {
-                    sharpDXStops[i] = new SharpDX.Direct2D1.GradientStop
-                    {
-                        Position = def.Stops[i].Position,
-                        Color = def.Stops[i].Color
-                    };
-                }
+                var sX = _strokeStyle.IsRelativePosition ? _cachedBounds.Width * _strokeStyle.Start.X : _strokeStyle.Start.X;
+                var sY = _strokeStyle.IsRelativePosition ? _cachedBounds.Height * _strokeStyle.Start.Y : _strokeStyle.Start.Y;
+                var eX = _strokeStyle.IsRelativePosition ? _cachedBounds.Width * _strokeStyle.End.X : _strokeStyle.End.X;
+                var eY = _strokeStyle.IsRelativePosition ? _cachedBounds.Height * _strokeStyle.End.Y : _strokeStyle.End.Y;
 
-                _strokeGradientStops = new GradientStopCollection(renderTarget, sharpDXStops);
+                // 创建线性渐变画笔 
+                _strokeGradientStops = new GradientStopCollection(renderTarget, _strokeStyle.Stops);
                 var props = new LinearGradientBrushProperties
                 {
-                    StartPoint = new RawVector2(def.Start.X, def.Start.Y),
-                    EndPoint = new RawVector2(def.End.X, def.End.Y)
+                    StartPoint = new RawVector2(sX, sY),
+                    EndPoint = new RawVector2(eX, eY)
                 };
 
                 _activeStrokeBrush = new LinearGradientBrush(renderTarget, props, _strokeGradientStops);
             }
-            else if (_strokeColor.A > 0)
+            else if (_strokeStyle.SolidColor.A > 0)
             {
-                _activeStrokeBrush = new SolidColorBrush(renderTarget, _strokeColor);
+                _activeStrokeBrush = new SolidColorBrush(renderTarget, _strokeStyle.SolidColor);
             }
 
             _isStrokeDirty = false;

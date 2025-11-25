@@ -248,7 +248,7 @@ public class Container : DisplayObject, IReadOnlyList<DisplayObject>
             foreach (var child in Children.ToArray())
             {
                 // (优化) 子项使用我们计算好的、缓存的 _worldTransform 来渲染
-                child.Render(renderTarget, ref _worldTransform);
+                child?.Render(renderTarget, ref _worldTransform);
             }
         }
         finally
