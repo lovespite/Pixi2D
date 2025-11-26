@@ -16,8 +16,8 @@ public class ListItem : Container
     private readonly Graphics _background;
     private readonly Container _contentContainer;
 
-    private BrushStyle _normalStyle = new(new(0.0f, 0.0f, 0.0f, 0f));     // 普通状态颜色
-    private BrushStyle _hoverStyle = new(new(0.3f, 0.3f, 0.3f, 1.0f));      // 悬停状态颜色
+    private BrushStyle _normalStyle = new(Color.Transparent);     // 普通状态颜色
+    private BrushStyle _hoverStyle = new(new RawColor4(0.3f, 0.3f, 0.3f, 1.0f));      // 悬停状态颜色
 
     private bool _isHovered = false;
     private bool _isActive = false;

@@ -43,9 +43,9 @@ public class FancyText : DisplayObject
     private float _calculatedHeight;
 
     // --- 渐变/颜色定义 ---
-    private BrushStyle _textStyle = new(new RawColor4(1, 1, 1, 1)); // 默认白色文字
-    private BrushStyle _backgroundStyle = new(new RawColor4(0, 0, 0, 0)); // 默认透明背景
-    private BrushStyle _borderStyle = new(new RawColor4(0, 0, 0, 0)); // 默认透明边框
+    private BrushStyle _textStyle = new(Color.White); // 默认白色文字
+    private BrushStyle _backgroundStyle = new(Color.Transparent); // 默认透明背景
+    private BrushStyle _borderStyle = new(Color.Transparent); // 默认透明边框
 
     // --- 运行时画笔缓存 ---
     private Brush? _textBrush;
@@ -443,16 +443,14 @@ public class FancyText : DisplayObject
 
             if (style.IsGradient)
             {
-                var sX = style.IsRelativePosition ? style.Start.X * Width : style.Start.X;
-                var sY = style.IsRelativePosition ? style.Start.Y * Height : style.Start.Y;
-                var eX = style.IsRelativePosition ? style.End.X * Width : style.End.X;
-                var eY = style.IsRelativePosition ? style.End.Y * Height : style.End.Y;
+                var bounds = new RectangleF(0, 0, _calculatedWidth, _calculatedHeight);
+                var (sP, eP) = style.GetLinearGradientVectors(ref bounds);
 
                 stopsCache = new GradientStopCollection(renderTarget, style.Stops);
                 var props = new LinearGradientBrushProperties
                 {
-                    StartPoint = new RawVector2(sX, sY),
-                    EndPoint = new RawVector2(eX, eY)
+                    StartPoint = sP,
+                    EndPoint = eP,
                 };
                 return new LinearGradientBrush(renderTarget, props, stopsCache) { Opacity = Alpha };
             }
@@ -546,7 +544,7 @@ public class FancyText : DisplayObject
             set
             {
                 _fillColor = value;
-                _textStyle = new BrushStyle(value.ToRawColor4());
+                _textStyle = new BrushStyle(value);
             }
         }
 
@@ -562,9 +560,9 @@ public class FancyText : DisplayObject
             };
         }
 
-        private BrushStyle _textStyle = new(new RawColor4(1, 1, 1, 1)); // 默认白色文字
-        private BrushStyle _backgroundStyle = new(new RawColor4(0, 0, 0, 0)); // 默认透明背景
-        private BrushStyle _borderStyle = new(new RawColor4(0, 0, 0, 0)); // 默认透明边框
+        private BrushStyle _textStyle = new(Color.White); // 默认白色文字
+        private BrushStyle _backgroundStyle = new(Color.Transparent); // 默认透明背景
+        private BrushStyle _borderStyle = new(Color.Transparent); // 默认透明边框
         private Color _fillColor = Color.White;
 
         public FancyText Create(string text = "")
@@ -588,7 +586,7 @@ public class FancyText : DisplayObject
         {
             var fancyText = new FancyText(DwfInstance, text, fontFamily: FontFamily, fontSize: FontSize, fontStyle: FontStyle, fontWeight: FontWeight)
             {
-                _textStyle = new BrushStyle(fillColor.ToRawColor4()),
+                _textStyle = new BrushStyle(fillColor),
                 _backgroundStyle = _backgroundStyle,
                 _borderStyle = _borderStyle,
                 _isBrushDirty = true,
@@ -622,7 +620,7 @@ public class FancyText : DisplayObject
         {
             var fancyText = new FancyText(DwfInstance, text, fontFamily: FontFamily, fontSize: fontSize, fontStyle: FontStyle, fontWeight: FontWeight)
             {
-                _textStyle = new BrushStyle(fillColor.ToRawColor4()),
+                _textStyle = new BrushStyle(fillColor),
                 _backgroundStyle = _backgroundStyle,
                 _borderStyle = _borderStyle,
                 _isBrushDirty = true,

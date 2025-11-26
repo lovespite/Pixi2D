@@ -13,9 +13,12 @@ public class Button : Container
     private readonly Graphics _background;
     private readonly Text _label;
 
-    private RawColor4 _normalColor = new(0.3f, 0.3f, 0.3f, 1.0f);
-    private RawColor4 _hoverColor = new(0.4f, 0.4f, 0.4f, 1.0f);
-    private RawColor4 _pressedColor = new(0.2f, 0.2f, 0.2f, 1.0f);
+    private BrushStyle _normalStyle = new(new RawColor4(0.3f, 0.3f, 0.3f, 1.0f));
+    private BrushStyle _hoverStyle = new(new RawColor4(0.4f, 0.4f, 0.4f, 1.0f));
+    private BrushStyle _pressedStyle = new(new RawColor4(0.2f, 0.2f, 0.2f, 1.0f));
+    private BrushStyle _borderStyle = new(new RawColor4(0.5f, 0.5f, 0.5f, 1.0f));
+    private BrushStyle _hoverBorderStyle = new(new RawColor4(0.7f, 0.7f, 0.7f, 1.0f));
+    private BrushStyle _focusedBorderStyle = new(new RawColor4(0.0f, 0.6f, 1.0f, 1.0f));
 
     private bool _isHovered = false;
     private bool _isPressed = false;
@@ -25,7 +28,6 @@ public class Button : Container
     private float _cornerRadius = 5f;
 
     // Border properties
-    private RawColor4 _borderColor = new(0.5f, 0.5f, 0.5f, 1.0f);
     private float _borderWidth = 0f;
 
     /// <summary>
@@ -45,7 +47,7 @@ public class Button : Container
         _background = new Graphics
         {
             Interactive = true,
-            FillColor = _normalColor,
+            FillStyle = _normalStyle,
         };
         _background.DrawRoundedRectangle(0, 0, _buttonWidth, _buttonHeight, _cornerRadius, _cornerRadius);
         base.AddChild(_background);
@@ -83,8 +85,8 @@ public class Button : Container
             if (_buttonWidth != value)
             {
                 _buttonWidth = value;
-                UpdateBackground();
-                UpdateLabelPosition();
+                _bgDirty = true;
+                _textPositionDirty = true;
             }
         }
     }
@@ -100,8 +102,8 @@ public class Button : Container
             if (_buttonHeight != value)
             {
                 _buttonHeight = value;
-                UpdateBackground();
-                UpdateLabelPosition();
+                _bgDirty = true;
+                _textPositionDirty = true;
             }
         }
     }
@@ -112,7 +114,11 @@ public class Button : Container
     public string Text
     {
         get => _label.Content;
-        set => _label.Content = value;
+        set
+        {
+            _label.Content = value;
+            _textPositionDirty = true;
+        }
     }
 
     /// <summary>
@@ -124,7 +130,7 @@ public class Button : Container
         set
         {
             _cornerRadius = value;
-            UpdateBackground();
+            _bgDirty = true;
         }
     }
 
@@ -137,21 +143,39 @@ public class Button : Container
         set
         {
             _cornerRadius = value;
-            UpdateBackground();
+            _bgDirty = true;
         }
     }
 
     /// <summary>
     /// 边框颜色。
     /// </summary>
-    public RawColor4 BorderColor
+    public BrushStyle BorderStyle
     {
-        get => _borderColor;
+        get => _borderStyle;
         set
         {
-            _borderColor = value;
-            UpdateBackground();
+            _borderStyle = value;
+            _bgDirty = true;
         }
+    }
+
+    /// <summary>
+    /// Gets or sets the border style applied when the control is hovered over by the pointer.
+    /// </summary>
+    public BrushStyle HoverBorderStyle
+    {
+        get => _hoverBorderStyle;
+        set => _hoverBorderStyle = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the border style applied when the control is focused.
+    /// </summary>
+    public BrushStyle FocusedBorderStyle
+    {
+        get => _focusedBorderStyle;
+        set => _focusedBorderStyle = value;
     }
 
     /// <summary>
@@ -163,26 +187,36 @@ public class Button : Container
         set
         {
             _borderWidth = value;
-            UpdateBackground();
+            _bgDirty = true;
         }
     }
 
     /// <summary>
     /// 悬停状态的背景颜色。
     /// </summary>
-    public RawColor4 HoverColor
+    public BrushStyle HoverStyle
     {
-        get => _hoverColor;
-        set { _hoverColor = value; }
+        get => _hoverStyle;
+        set => _hoverStyle = value;
+    }
+
+    public BrushStyle NormalStyle
+    {
+        get => _normalStyle;
+        set
+        {
+            _normalStyle = value;
+            _bgDirty = true;
+        }
     }
 
     /// <summary>
     /// 按下状态的背景颜色。
     /// </summary>
-    public RawColor4 PressedColor
+    public BrushStyle PressedStyle
     {
-        get => _pressedColor;
-        set { _pressedColor = value; }
+        get => _pressedStyle;
+        set { _pressedStyle = value; }
     }
 
     /// <summary>
@@ -199,11 +233,12 @@ public class Button : Container
     /// </summary>
     private void UpdateBackground()
     {
+        _bgDirty = false;
         _background.Clear();
         _background.DrawRoundedRectangle(0, 0, _buttonWidth, _buttonHeight, _cornerRadius, _cornerRadius);
 
         // Set border properties
-        _background.StrokeColor = _borderColor;
+        _background.StrokeStyle = _borderStyle;
         _background.StrokeWidth = _borderWidth;
 
         UpdateBackgroundColor();
@@ -216,15 +251,17 @@ public class Button : Container
     {
         if (_isPressed)
         {
-            _background.FillColor = _pressedColor;
+            _background.FillStyle = _pressedStyle;
         }
         else if (_isHovered)
         {
-            _background.FillColor = _hoverColor;
+            _background.FillStyle = _hoverStyle;
+            _background.StrokeStyle = _hoverBorderStyle;
         }
         else
         {
-            _background.FillColor = _normalColor;
+            _background.FillStyle = _normalStyle;
+            _background.StrokeStyle = _borderStyle;
         }
     }
 
@@ -233,12 +270,18 @@ public class Button : Container
     /// </summary>
     private void UpdateLabelPosition()
     {
-        const float horizontalPadding = 5f;
-        _label.MaxWidth = _buttonWidth - (horizontalPadding * 2);
-        // Calculate horizontal position based on alignment 
-        _label.X = horizontalPadding;
-        // Vertical centering
-        _label.Y = (_buttonHeight - _label.FontSize) / 2;
+        var rect = _label.GetTextRect();
+        if (rect.Width == 0 && rect.Height == 0)
+        {
+            // 文本为空时不更新位置
+            return;
+        }
+
+        var x = (_buttonWidth - rect.Width) / 2;
+        var y = (_buttonHeight - rect.Height) / 2;
+
+        _label.SetPosition(x, y);
+        _textPositionDirty = false;
     }
 
     private void HandleKeyEvent(DisplayObjectEvent @event)
@@ -280,27 +323,32 @@ public class Button : Container
         OnButtonClick?.Invoke(this);
     }
 
+    private bool _bgDirty = true;
     private bool _hasFocus = false;
-    private RawColor4 _originalBorderColor;
+    private bool _textPositionDirty = true;
+    private BrushStyle _originalBorderColor;
     public override void Update(float deltaTime)
     {
+        base.Update(deltaTime);
         var hasFocus = IsFocused();
-        if (hasFocus != _hasFocus)
+        if (hasFocus != _hasFocus || _bgDirty)
         {
             _hasFocus = hasFocus;
             if (hasFocus)
             {
-                _originalBorderColor = _borderColor;
-                _borderColor = new(0.0f, 0.6f, 1.0f, 1.0f); // 淡蓝色边框表示聚焦
+                _originalBorderColor = _borderStyle;
+                _borderStyle = _focusedBorderStyle;
             }
             else
             {
-                _borderColor = _originalBorderColor;
+                _borderStyle = _originalBorderColor;
             }
             UpdateBackground();
         }
-
-        base.Update(deltaTime);
+        if (_textPositionDirty)
+        {
+            UpdateLabelPosition();
+        }
     }
 
     public override void Dispose()

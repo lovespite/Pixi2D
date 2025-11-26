@@ -41,8 +41,8 @@ public class VirtualScrollListExample
             // 创建列表项
             var item = new ListItem(280f, 50f)
             {
-                NormalStyle = new(new(0.1f, 0.1f, 0.1f, 1.0f)),
-                HoverStyle = new(new(0.2f, 0.2f, 0.3f, 1.0f)),
+                NormalStyle = new(new RawColor4(0.1f, 0.1f, 0.1f, 1.0f)),
+                HoverStyle = new(new RawColor4(0.2f, 0.2f, 0.3f, 1.0f)),
             };
 
             // 添加文本内容
@@ -91,8 +91,8 @@ public class VirtualScrollListExample
         {
             var item = new ListItem(380f, 60f)
             {
-                NormalStyle = new(new(0.05f, 0.05f, 0.08f, 1.0f)),
-                HoverStyle = new(new(0.15f, 0.15f, 0.2f, 1.0f)),
+                NormalStyle = new(new RawColor4(0.05f, 0.05f, 0.08f, 1.0f)),
+                HoverStyle = new(new RawColor4(0.15f, 0.15f, 0.2f, 1.0f)),
             };
 
             // 名称

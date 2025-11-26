@@ -10,30 +10,121 @@ namespace Pixi2D.Core;
 public struct BrushStyle
 {
     public bool IsGradient;
-    public bool IsRelativePosition;
+    public bool IsAngleGradient;
     public RawColor4 SolidColor;
     public PointF Start;
     public PointF End;
     public GradientStop[] Stops;
+    public float GradientAngle;
 
+    /// <summary>
+    /// Initializes a new instance of the BrushStyle class with a solid color.
+    /// </summary>
+    /// <remarks>The created BrushStyle instance represents a solid color brush. Gradient-related properties
+    /// are set to their default values and are not used for this constructor.</remarks>
+    /// <param name="color">The color to use for the solid brush. Specifies the RGBA value that defines the brush's fill color.</param>
     public BrushStyle(RawColor4 color)
     {
         IsGradient = false;
-        IsRelativePosition = false;
+        IsAngleGradient = false;
         SolidColor = color;
         Start = End = PointF.Empty;
         Stops = [];
     }
 
+    public BrushStyle(Color color) : this(color.ToRawColor4()) { }
+
+    /// <summary>
+    /// Initializes a new instance of the BrushStyle class that defines a linear gradient brush with the specified start
+    /// and end points and gradient stops.
+    /// </summary>
+    /// <remarks>Use this constructor to create a linear gradient brush for rendering graphics with smooth
+    /// color transitions. The gradient is defined by the provided start and end points, and the color distribution is
+    /// determined by the specified gradient stops.</remarks>
+    /// <param name="start">The starting point of the gradient, specified in coordinates relative to the drawing surface.</param>
+    /// <param name="end">The ending point of the gradient, specified in coordinates relative to the drawing surface.</param>
+    /// <param name="stops">An array of GradientStop objects that define the colors and positions along the gradient. Cannot be null or
+    /// empty.</param>
     public BrushStyle(PointF start, PointF end, GradientStop[] stops)
     {
         IsGradient = true;
-        IsRelativePosition = false;
+        IsAngleGradient = false;
         SolidColor = default;
         Start = start;
         End = end;
         Stops = stops;
     }
+
+    /// <summary>
+    /// Initializes a new instance of the BrushStyle class using an angle-based gradient and the specified gradient
+    /// stops.
+    /// </summary>
+    /// <remarks>Use this constructor to create a BrushStyle that renders a gradient at a specific angle. The
+    /// gradient is defined by the provided stops, which determine the color transitions along the gradient
+    /// direction.</remarks>
+    /// <param name="angleDegrees">The angle, in degrees, at which the gradient is applied. Typically, 0 degrees represents a horizontal gradient.</param>
+    /// <param name="stops">An array of GradientStop objects that define the colors and positions within the gradient. Cannot be null or
+    /// empty.</param>
+    public BrushStyle(float angleDegrees, GradientStop[] stops)
+    {
+        IsGradient = true;
+        IsAngleGradient = true;
+        SolidColor = default;
+        Start = End = PointF.Empty;
+        Stops = stops;
+        GradientAngle = angleDegrees;
+    }
+
+    /// <summary>
+    /// 核心计算方法：根据传入的矩形范围，计算出实际的线性渐变起止点
+    /// </summary>
+    /// <param name="bounds">图形的实际绘制区域 (World Bounds)</param>
+    /// <returns>绝对坐标系下的 Start 和 End</returns>
+    public readonly (RawVector2 Start, RawVector2 End) GetLinearGradientVectors(ref RectangleF bounds)
+    {
+        if (!IsGradient) return (default, default);
+
+        float x = bounds.Left;
+        float y = bounds.Top;
+        float w = bounds.Width;
+        float h = bounds.Height;
+
+        // 模式 A: 基于角度的动态计算 (类似 CSS)
+        // 保证渐变线穿过中心，且能覆盖矩形四角
+        if (IsAngleGradient)
+        {
+            // 1. 转弧度 (假设 0度=向右, 顺时针)
+            float angleRad = GradientAngle * (float)(Math.PI / 180.0);
+
+            // 2. 计算中心点
+            float cx = x + w / 2.0f;
+            float cy = y + h / 2.0f;
+
+            // 3. 计算方向向量
+            float dirX = (float)Math.Cos(angleRad);
+            float dirY = (float)Math.Sin(angleRad);
+
+            // 4. 计算覆盖半径 (投影长度)
+            // 原理：计算矩形从中心到最远角落，在渐变方向上的投影长度
+            // 这样保证无论旋转多少度，渐变色都能恰好填满盒子，不会出现断层
+            float halfLength = (Math.Abs(w * dirX) + Math.Abs(h * dirY)) / 2.0f;
+
+            // 5. 计算起止点
+            return (
+                new RawVector2(cx - dirX * halfLength, cy - dirY * halfLength),
+                new RawVector2(cx + dirX * halfLength, cy + dirY * halfLength)
+            );
+        }
+
+        // 模式 B: 基于相对坐标点的映射
+        // 直接将 0~1 的比例映射到 bounds 的实际尺寸上
+        return (
+            new RawVector2(x + w * Start.X, y + h * Start.Y),
+            new RawVector2(x + w * End.X, y + h * End.Y)
+        );
+    }
+
+    #region Factory Methods
 
     /// <summary>
     /// Creates a linear gradient brush style oriented at the specified angle, using the provided colors as gradient
@@ -57,22 +148,7 @@ public struct BrushStyle
                 Color = colors[i].ToRawColor4()
             };
         }
-        // 计算起点和终点
-        float radians = degree * (float)(Math.PI / 180);
-        PointF center = new(0.5f, 0.5f);
-        float halfDiagonal = (float)(Math.Sqrt(2) / 2);
-        PointF start = new(
-            center.X - halfDiagonal * (float)Math.Cos(radians),
-            center.Y - halfDiagonal * (float)Math.Sin(radians)
-        );
-        PointF end = new(
-            center.X + halfDiagonal * (float)Math.Cos(radians),
-            center.Y + halfDiagonal * (float)Math.Sin(radians)
-        );
-        return new BrushStyle(start, end, stops)
-        {
-            IsRelativePosition = true, // 通过角度设置时使用相对位置
-        };
+        return new BrushStyle(degree, stops);
     }
 
     public static BrushStyle LinearGradient(PointF start, PointF end, params Color[] colors)
@@ -125,4 +201,6 @@ public struct BrushStyle
     {
         return new BrushStyle(new PointF(startX, startY), new PointF(endX, endY), stops);
     }
+
+    #endregion
 }

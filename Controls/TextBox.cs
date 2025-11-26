@@ -37,6 +37,7 @@ public class TextBox : Container
     private readonly Container _textContainer;     // 用于滚动
     private readonly Graphics _selectionHighlight; //  用于绘制选中高亮 
     private readonly Text _textDisplay;
+    private readonly Text _placeholder;
     private readonly Graphics _caret; // 光标 
     private readonly Text.Factory _textFactory; // 用于创建和测量文本 
 
@@ -55,8 +56,8 @@ public class TextBox : Container
     // --- 样式属性  ---
     private float _boxWidth = 200f;
     private float _boxHeight = 30f;
-    private BrushStyle _focusedBorderStyle = new(new(0.0f, 0.6f, 1.0f, 1.0f));
-    private BrushStyle _borderStyle = new(Color.DarkGray.ToRawColor4());
+    private BrushStyle _focusedBorderStyle = new(new RawColor4(0.0f, 0.6f, 1.0f, 1.0f));
+    private BrushStyle _borderStyle = new(Color.DarkGray);
     private readonly float _borderWidth = 1f;
     private readonly float _paddingX = 5f;
     private readonly float _paddingY = 2f;
@@ -226,6 +227,18 @@ public class TextBox : Container
     public bool RequireShiftForNewLine { get; set; } = false;
 
     /// <summary>
+    /// Gets or sets the placeholder text displayed when the input field is empty.
+    /// </summary>
+    public string PlaceholderText
+    {
+        get => _placeholder.Content;
+        set
+        {
+            _placeholder.Content = value;
+        }
+    }
+
+    /// <summary>
     /// 创建一个新的文本输入框。 
     /// </summary>
     /// <param name="textFactory">用于创建内部 Text 对象的工厂。</param>
@@ -243,8 +256,8 @@ public class TextBox : Container
         {
             Interactive = true,
             FocusTarget = this,
-            FillStyle = new(Color.Transparent.ToRawColor4()),
-            StrokeStyle = new(Color.Gray.ToRawColor4()),
+            FillStyle = new(Color.Transparent),
+            StrokeStyle = new(Color.Gray),
         };
         UpdateBackground();
         AddChild(_background);
@@ -262,7 +275,7 @@ public class TextBox : Container
 
         // 3. 创建滚动容器 
         _textContainer = new Container();
-        _textClipContainer.AddChild(_textContainer);
+         _textClipContainer.AddChild(_textContainer);
 
         // 4. 创建选区高亮
         _selectionHighlight = new Graphics
@@ -277,6 +290,11 @@ public class TextBox : Container
         _textDisplay.WordWrap = false; // 默认: 不换行
         _textDisplay.MaxWidth = float.MaxValue; // 默认: 无限宽度
         _textContainer.AddChild(_textDisplay);
+
+        // 5.5 创建占位符文本 (可选)
+        _placeholder = _textFactory.Create("Enter text...");
+        _placeholder.FillColor = new RawColor4(0.6f, 0.6f, 0.6f, 1.0f); // 灰色 
+        _textContainer.AddChild(_placeholder);
 
         // 6. 创建光标
         _caret = new Graphics
@@ -831,7 +849,7 @@ public class TextBox : Container
         _background.Clear();
         _background.StrokeWidth = _borderWidth;
         _background.StrokeStyle = _isFocused ? _focusedBorderStyle : _borderStyle;
-        _background.DrawRoundedRectangle(0, 0, _boxWidth, _boxHeight, 3f, 3f);
+        _background.DrawRoundedRectangle(0, 0, _boxWidth, _boxHeight, 4f, 4f);
     }
 
     /// <summary>
@@ -872,6 +890,8 @@ public class TextBox : Container
         {
             _caret.Visible = false;
         }
+
+        _placeholder.Visible = _textBuilder.Length == 0;
     }
 
     public void SetSelection(int start, int end)

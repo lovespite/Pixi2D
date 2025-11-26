@@ -23,8 +23,8 @@ public partial class Graphics : DisplayObject
     private GradientStopCollection? _fillGradientStops;
     private GradientStopCollection? _strokeGradientStops;
 
-    private BrushStyle _fillStyle = new(new(0, 0, 0, 0));
-    private BrushStyle _strokeStyle = new(new(0, 0, 0, 0));
+    private BrushStyle _fillStyle = new(Color.Transparent);
+    private BrushStyle _strokeStyle = new(Color.Transparent);
 
     private bool _isFillDirty = true;
     private bool _isStrokeDirty = true;
@@ -268,17 +268,14 @@ public partial class Graphics : DisplayObject
 
             if (_fillStyle.IsGradient)
             {
-                var sX = _fillStyle.IsRelativePosition ? _cachedBounds.Width * _fillStyle.Start.X : _fillStyle.Start.X;
-                var sY = _fillStyle.IsRelativePosition ? _cachedBounds.Height * _fillStyle.Start.Y : _fillStyle.Start.Y;
-                var eX = _fillStyle.IsRelativePosition ? _cachedBounds.Width * _fillStyle.End.X : _fillStyle.End.X;
-                var eY = _fillStyle.IsRelativePosition ? _cachedBounds.Height * _fillStyle.End.Y : _fillStyle.End.Y;
-
-                // 创建线性渐变画笔  
                 _fillGradientStops = new GradientStopCollection(renderTarget, _fillStyle.Stops);
+
+                var (sP, eP) = _fillStyle.GetLinearGradientVectors(ref _cachedBounds);
+
                 var props = new LinearGradientBrushProperties
                 {
-                    StartPoint = new RawVector2(sX, sY),
-                    EndPoint = new RawVector2(eX, eY)
+                    StartPoint = sP,
+                    EndPoint = eP,
                 };
 
                 _activeFillBrush = new LinearGradientBrush(renderTarget, props, _fillGradientStops);
@@ -302,17 +299,15 @@ public partial class Graphics : DisplayObject
 
             if (_strokeStyle.IsGradient)
             {
-                var sX = _strokeStyle.IsRelativePosition ? _cachedBounds.Width * _strokeStyle.Start.X : _strokeStyle.Start.X;
-                var sY = _strokeStyle.IsRelativePosition ? _cachedBounds.Height * _strokeStyle.Start.Y : _strokeStyle.Start.Y;
-                var eX = _strokeStyle.IsRelativePosition ? _cachedBounds.Width * _strokeStyle.End.X : _strokeStyle.End.X;
-                var eY = _strokeStyle.IsRelativePosition ? _cachedBounds.Height * _strokeStyle.End.Y : _strokeStyle.End.Y;
-
                 // 创建线性渐变画笔 
                 _strokeGradientStops = new GradientStopCollection(renderTarget, _strokeStyle.Stops);
+
+                var (sP, eP) = _strokeStyle.GetLinearGradientVectors(ref _cachedBounds) ;
+
                 var props = new LinearGradientBrushProperties
                 {
-                    StartPoint = new RawVector2(sX, sY),
-                    EndPoint = new RawVector2(eX, eY)
+                    StartPoint = sP,
+                    EndPoint = eP,
                 };
 
                 _activeStrokeBrush = new LinearGradientBrush(renderTarget, props, _strokeGradientStops);
