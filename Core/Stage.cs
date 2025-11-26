@@ -71,6 +71,63 @@ public sealed class Stage : Container
         Render(renderTarget, ref Identity);
     }
 
+
+    /// <summary>
+    /// 获取指定显示对象在世界坐标系（Stage坐标系）下的轴对齐包围盒 (AABB)。
+    /// </summary>
+    /// <param name="target">目标显示对象。</param>
+    /// <returns>世界坐标系下的包围盒 (x, y, width, height)。</returns>
+    public static RectangleF GetObjectBounds(DisplayObject target)
+    {
+        if (target == null) return RectangleF.Empty;
+
+        // 1. 获取目标对象最新的世界变换矩阵
+        var transform = target.GetWorldTransform();
+
+        // 2. 确定对象的本地包围盒 (Local Bounds)
+        RectangleF localBounds;
+
+        if (target is Graphics graphics)
+        {
+            // 对于 Graphics，使用其实际绘制内容的包围盒
+            localBounds = graphics.GetBounds();
+        }
+        else if (target is Text text)
+        {
+            // 对于 Text，使用文本测量的尺寸
+            var metrics = text.GetTextRect();
+            localBounds = new RectangleF(metrics.Left, metrics.Top, metrics.Width, metrics.Height);
+        }
+        else
+        {
+            // 对于 Sprite, Container 或其他对象，默认使用 (0,0) 到 (Width,Height)
+            // 注意：Anchor 的偏移已经在 CalculateLocalTransform 中处理了 (Translate(-Anchor))，
+            // 所以这里的本地坐标系是以对象内容的左上角为 (0,0) 的。
+            localBounds = new RectangleF(0, 0, target.Width, target.Height);
+        }
+
+        // 如果本地包围盒为空，直接返回空
+        if (localBounds.Width == 0 && localBounds.Height == 0)
+        {
+            var pos = Vector2.Transform(new Vector2(localBounds.X, localBounds.Y), transform);
+            return new RectangleF(pos.X, pos.Y, 0, 0);
+        }
+
+        // 3. 将本地包围盒的四个顶点变换到世界空间
+        var p1 = Vector2.Transform(new Vector2(localBounds.Left, localBounds.Top), transform);     // 左上
+        var p2 = Vector2.Transform(new Vector2(localBounds.Right, localBounds.Top), transform);    // 右上
+        var p3 = Vector2.Transform(new Vector2(localBounds.Right, localBounds.Bottom), transform); // 右下
+        var p4 = Vector2.Transform(new Vector2(localBounds.Left, localBounds.Bottom), transform);  // 左下
+
+        // 4. 计算变换后的 AABB (Axis-Aligned Bounding Box)
+        float minX = Math.Min(Math.Min(p1.X, p2.X), Math.Min(p3.X, p4.X));
+        float maxX = Math.Max(Math.Max(p1.X, p2.X), Math.Max(p3.X, p4.X));
+        float minY = Math.Min(Math.Min(p1.Y, p2.Y), Math.Min(p3.Y, p4.Y));
+        float maxY = Math.Max(Math.Max(p1.Y, p2.Y), Math.Max(p3.Y, p4.Y));
+
+        return new RectangleF(minX, minY, maxX - minX, maxY - minY);
+    }
+
     public void Resize(float newWidth, float newHeight)
     {
         this.Width = newWidth;

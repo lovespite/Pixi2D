@@ -84,7 +84,7 @@ public class FancyText : DisplayObject
 
     #region Public Properties (Text & Font)
 
-    public string Text
+    public string Content
     {
         get => _text;
         set { if (_text != value) { _text = value; InvalidateLayout(); } }
@@ -258,7 +258,7 @@ public class FancyText : DisplayObject
     /// <summary>
     /// Gets or sets the brush style used to render the text.
     /// </summary>
-    public BrushStyle TextBrush
+    public BrushStyle TextStyle
     {
         get => _textStyle;
         set { _textStyle = value; _isBrushDirty = true; }

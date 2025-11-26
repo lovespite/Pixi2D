@@ -213,6 +213,16 @@ partial class MessageBox
     public static string DefaultOkText { get; set; } = "确定(OK)";
 
     /// <summary>
+    /// 默认的 "是" 按钮文本。
+    /// </summary>
+    public static string DefaultYesText { get; set; } = "是(Yes)";
+
+    /// <summary>
+    /// 默认的 "否" 按钮文本。
+    /// </summary>
+    public static string DefaultNoText { get; set; } = "否(No)";
+
+    /// <summary>
     /// 默认的 "取消" 按钮文本。
     /// </summary>
     public static string DefaultCancelText { get; set; } = "取消(Cancel)";
@@ -299,7 +309,7 @@ partial class MessageBox
         // 创建按钮
         // (Create buttons)
         var okButton = new Button(textFactory.Create(okText ?? DefaultOkText), 80, 30) { BorderWidth = 2 };
-        var cancelButton = new Button(textFactory.Create(cancelText ?? DefaultCancelText), 80, 30) { BorderWidth = 2 };
+        var cancelButton = new Button(textFactory.Create(cancelText ?? DefaultCancelText), 86, 30) { BorderWidth = 2 };
 
         var tcs = new TaskCompletionSource<object?>();
         using var mb = new MessageBox(stage, new SizeF(350, 150), content, [okButton, cancelButton])
@@ -324,6 +334,62 @@ partial class MessageBox
         var result = await tcs.Task;
         return (bool)(result ?? false);
     }
+
+    /// <summary>
+    /// 异步显示一个带 "是"， "否" 和 "取消" 三个按钮的询问消息。 
+    /// </summary>
+    /// <param name="message">要显示的询问消息。 </param>
+    /// <param name="yesText">显示在“是”按钮上的文本</param>
+    /// <param name="noText"> 显示在“否”按钮上的文本</param>
+    /// <param name="cancelText">显示在“取消”按钮上的文本</param> 
+    /// <returns>如果点击了"取消" 为0， "是" 则为 1，"否" 为 2。 </returns>
+    public static async Task<int> Confirm(string message, string? yesText = null, string? noText = null, string? cancelText = null)
+    {
+        CheckStaticDependencies();
+        var stage = DefaultStage!;
+        var textFactory = TextFactory!;
+
+        // 创建内容
+        // (Create content)
+        var content = new Container();
+        var text = textFactory.Create(message, 14, Color.White);
+        text.MaxWidth = 330; // 350 - 20 padding
+        content.AddChild(text);
+
+        // 创建按钮
+        // (Create buttons)
+        var yesButton = new Button(textFactory.Create(yesText ?? DefaultOkText), 80, 30) { BorderWidth = 2 };
+        var noButton = new Button(textFactory.Create(noText ?? DefaultNoText), 80, 30) { BorderWidth = 2 };
+        var cancelButton = new Button(textFactory.Create(cancelText ?? DefaultCancelText), 80, 30) { BorderWidth = 2 };
+
+        var tcs = new TaskCompletionSource<int>();
+        using var mb = new MessageBox(stage, new SizeF(350, 150), content, [yesButton, noButton, cancelButton])
+        {
+            DefaultFocusTarget = yesButton,
+        };
+
+        cancelButton.OnButtonClick += (btn) =>
+        {
+            mb.Close();
+            tcs.TrySetResult(0);
+        };
+        yesButton.OnButtonClick += (btn) =>
+        {
+            mb.Close();
+            tcs.TrySetResult(1);
+        };
+        noButton.OnButtonClick += (btn) =>
+        {
+            mb.Close();
+            tcs.TrySetResult(2);
+        };
+
+        mb.Open();
+
+        var result = await tcs.Task;
+        return result;
+    }
+
 
     /// <summary>
     /// 异步显示一个带提示和 **单行** 文本输入框的对话框。
@@ -451,9 +517,9 @@ partial class MessageBox
     /// <param name="cancelText">取消按钮的文本。</param>
     /// <returns>用于控制取消的 CancellationTokenSource。</returns>
     public static CancellationTokenSource ShowLoading(
-                                                    string message, 
-                                                    SharpDX.Direct2D1.Bitmap1 spin, 
-                                                    bool showCancelButton = true, 
+                                                    string message,
+                                                    SharpDX.Direct2D1.Bitmap1 spin,
+                                                    bool showCancelButton = true,
                                                     string? cancelText = null)
     {
         CheckStaticDependencies();
@@ -467,9 +533,9 @@ partial class MessageBox
         {
             PaddingLeft = 45,
             Gap = 15,
-            Width = 130, 
+            Width = 130,
             Direction = FlowLayout.LayoutDirection.Vertical,
-            AlignCross = FlowLayout.AlignItems.Center,  
+            AlignCross = FlowLayout.AlignItems.Center,
             JustifyMain = FlowLayout.JustifyContent.Center,
         };
 
@@ -492,7 +558,7 @@ partial class MessageBox
         var mb = new MessageBox(stage, new SizeF(160, height), contentLayout, cancelButton is null ? [] : [cancelButton])
         {
             BackgroundColor = new RawColor4(0.15f, 0.15f, 0.18f, 0f),
-            BorderWidth = 0, 
+            BorderWidth = 0,
         };
 
         // 6. 绑定事件

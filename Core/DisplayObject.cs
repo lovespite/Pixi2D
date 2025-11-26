@@ -120,6 +120,27 @@ public abstract class DisplayObject : IDisposable
     }
 
     /// <summary>
+    /// 获取当前的绝对世界变换矩阵。
+    /// 此方法会实时向上遍历父级链进行计算，确保矩阵是最新的。
+    /// </summary>
+    public Matrix3x2 GetWorldTransform()
+    {
+        // 从当前对象开始
+        Matrix3x2 matrix = CalculateLocalTransform();
+
+        DisplayObject? current = Parent;
+        while (current is not null)
+        {
+            // 累乘父级的局部变换
+            // 矩阵乘法顺序：Local * ParentLocal * GrandParentLocal ...
+            matrix = matrix * current.CalculateLocalTransform();
+            current = current.Parent;
+        }
+
+        return matrix;
+    }
+
+    /// <summary>
     /// Must be set to true for this object to receive events.
     /// (为 true 时此对象才能接收事件。)
     /// </summary>

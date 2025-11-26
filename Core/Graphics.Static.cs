@@ -209,7 +209,27 @@ partial class Graphics
             {
                 using var sink = _cachedLineGeometry.Open();
 
-                sink.BeginFigure(new RawVector2(Points[0].X, Points[0].Y), FigureBegin.Hollow);
+                // 计算箭头高度
+                float arrowHeight = ArrowSize * 0.866f; // sqrt(3)/2
+
+                // 根据箭头类型调整起点
+                PointF startPoint = Points[0];
+                if (Type == ArrowType.Dual && Points.Length >= 2)
+                {
+                    Vector2 startDir = Vector2.Normalize(new Vector2(Points[1].X - Points[0].X, Points[1].Y - Points[0].Y));
+                    startPoint = new PointF(Points[0].X + startDir.X * arrowHeight, Points[0].Y + startDir.Y * arrowHeight);
+                }
+
+                // 根据箭头类型调整终点
+                PointF endPoint = Points[^1];
+                if ((Type == ArrowType.Single || Type == ArrowType.Dual) && Points.Length >= 2)
+                {
+                    int last = Points.Length - 1;
+                    Vector2 endDir = Vector2.Normalize(new Vector2(Points[last].X - Points[last - 1].X, Points[last].Y - Points[last - 1].Y));
+                    endPoint = new PointF(Points[last].X - endDir.X * arrowHeight, Points[last].Y - endDir.Y * arrowHeight);
+                }
+
+                sink.BeginFigure(new RawVector2(startPoint.X, startPoint.Y), FigureBegin.Hollow);
 
                 float scale = (1.0f - Tension) / 2.0f;
                 for (int i = 0; i < Points.Length - 1; i++)
@@ -229,11 +249,16 @@ partial class Graphics
                     float c2x = p2.X - t2x / 3.0f;
                     float c2y = p2.Y - t2y / 3.0f;
 
-                    sink.AddBezier(new BezierSegment()
+                    // 如果是最后一段且有终点箭头，调整终点
+                    PointF finalPoint = (i == Points.Length - 2 && (Type == ArrowType.Single || Type == ArrowType.Dual))
+                        ? endPoint
+                        : p2;
+
+                    sink.AddBezier(new BezierSegment
                     {
                         Point1 = new RawVector2(c1x, c1y),
                         Point2 = new RawVector2(c2x, c2y),
-                        Point3 = new RawVector2(p2.X, p2.Y)
+                        Point3 = new RawVector2(finalPoint.X, finalPoint.Y)
                     });
                 }
                 sink.EndFigure(FigureEnd.Open);
