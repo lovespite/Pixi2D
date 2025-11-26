@@ -62,6 +62,7 @@ public class TextBox : Container
     private readonly float _paddingX = 5f;
     private readonly float _paddingY = 2f;
 
+    private bool _bgDirty = true;
     public override float Height
     {
         get => _boxHeight;
@@ -79,6 +80,7 @@ public class TextBox : Container
                 _textClipContainer.Y = (_boxHeight - textHeight) / 2;
                 _textClipContainer.ClipHeight = textHeight + _paddingY;
             }
+            _bgDirty = true;
         }
     }
 
@@ -89,6 +91,7 @@ public class TextBox : Container
         {
             _boxWidth = value;
             _textClipContainer.ClipWidth = _boxWidth - (_paddingX * 2);
+            _bgDirty = true;
         }
     }
 
@@ -791,6 +794,7 @@ public class TextBox : Container
     /// </summary>
     private void UpdateBackground()
     {
+        _bgDirty = false;
         _background.Clear();
         _background.FillColor = _backgroundColor;
         _background.StrokeWidth = _borderWidth;
@@ -816,7 +820,7 @@ public class TextBox : Container
         // 检查焦点状态是否改变
         bool hasFocus = IsFocused();
 
-        if (hasFocus != _isFocused)
+        if (hasFocus != _isFocused || _bgDirty)
         {
             _isFocused = hasFocus;
             UpdateBackground(); // 更新边框颜色
