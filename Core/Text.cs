@@ -509,5 +509,17 @@ public class Text : DisplayObject
                             style: fontStyle,
                             color: FillColor.ToRawColor4());
         }
+
+        public Factory Clone()
+        {
+            return new Factory(m_dwFactory)
+            {
+                FontFamily = this.FontFamily,
+                FontSize = this.FontSize,
+                FontStyle = this.FontStyle,
+                FontWeight = this.FontWeight,
+                FillColor = this.FillColor
+            };
+        }
     }
 }

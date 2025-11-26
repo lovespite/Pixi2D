@@ -55,9 +55,8 @@ public class TextBox : Container
     // --- 样式属性  ---
     private float _boxWidth = 200f;
     private float _boxHeight = 30f;
-    private RawColor4 _backgroundColor = new(0.1f, 0.1f, 0.1f, 1.0f);
-    private RawColor4 _borderColor = new(0.5f, 0.5f, 0.5f, 1.0f);
-    private RawColor4 _focusedBorderColor = new(0.0f, 0.6f, 1.0f, 1.0f);
+    private BrushStyle _focusedBorderStyle = new(new(0.0f, 0.6f, 1.0f, 1.0f));
+    private BrushStyle _borderStyle = new(Color.DarkGray.ToRawColor4());
     private readonly float _borderWidth = 1f;
     private readonly float _paddingX = 5f;
     private readonly float _paddingY = 2f;
@@ -186,6 +185,36 @@ public class TextBox : Container
         return true;
     }
 
+    public BrushStyle BackgroundStyle
+    {
+        get => _background.FillStyle;
+        set
+        {
+            _background.FillStyle = value;
+            _bgDirty = true;
+        }
+    }
+
+    public BrushStyle BorderStyle
+    {
+        get => _borderStyle;
+        set
+        {
+            _borderStyle = value;
+            _bgDirty = true;
+        }
+    }
+
+    public BrushStyle FocusedBorderStyle
+    {
+        get => _focusedBorderStyle;
+        set
+        {
+            _focusedBorderStyle = value;
+            _bgDirty = true;
+        }
+    }
+
     /// <summary>
     /// 指示输入框是否接受 Tab 键作为输入字符。
     /// </summary>
@@ -214,6 +243,8 @@ public class TextBox : Container
         {
             Interactive = true,
             FocusTarget = this,
+            FillStyle = new(Color.Transparent.ToRawColor4()),
+            StrokeStyle = new(Color.Gray.ToRawColor4()),
         };
         UpdateBackground();
         AddChild(_background);
@@ -459,107 +490,9 @@ public class TextBox : Container
 
         bool caretMoved = false;
         bool shiftPressed = evt.Data.Shift; // 检查 Shift 键
+        bool ctrlPressed = evt.Data.Ctrl;   // 检查 Ctrl 键
 
-        switch (evt.Data.KeyCode)
-        {
-            case VK_LEFT: // Left Arrow
-                _caretIndex = Math.Max(0, _caretIndex - 1);
-                caretMoved = true;
-                break;
-
-            case VK_RIGHT: // Right Arrow
-                _caretIndex = Math.Min(_textBuilder.Length, _caretIndex + 1);
-                caretMoved = true;
-                break;
-
-            case VK_HOME: // Home
-                _caretIndex = 0;
-                caretMoved = true;
-                break;
-
-            case VK_END: // End
-                _caretIndex = _textBuilder.Length;
-                caretMoved = true;
-                break;
-
-            case VK_UP: // Up Arrow
-                if (_multiline)
-                {
-                    MoveCaretVertical(-1); // -1 for Up
-                    caretMoved = true; // MoveCaretVertical 内部会调用 UpdateCaretPosition
-                }
-                break;
-
-            case VK_DOWN: // Down Arrow
-                if (_multiline)
-                {
-                    MoveCaretVertical(1); // 1 for Down
-                    caretMoved = true;
-                }
-                break;
-
-            case VK_BACKSPACE: // Backspace
-                if (DeleteSelection()) // 优先删除选区
-                {
-                    UpdateTextAndCaret();
-                }
-                else if (_caretIndex > 0)
-                {
-                    _textBuilder.Remove(_caretIndex - 1, 1);
-                    _caretIndex--;
-                    _selectionStart = _caretIndex; // 清除选区
-                    UpdateTextAndCaret();
-                }
-                break;
-
-            case VK_DELETE: // Delete
-                if (DeleteSelection()) // 优先删除选区
-                {
-                    UpdateTextAndCaret();
-                }
-                else if (_caretIndex < _textBuilder.Length)
-                {
-                    _textBuilder.Remove(_caretIndex, 1);
-                    // 光标位置不变
-                    _selectionStart = _caretIndex; // 清除选区
-                    UpdateTextAndCaret(); // 文本和光标 X 坐标需要更新
-                }
-                break;
-
-            case VK_TAB: // Tab
-                if (AcceptTab)
-                {
-                    InsertCharToCaret('\t');
-                }
-                break;
-
-            case VK_ENTER: // Enter
-                if (_multiline)
-                {
-                    if (!RequireShiftForNewLine || (RequireShiftForNewLine && shiftPressed))
-                        InsertCharToCaret('\n');
-                }
-                break;
-        }
-
-        if (caretMoved)
-        {
-            // 如果没有按 Shift，则折叠选区
-            if (!shiftPressed)
-            {
-                _selectionStart = _caretIndex;
-            }
-
-            TryUpdateCaretPosition();
-        }
-    }
-
-    private void HandleKeyUp(DisplayObjectEvent evt)
-    {
-        if (evt.Data is null) return;
-
-        // --- 剪贴板和全选 ---
-        if (evt.Data.Ctrl)
+        if (ctrlPressed)
         {
             switch (evt.Data.KeyCode)
             {
@@ -593,6 +526,106 @@ public class TextBox : Container
                     return;
             }
         }
+        else
+        {
+            switch (evt.Data.KeyCode)
+            {
+                case VK_LEFT: // Left Arrow
+                    _caretIndex = Math.Max(0, _caretIndex - 1);
+                    caretMoved = true;
+                    break;
+
+                case VK_RIGHT: // Right Arrow
+                    _caretIndex = Math.Min(_textBuilder.Length, _caretIndex + 1);
+                    caretMoved = true;
+                    break;
+
+                case VK_HOME: // Home
+                    _caretIndex = 0;
+                    caretMoved = true;
+                    break;
+
+                case VK_END: // End
+                    _caretIndex = _textBuilder.Length;
+                    caretMoved = true;
+                    break;
+
+                case VK_UP: // Up Arrow
+                    if (_multiline)
+                    {
+                        MoveCaretVertical(-1); // -1 for Up
+                        caretMoved = true; // MoveCaretVertical 内部会调用 UpdateCaretPosition
+                    }
+                    break;
+
+                case VK_DOWN: // Down Arrow
+                    if (_multiline)
+                    {
+                        MoveCaretVertical(1); // 1 for Down
+                        caretMoved = true;
+                    }
+                    break;
+
+                case VK_BACKSPACE: // Backspace
+                    if (DeleteSelection()) // 优先删除选区
+                    {
+                        UpdateTextAndCaret();
+                    }
+                    else if (_caretIndex > 0)
+                    {
+                        _textBuilder.Remove(_caretIndex - 1, 1);
+                        _caretIndex--;
+                        _selectionStart = _caretIndex; // 清除选区
+                        UpdateTextAndCaret();
+                    }
+                    break;
+
+                case VK_DELETE: // Delete
+                    if (DeleteSelection()) // 优先删除选区
+                    {
+                        UpdateTextAndCaret();
+                    }
+                    else if (_caretIndex < _textBuilder.Length)
+                    {
+                        _textBuilder.Remove(_caretIndex, 1);
+                        // 光标位置不变
+                        _selectionStart = _caretIndex; // 清除选区
+                        UpdateTextAndCaret(); // 文本和光标 X 坐标需要更新
+                    }
+                    break;
+
+                case VK_TAB: // Tab
+                    if (AcceptTab)
+                    {
+                        InsertCharToCaret('\t');
+                    }
+                    break;
+
+                case VK_ENTER: // Enter
+                    if (_multiline)
+                    {
+                        if (!RequireShiftForNewLine || (RequireShiftForNewLine && shiftPressed))
+                            InsertCharToCaret('\n');
+                    }
+                    break;
+            }
+        }
+
+
+        if (caretMoved)
+        {
+            // 如果没有按 Shift，则折叠选区
+            if (!shiftPressed)
+            {
+                _selectionStart = _caretIndex;
+            }
+
+            TryUpdateCaretPosition();
+        }
+    }
+
+    private void HandleKeyUp(DisplayObjectEvent evt)
+    {
     }
 
     #endregion
@@ -796,9 +829,8 @@ public class TextBox : Container
     {
         _bgDirty = false;
         _background.Clear();
-        _background.FillColor = _backgroundColor;
         _background.StrokeWidth = _borderWidth;
-        _background.StrokeColor = _isFocused ? _focusedBorderColor : _borderColor;
+        _background.StrokeStyle = _isFocused ? _focusedBorderStyle : _borderStyle;
         _background.DrawRoundedRectangle(0, 0, _boxWidth, _boxHeight, 3f, 3f);
     }
 
