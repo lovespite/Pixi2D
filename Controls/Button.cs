@@ -17,7 +17,7 @@ public class Button : Container
     private BrushStyle _hoverStyle = new(new RawColor4(0.4f, 0.4f, 0.4f, 1.0f));
     private BrushStyle _pressedStyle = new(new RawColor4(0.2f, 0.2f, 0.2f, 1.0f));
     private BrushStyle _borderStyle = new(new RawColor4(0.5f, 0.5f, 0.5f, 1.0f));
-    private BrushStyle _hoverBorderStyle = new(new RawColor4(0.7f, 0.7f, 0.7f, 1.0f));
+    private BrushStyle _hoverBorderStyle = new(new RawColor4(0.8f, 0.8f, 0.8f, 1.0f));
     private BrushStyle _focusedBorderStyle = new(new RawColor4(0.0f, 0.6f, 1.0f, 1.0f));
 
     private bool _isHovered = false;

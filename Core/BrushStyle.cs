@@ -117,10 +117,9 @@ public struct BrushStyle
         }
 
         // 模式 B: 基于相对坐标点的映射
-        // 直接将 0~1 的比例映射到 bounds 的实际尺寸上
         return (
-            new RawVector2(x + w * Start.X, y + h * Start.Y),
-            new RawVector2(x + w * End.X, y + h * End.Y)
+            new RawVector2(x + Start.X, y + Start.Y),
+            new RawVector2(x + End.X, y + End.Y)
         );
     }
 
