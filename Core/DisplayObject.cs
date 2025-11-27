@@ -33,7 +33,7 @@ public abstract class DisplayObject : IDisposable
 
     public override string ToString()
     {
-        return Name ?? GetType().Name;
+        return Name is null ? GetType().Name : $"<{GetType().Name}>:{Name}";
     }
 
     /// <summary>
