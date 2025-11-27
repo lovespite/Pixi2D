@@ -186,7 +186,7 @@ public class SoundEffect : IDisposable
 
     private void StopInternal()
     {
-        if (_sourceVoice != null && !_sourceVoice.IsDisposed)
+        if (_sourceVoice is not null && !_sourceVoice.IsDisposed)
         {
             _sourceVoice.Stop();
             _sourceVoice.FlushSourceBuffers();
@@ -196,7 +196,7 @@ public class SoundEffect : IDisposable
         }
 
         // 结束之前的 Task
-        if (_playTcs != null)
+        if (_playTcs is not null)
         {
             _playTcs.TrySetResult(false); // false 表示被中断或手动停止
             _playTcs = null;
@@ -210,7 +210,7 @@ public class SoundEffect : IDisposable
         {
             // 只有当当前的 TCS 还是同一个实例时才设置结果
             // 防止在 StopInternal 中已经被清理
-            if (_playTcs != null && !_playTcs.Task.IsCompleted)
+            if (_playTcs is not null && !_playTcs.Task.IsCompleted)
             {
                 _playTcs.TrySetResult(true); // true 表示自然播放完成
             }

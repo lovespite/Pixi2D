@@ -19,7 +19,7 @@ public class ProgressBar : Container
 
     private float _barWidth = 200f;
     private float _barHeight = 20f;
-    private float _cornerRadius = 0f;
+    private float _borderRadius = 0f;
     private float _padding = 2f; // 默认内边距
 
     private RawColor4 _trackColor = new(0.2f, 0.2f, 0.2f, 1.0f); // 深灰色背景
@@ -152,14 +152,14 @@ public class ProgressBar : Container
     /// <summary>
     /// 圆角半径。
     /// </summary>
-    public float CornerRadius
+    public float BorderRadius
     {
-        get => _cornerRadius;
+        get => _borderRadius;
         set
         {
-            if (_cornerRadius != value)
+            if (_borderRadius != value)
             {
-                _cornerRadius = value;
+                _borderRadius = value;
                 UpdateLayout();
             }
         }
@@ -249,9 +249,9 @@ public class ProgressBar : Container
         _track.StrokeColor = _borderColor;
         _track.StrokeWidth = _borderWidth;
 
-        if (_cornerRadius > 0)
+        if (_borderRadius > 0)
         {
-            _track.DrawRoundedRectangle(0, 0, _barWidth, _barHeight, _cornerRadius, _cornerRadius);
+            _track.DrawRoundedRectangle(0, 0, _barWidth, _barHeight, _borderRadius, _borderRadius);
         }
         else
         {
@@ -279,7 +279,7 @@ public class ProgressBar : Container
         float currentFillWidth = maxFillWidth * pct;
 
         // 调整内部圆角: 内部圆角 = 外部圆角 - 偏移量
-        float innerRadius = Math.Max(0, _cornerRadius - offset);
+        float innerRadius = Math.Max(0, _borderRadius - offset);
 
         float startX = offset;
         float startY = offset;

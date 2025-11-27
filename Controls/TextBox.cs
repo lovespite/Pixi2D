@@ -58,11 +58,46 @@ public class TextBox : Container
     private float _boxHeight = 30f;
     private BrushStyle _focusedBorderStyle = new(new RawColor4(0.0f, 0.6f, 1.0f, 1.0f));
     private BrushStyle _borderStyle = new(Color.DarkGray);
-    private readonly float _borderWidth = 1f;
     private readonly float _paddingX = 5f;
     private readonly float _paddingY = 2f;
+    private float _borderWidth = 1f;
+    private float _borderRadius = 4f;
 
     private bool _bgDirty = true;
+    /// <summary>
+    /// 获取或设置输入框中的文本内容。 
+    /// </summary>
+    public string Text
+    {
+        get => _textBuilder.ToString();
+        set
+        {
+            _textBuilder.Clear();
+            _textBuilder.Append(value);
+            // 确保光标位置有效 
+            _caretIndex = 0;
+            _selectionStart = 0; //  重置选区
+            _caretPositionDirty = true; // 标记为脏 
+            _displayStateDirty = true;
+            TryUpdateTextDisplay();
+            TryUpdateCaretPosition();
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the placeholder text displayed when the input field is empty.
+    /// </summary>
+    public string PlaceholderText
+    {
+        get => _placeholder.Content;
+        set
+        {
+            _placeholder.Content = value;
+        }
+    }
+
+    #region Layout Properties
+
     public override float Height
     {
         get => _boxHeight;
@@ -95,25 +130,6 @@ public class TextBox : Container
         }
     }
 
-    /// <summary>
-    /// 获取或设置输入框中的文本内容。 
-    /// </summary>
-    public string Text
-    {
-        get => _textBuilder.ToString();
-        set
-        {
-            _textBuilder.Clear();
-            _textBuilder.Append(value);
-            // 确保光标位置有效 
-            _caretIndex = 0;
-            _selectionStart = 0; //  重置选区
-            _caretPositionDirty = true; // 标记为脏 
-            _displayStateDirty = true;
-            TryUpdateTextDisplay();
-            TryUpdateCaretPosition();
-        }
-    }
 
     /// <summary>
     /// 获取或设置是否启用多行模式。
@@ -147,6 +163,9 @@ public class TextBox : Container
         }
     }
 
+    #endregion
+
+    #region Selection Logic
     //  检查是否有选区 
     private bool HasSelection => _selectionStart != _caretIndex;
 
@@ -186,6 +205,27 @@ public class TextBox : Container
         return true;
     }
 
+
+    public void SetSelection(int start, int end)
+    {
+        start = Math.Clamp(start, 0, _textBuilder.Length);
+        end = Math.Clamp(end, 0, _textBuilder.Length);
+        _selectionStart = start;
+        _caretIndex = end;
+        TryUpdateCaretPosition();
+    }
+
+    public void SelectAll()
+    {
+        _selectionStart = 0;
+        _caretIndex = _textBuilder.Length;
+        TryUpdateCaretPosition();
+    }
+
+    #endregion
+
+    #region Style Properties
+
     public BrushStyle BackgroundStyle
     {
         get => _background.FillStyle;
@@ -216,6 +256,30 @@ public class TextBox : Container
         }
     }
 
+    public float BorderWidth
+    {
+        get => _borderWidth;
+        set
+        {
+            _borderWidth = value;
+            _bgDirty = true;
+        }
+    }
+
+    public float BorderRadius
+    {
+        get => _borderRadius;
+        set
+        {
+            _borderRadius = value;
+            _bgDirty = true;
+        }
+    }
+
+    #endregion
+
+    #region Behavior Properties
+
     /// <summary>
     /// 指示输入框是否接受 Tab 键作为输入字符。
     /// </summary>
@@ -226,17 +290,7 @@ public class TextBox : Container
     /// </summary>
     public bool RequireShiftForNewLine { get; set; } = false;
 
-    /// <summary>
-    /// Gets or sets the placeholder text displayed when the input field is empty.
-    /// </summary>
-    public string PlaceholderText
-    {
-        get => _placeholder.Content;
-        set
-        {
-            _placeholder.Content = value;
-        }
-    }
+    #endregion
 
     /// <summary>
     /// 创建一个新的文本输入框。 
@@ -257,7 +311,7 @@ public class TextBox : Container
             Interactive = true,
             FocusTarget = this,
             FillStyle = new(Color.Transparent),
-            StrokeStyle = new(Color.Gray),
+            StrokeStyle = _borderStyle,
         };
         UpdateBackground();
         AddChild(_background);
@@ -275,7 +329,7 @@ public class TextBox : Container
 
         // 3. 创建滚动容器 
         _textContainer = new Container();
-         _textClipContainer.AddChild(_textContainer);
+        _textClipContainer.AddChild(_textContainer);
 
         // 4. 创建选区高亮
         _selectionHighlight = new Graphics
@@ -348,6 +402,9 @@ public class TextBox : Container
 
         base.Dispose(); // This will dispose children like _background, _textClipContainer, etc.
     }
+
+    #region Core Event Handlers
+    // --- 核心事件处理器 ---
 
     private void HandleMouseWheel(DisplayObjectEvent evt)
     {
@@ -476,9 +533,6 @@ public class TextBox : Container
     {
         _isSelecting = false; // 停止选区跟踪
     }
-
-    #region Core Event Handlers
-    // --- 核心事件处理器 ---
 
     private void HandleKeyPress(DisplayObjectEvent evt)
     {
@@ -648,8 +702,7 @@ public class TextBox : Container
 
     #endregion
 
-    #region Rendering Methods
-    // --- 更新方法 ---
+    #region Rendering Methods 
 
     /// <summary>
     /// 处理多行模式下的上/下光标移动。
@@ -849,7 +902,7 @@ public class TextBox : Container
         _background.Clear();
         _background.StrokeWidth = _borderWidth;
         _background.StrokeStyle = _isFocused ? _focusedBorderStyle : _borderStyle;
-        _background.DrawRoundedRectangle(0, 0, _boxWidth, _boxHeight, 4f, 4f);
+        _background.DrawRoundedRectangle(0, 0, _boxWidth, _boxHeight, _borderRadius, _borderRadius);
     }
 
     /// <summary>
@@ -894,21 +947,9 @@ public class TextBox : Container
         _placeholder.Visible = _textBuilder.Length == 0;
     }
 
-    public void SetSelection(int start, int end)
-    {
-        start = Math.Clamp(start, 0, _textBuilder.Length);
-        end = Math.Clamp(end, 0, _textBuilder.Length);
-        _selectionStart = start;
-        _caretIndex = end;
-        TryUpdateCaretPosition();
-    }
+    #endregion
 
-    public void SelectAll()
-    {
-        _selectionStart = 0;
-        _caretIndex = _textBuilder.Length;
-        TryUpdateCaretPosition();
-    }
+    #region Scrolling Methods
 
     public void ScrollToBottom()
     {

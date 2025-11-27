@@ -19,7 +19,7 @@ public class Panel : Container
     private float _panelWidth = 200f;
     private float _panelHeight = 200f;
     private float _borderWidth = 1f;
-    private float _cornerRadius = 0f;
+    private float _borderRadius = 0f;
 
     private float _paddingLeft = 1f;
     private float _paddingTop = 1f;
@@ -194,12 +194,12 @@ public class Panel : Container
     /// <summary>
     /// 圆角半径。
     /// </summary>
-    public float CornerRadius
+    public float BorderRadius
     {
-        get => _cornerRadius;
+        get => _borderRadius;
         set
         {
-            _cornerRadius = value;
+            _borderRadius = value;
             UpdateBackground();
         }
     }
@@ -334,9 +334,9 @@ public class Panel : Container
         _background.StrokeColor = _borderColor;
         _background.StrokeWidth = _borderWidth;
 
-        if (_cornerRadius > 0)
+        if (_borderRadius > 0)
         {
-            _background.DrawRoundedRectangle(0, 0, _panelWidth, _panelHeight, _cornerRadius, _cornerRadius);
+            _background.DrawRoundedRectangle(0, 0, _panelWidth, _panelHeight, _borderRadius, _borderRadius);
         }
         else
         {

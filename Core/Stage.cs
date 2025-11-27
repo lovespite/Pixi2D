@@ -79,7 +79,7 @@ public sealed class Stage : Container
     /// <returns>世界坐标系下的包围盒 (x, y, width, height)。</returns>
     public static RectangleF GetObjectBounds(DisplayObject target)
     {
-        if (target == null) return RectangleF.Empty;
+        if (target is null) return RectangleF.Empty;
 
         // 1. 获取目标对象最新的世界变换矩阵
         var transform = target.GetWorldTransform();

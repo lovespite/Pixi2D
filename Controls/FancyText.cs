@@ -35,7 +35,7 @@ public class FancyText : DisplayObject
     private float _paddingTop = 0f;
     private float _paddingRight = 0f;
     private float _paddingBottom = 0f;
-    private float _cornerRadius = 0f;
+    private float _borderRadius = 0f;
     private float _borderWidth = 0f;
 
     // --- 尺寸缓存 ---
@@ -211,10 +211,10 @@ public class FancyText : DisplayObject
 
     #region Public Properties (Appearance)
 
-    public float CornerRadius
+    public float BorderRadius
     {
-        get => _cornerRadius;
-        set { if (_cornerRadius != value) { _cornerRadius = value; Invalidate(); } }
+        get => _borderRadius;
+        set { if (_borderRadius != value) { _borderRadius = value; Invalidate(); } }
     }
 
     public float BorderWidth
@@ -374,10 +374,10 @@ public class FancyText : DisplayObject
         if (_backgroundBrush is not null)
         {
             _backgroundBrush.Opacity = Alpha;
-            if (_cornerRadius > 0)
+            if (_borderRadius > 0)
             {
                 renderTarget.FillRoundedRectangle(
-                    new RoundedRectangle { Rect = bgRect, RadiusX = _cornerRadius, RadiusY = _cornerRadius },
+                    new RoundedRectangle { Rect = bgRect, RadiusX = _borderRadius, RadiusY = _borderRadius },
                     _backgroundBrush
                 );
             }
@@ -391,10 +391,10 @@ public class FancyText : DisplayObject
         if (_borderBrush is not null && _borderWidth > 0)
         {
             _borderBrush.Opacity = Alpha;
-            if (_cornerRadius > 0)
+            if (_borderRadius > 0)
             {
                 renderTarget.DrawRoundedRectangle(
-                    new RoundedRectangle { Rect = bgRect, RadiusX = _cornerRadius, RadiusY = _cornerRadius },
+                    new RoundedRectangle { Rect = bgRect, RadiusX = _borderRadius, RadiusY = _borderRadius },
                     _borderBrush,
                     _borderWidth
                 );

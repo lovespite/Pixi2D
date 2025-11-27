@@ -43,7 +43,7 @@ public class Text : DisplayObject
     private float _maxHeight = float.MaxValue;
     private WordWrapping _wordWrapping = WordWrapping.Wrap;
     private float _borderWidth = 0f;
-    private float _cornerRadius = 0f;
+    private float _borderRadius = 0f;
 
     // --- 公共属性 --- 
     // (注意: Text 自己的属性 setter 也会调用 Invalidate(),
@@ -103,10 +103,10 @@ public class Text : DisplayObject
         set { _borderWidth = value; Invalidate(); } // 边框宽度可能影响视觉边界(虽然不影响TextLayout本身)
     }
 
-    public float CornerRadius
+    public float BorderRadius
     {
-        get => _cornerRadius;
-        set { _cornerRadius = value; Invalidate(); }
+        get => _borderRadius;
+        set { _borderRadius = value; Invalidate(); }
     }
 
     public float MaxWidth
@@ -375,10 +375,10 @@ public class Text : DisplayObject
         if (_backgroundBrush is not null)
         {
             _backgroundBrush.Opacity = Alpha;
-            if (_cornerRadius > 0)
+            if (_borderRadius > 0)
             {
                 renderTarget.FillRoundedRectangle(
-                    new RoundedRectangle { Rect = new RawRectangleF(0, 0, width, height), RadiusX = _cornerRadius, RadiusY = _cornerRadius },
+                    new RoundedRectangle { Rect = new RawRectangleF(0, 0, width, height), RadiusX = _borderRadius, RadiusY = _borderRadius },
                     _backgroundBrush
                 );
             }
@@ -404,10 +404,10 @@ public class Text : DisplayObject
         if (_borderBrush is not null && _borderWidth > 0)
         {
             _borderBrush.Opacity = Alpha;
-            if (_cornerRadius > 0)
+            if (_borderRadius > 0)
             {
                 renderTarget.DrawRoundedRectangle(
-                    new RoundedRectangle { Rect = new RawRectangleF(0, 0, width, height), RadiusX = _cornerRadius, RadiusY = _cornerRadius },
+                    new RoundedRectangle { Rect = new RawRectangleF(0, 0, width, height), RadiusX = _borderRadius, RadiusY = _borderRadius },
                     _borderBrush,
                     _borderWidth
                 );

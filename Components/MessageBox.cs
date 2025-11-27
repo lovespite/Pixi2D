@@ -89,7 +89,7 @@ public partial class MessageBox : Panel
 
         // 2. 配置 MessageBox (自身 - Panel) 
         SetPadding(DefaultPadding);
-        CornerRadius = DefaultBorderRadius;
+        BorderRadius = DefaultBorderRadius;
         BackgroundColor = new RawColor4(0.2f, 0.2f, 0.25f, 1f);
         BorderColor = new RawColor4(0.4f, 0.4f, 0.4f, 1f);
         BorderWidth = DefaultBorderWidth;

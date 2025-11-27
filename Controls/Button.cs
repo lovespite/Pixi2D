@@ -25,7 +25,7 @@ public class Button : Container
 
     private float _buttonWidth = 100f;
     private float _buttonHeight = 30f;
-    private float _cornerRadius = 5f;
+    private float _borderRadius = 5f;
 
     // Border properties
     private float _borderWidth = 0f;
@@ -49,7 +49,7 @@ public class Button : Container
             Interactive = true,
             FillStyle = _normalStyle,
         };
-        _background.DrawRoundedRectangle(0, 0, _buttonWidth, _buttonHeight, _cornerRadius, _cornerRadius);
+        _background.DrawRoundedRectangle(0, 0, _buttonWidth, _buttonHeight, _borderRadius, _borderRadius);
         base.AddChild(_background);
 
         // 创建文本标签
@@ -124,25 +124,12 @@ public class Button : Container
     /// <summary>
     /// 按钮圆角半径。
     /// </summary>
-    public float CornerRadius
-    {
-        get => _cornerRadius;
-        set
-        {
-            _cornerRadius = value;
-            _bgDirty = true;
-        }
-    }
-
-    /// <summary>
-    /// 边框圆角半径 (与 CornerRadius 相同)。
-    /// </summary>
     public float BorderRadius
     {
-        get => _cornerRadius;
+        get => _borderRadius;
         set
         {
-            _cornerRadius = value;
+            _borderRadius = value;
             _bgDirty = true;
         }
     }
@@ -235,7 +222,7 @@ public class Button : Container
     {
         _bgDirty = false;
         _background.Clear();
-        _background.DrawRoundedRectangle(0, 0, _buttonWidth, _buttonHeight, _cornerRadius, _cornerRadius);
+        _background.DrawRoundedRectangle(0, 0, _buttonWidth, _buttonHeight, _borderRadius, _borderRadius);
 
         // Set border properties
         _background.StrokeStyle = _borderStyle;
