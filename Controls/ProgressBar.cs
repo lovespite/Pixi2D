@@ -13,8 +13,6 @@ public class ProgressBar : Container
     private readonly Graphics _track; // 背景轨道
     private readonly Graphics _fill;  // 前景填充
 
-    private float _minimum = 0f;
-    private float _maximum = 100f;
     private float _value = 0f;
 
     private float _barWidth = 200f;
@@ -22,10 +20,12 @@ public class ProgressBar : Container
     private float _borderRadius = 0f;
     private float _padding = 2f; // 默认内边距
 
-    private RawColor4 _trackColor = new(0.2f, 0.2f, 0.2f, 1.0f); // 深灰色背景
-    private RawColor4 _fillColor = new(0.0f, 0.6f, 1.0f, 1.0f);  // 蓝色填充
-    private RawColor4 _borderColor = new(0.5f, 0.5f, 0.5f, 1.0f); // 灰色边框
+    private BrushStyle _trackStyle = new(new RawColor4(0.2f, 0.2f, 0.2f, 1.0f)); // 深灰色背景
+    private BrushStyle _fillStyle = new(new RawColor4(0.0f, 0.6f, 1.0f, 1.0f));  // 蓝色填充
+    private BrushStyle _borderStyle = new(new RawColor4(0.5f, 0.5f, 0.5f, 1.0f)); // 灰色边框
     private float _borderWidth = 1f;
+
+    private bool _dirty = true;
 
     /// <summary>
     /// 创建一个新的进度条。
@@ -62,7 +62,7 @@ public class ProgressBar : Container
             if (_barWidth != value)
             {
                 _barWidth = value;
-                UpdateLayout();
+                _dirty = true;
             }
         }
     }
@@ -78,39 +78,7 @@ public class ProgressBar : Container
             if (_barHeight != value)
             {
                 _barHeight = value;
-                UpdateLayout();
-            }
-        }
-    }
-
-    /// <summary>
-    /// 最小数值 (默认 0)。
-    /// </summary>
-    public float Minimum
-    {
-        get => _minimum;
-        set
-        {
-            if (_minimum != value)
-            {
-                _minimum = value;
-                UpdateLayout();
-            }
-        }
-    }
-
-    /// <summary>
-    /// 最大数值 (默认 100)。
-    /// </summary>
-    public float Maximum
-    {
-        get => _maximum;
-        set
-        {
-            if (_maximum != value)
-            {
-                _maximum = value;
-                UpdateLayout();
+                _dirty = true;
             }
         }
     }
@@ -123,29 +91,12 @@ public class ProgressBar : Container
         get => _value;
         set
         {
-            float clamped = Math.Clamp(value, _minimum, _maximum);
+            float clamped = Math.Clamp(value, 0, 1);
             if (_value != clamped)
             {
                 _value = clamped;
-                UpdateLayout();
+                _dirty = true;
             }
-        }
-    }
-
-    /// <summary>
-    /// 进度的百分比 (0.0 - 1.0)。
-    /// </summary>
-    public float Percentage
-    {
-        get
-        {
-            float range = _maximum - _minimum;
-            if (range <= 0) return 0f;
-            return Math.Clamp((_value - _minimum) / range, 0f, 1f);
-        }
-        set
-        {
-            Value = _minimum + (value * (_maximum - _minimum));
         }
     }
 
@@ -160,7 +111,7 @@ public class ProgressBar : Container
             if (_borderRadius != value)
             {
                 _borderRadius = value;
-                UpdateLayout();
+                _dirty = true;
             }
         }
     }
@@ -176,7 +127,7 @@ public class ProgressBar : Container
             if (_padding != value)
             {
                 _padding = value;
-                UpdateLayout();
+                _dirty = true;
             }
         }
     }
@@ -184,39 +135,39 @@ public class ProgressBar : Container
     /// <summary>
     /// 背景轨道颜色。
     /// </summary>
-    public RawColor4 TrackColor
+    public BrushStyle TrackStyle
     {
-        get => _trackColor;
+        get => _trackStyle;
         set
         {
-            _trackColor = value;
-            UpdateLayout();
+            _trackStyle = value;
+            _dirty = true;
         }
     }
 
     /// <summary>
     /// 进度填充颜色。
     /// </summary>
-    public RawColor4 FillColor
+    public BrushStyle FillStyle
     {
-        get => _fillColor;
+        get => _fillStyle;
         set
         {
-            _fillColor = value;
-            UpdateLayout();
+            _fillStyle = value;
+            _dirty = true;
         }
     }
 
     /// <summary>
     /// 边框颜色。
     /// </summary>
-    public RawColor4 BorderColor
+    public BrushStyle BorderStyle
     {
-        get => _borderColor;
+        get => _borderStyle;
         set
         {
-            _borderColor = value;
-            UpdateLayout();
+            _borderStyle = value;
+            _dirty = true;
         }
     }
 
@@ -231,7 +182,7 @@ public class ProgressBar : Container
             if (_borderWidth != value)
             {
                 _borderWidth = value;
-                UpdateLayout();
+                _dirty = true;
             }
         }
     }
@@ -243,10 +194,11 @@ public class ProgressBar : Container
     /// </summary>
     private void UpdateLayout()
     {
+        _dirty = false;
         // 1. 绘制背景轨道 (Track)
         _track.Clear();
-        _track.FillColor = _trackColor;
-        _track.StrokeColor = _borderColor;
+        _track.FillStyle = _trackStyle;
+        _track.StrokeStyle = _borderStyle;
         _track.StrokeWidth = _borderWidth;
 
         if (_borderRadius > 0)
@@ -261,10 +213,10 @@ public class ProgressBar : Container
         // 2. 绘制前景填充 (Fill)
         _fill.Clear();
 
-        float pct = Percentage;
+        float pct = Value;
         if (pct <= 0) return; // 没有进度不绘制
 
-        _fill.FillColor = _fillColor;
+        _fill.FillStyle = _fillStyle;
 
         // 计算填充区域的尺寸
         // 考虑到边框一般是居中绘制，这里我们假设 Padding 包含了避免压住边框所需的空间。
@@ -292,5 +244,13 @@ public class ProgressBar : Container
         {
             _fill.DrawRectangle(startX, startY, currentFillWidth, fillHeight);
         }
+    }
+
+    public override void Update(float deltaTime)
+    {
+        base.Update(deltaTime);
+
+        if (!_dirty) return;
+        UpdateLayout();
     }
 }

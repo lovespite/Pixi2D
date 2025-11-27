@@ -586,5 +586,65 @@ partial class MessageBox
         return cts;
     }
 
+    public static Task ShowProgress(GeneralProgressBridge reporter, string? message = null, bool showCancelButton = true, string? cancelText = null)
+    {
+        CheckStaticDependencies();
+        var tcs = new TaskCompletionSource();
+        var stage = DefaultStage!;
+        var textFactory = TextFactory!;
+        // 1. 创建内容布局
+        var contentLayout = new FlowLayout
+        {
+            PaddingLeft = 20,
+            Gap = 15,
+            Width = 300,
+            Direction = FlowLayout.LayoutDirection.Vertical,
+            JustifyMain = FlowLayout.JustifyContent.SpaceBetween,
+        };
+        // 2. 创建进度条
+        var progressBar = new ProgressBar(280, 20);
+        contentLayout.AddChild(progressBar);
+        // 3. 创建消息文本
+        var messageText = textFactory.Create(message ?? string.Empty, 14, Color.White);
+        contentLayout.AddChild(messageText);
+        // 4. 创建取消按钮
+        var cancelButton = showCancelButton ? new Button(textFactory.Create(cancelText ?? DefaultCancelText), 80, 30) : null;
+        var mb = new MessageBox(stage, new SizeF(340, 150), contentLayout, cancelButton is null ? [] : [cancelButton])
+        {
+            BackgroundColor = new RawColor4(0.15f, 0.15f, 0.18f, 0f),
+            BorderWidth = 0,
+        };
+        // 5. 绑定事件
+        reporter.OnProgress += (msg) =>
+        {
+            progressBar.Value = msg.Progress;
+            if (msg.Message is null) return;
+            messageText.Content = msg.Message;
+            var textMetrics = messageText.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget());
+            messageText.Height = Math.Max(120, textMetrics.Height);
+        };
+        reporter.OnAbort += () =>
+        {
+            tcs.SetCanceled();
+            mb.Close();
+            mb.Dispose();
+        };
+        reporter.OnCompleted += () =>
+        {
+            tcs.SetResult();
+            mb.Close();
+            mb.Dispose();
+        };
+        if (cancelButton is not null)
+        {
+            cancelButton.OnButtonClick += (btn) =>
+            {
+                reporter.Abort();
+            };
+        }
+        mb.Open();
+        return tcs.Task;
+    }
+
     #endregion
 }
