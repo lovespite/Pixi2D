@@ -462,6 +462,8 @@ public class Text : DisplayObject
         public float FontSize { get; set; } = 16f;
         public Color FillColor { get; set; } = Color.White;
 
+        public Text Create() => Create(string.Empty);
+
         public Text Create(string content)
         {
             return new Text(

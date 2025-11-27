@@ -225,7 +225,20 @@ public class Button : Container
         _background.DrawRoundedRectangle(0, 0, _buttonWidth, _buttonHeight, _borderRadius, _borderRadius);
 
         // Set border properties
-        _background.StrokeStyle = _borderStyle;
+        if (_hasFocus)
+        {
+            _background.StrokeStyle = _focusedBorderStyle;
+        }
+        else if (_isHovered)
+        {
+            _background.StrokeStyle = _hoverBorderStyle;
+        }
+        else
+        {
+            _background.StrokeStyle = _borderStyle;
+        }
+
+
         _background.StrokeWidth = _borderWidth;
 
         UpdateBackgroundColor();
@@ -248,7 +261,7 @@ public class Button : Container
         else
         {
             _background.FillStyle = _normalStyle;
-            _background.StrokeStyle = _borderStyle;
+            _background.StrokeStyle = _hasFocus ? _focusedBorderStyle : _borderStyle;
         }
     }
 
@@ -313,7 +326,6 @@ public class Button : Container
     private bool _bgDirty = true;
     private bool _hasFocus = false;
     private bool _textPositionDirty = true;
-    private BrushStyle _originalBorderColor;
     public override void Update(float deltaTime)
     {
         base.Update(deltaTime);
@@ -321,15 +333,6 @@ public class Button : Container
         if (hasFocus != _hasFocus || _bgDirty)
         {
             _hasFocus = hasFocus;
-            if (hasFocus)
-            {
-                _originalBorderColor = _borderStyle;
-                _borderStyle = _focusedBorderStyle;
-            }
-            else
-            {
-                _borderStyle = _originalBorderColor;
-            }
             UpdateBackground();
         }
         if (_textPositionDirty)
