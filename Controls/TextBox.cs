@@ -364,7 +364,7 @@ public class TextBox : Container
         _textContainer.AddChild(_selectionHighlight);
 
         // 5. 创建文本显示
-        _textDisplay = _textFactory.Create("");
+        _textDisplay = _textFactory.Create();
         _textDisplay.WordWrap = false; // 默认: 不换行
         _textDisplay.MaxWidth = float.MaxValue; // 默认: 无限宽度
         _textContainer.AddChild(_textDisplay);
