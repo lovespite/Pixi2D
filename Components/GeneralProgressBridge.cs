@@ -1,8 +1,8 @@
 ﻿using SharpDX.XAPO.Fx;
+using SharpDX.XAudio2;
 using System.Reflection.Metadata;
 
 namespace Pixi2D.Components;
-
 
 public class GeneralProgressMessage
 {
@@ -10,23 +10,30 @@ public class GeneralProgressMessage
     public float Progress { get; init; } = 0f;
 }
 
-public class GeneralProgressBridge
+public class GeneralProgressBridge: IDisposable
 {
     public event Action<GeneralProgressMessage>? OnProgress;
     public event Action? OnAbort;
     public event Action? OnCompleted;
     public event Action<Exception>? OnError;
 
-    public bool IsAborted { get; private set; } = false;
+    private readonly CancellationTokenSource _cts = new();
+
+    public CancellationToken CancellationToken => _cts.Token;
+    public bool IsAborted => _cts.IsCancellationRequested;
     public bool IsCompleted { get; private set; } = false;
     public GeneralProgressMessage? LastMessage { get; private set; } = null;
     public Exception? LastError { get; private set; } = null;
+
+    public GeneralProgressBridge()
+    {
+    }
 
     public void Abort()
     {
         if (IsCompleted || IsAborted) return;
 
-        IsAborted = true;
+        _cts.Cancel();
         OnAbort?.Invoke();
     }
 
@@ -48,5 +55,10 @@ public class GeneralProgressBridge
     {
         LastError = ex;
         OnError?.Invoke(ex);
+    }
+
+    public void Dispose()
+    {
+        _cts.Dispose();
     }
 }

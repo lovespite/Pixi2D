@@ -276,9 +276,33 @@ public class TextBox : Container
         }
     }
 
+    public Color TextColor
+    {
+        get => _textDisplay.FillColor.ToColor();
+        set
+        {
+            _textDisplay.FillColor = value.ToRawColor4();
+            _caret.FillColor = _textDisplay.FillColor;
+        }
+    }
+
+    public Color HightlightColor
+    {
+        get => _selectionHighlight.FillColor.ToColor();
+        set
+        {
+            _selectionHighlight.FillColor = value.ToRawColor4();
+        }
+    }
+
     #endregion
 
     #region Behavior Properties
+
+    /// <summary>
+    /// 指示输入框是否为只读模式。 
+    /// </summary>
+    public bool ReadOnly { get; set; } = false;
 
     /// <summary>
     /// 指示输入框是否接受 Tab 键作为输入字符。
@@ -536,6 +560,7 @@ public class TextBox : Container
 
     private void HandleKeyPress(DisplayObjectEvent evt)
     {
+        if (ReadOnly) return;
         if (evt.Data is null || evt.Data.KeyChar == '\0') return;
 
         char c = evt.Data.KeyChar;
@@ -580,12 +605,14 @@ public class TextBox : Container
 
                 case VK_X: // Ctrl+X
                     GetStage()?.SetClipboardText(GetSelectedText());
+                    if (ReadOnly) return;
                     if (DeleteSelection())
                     {
                         UpdateTextAndCaret();
                     }
                     return;
                 case VK_V: // Ctrl+V 
+                    if (ReadOnly) return;
                     var pasteText = GetStage()?.GetClipboardText();
                     if (!string.IsNullOrEmpty(pasteText))
                     {
@@ -638,7 +665,8 @@ public class TextBox : Container
                     }
                     break;
 
-                case VK_BACKSPACE: // Backspace
+                case VK_BACKSPACE: // Backspace 
+                    if (ReadOnly) return;
                     if (DeleteSelection()) // 优先删除选区
                     {
                         UpdateTextAndCaret();
@@ -652,7 +680,8 @@ public class TextBox : Container
                     }
                     break;
 
-                case VK_DELETE: // Delete
+                case VK_DELETE: // Delete 
+                    if (ReadOnly) return;
                     if (DeleteSelection()) // 优先删除选区
                     {
                         UpdateTextAndCaret();
@@ -667,7 +696,7 @@ public class TextBox : Container
                     break;
 
                 case VK_TAB: // Tab
-                    if (AcceptTab)
+                    if (AcceptTab && !ReadOnly)
                     {
                         InsertCharToCaret('\t');
                     }
@@ -676,6 +705,7 @@ public class TextBox : Container
                 case VK_ENTER: // Enter
                     if (_multiline)
                     {
+                        if (ReadOnly) return;
                         if (!RequireShiftForNewLine || (RequireShiftForNewLine && shiftPressed))
                             InsertCharToCaret('\n');
                     }

@@ -1,6 +1,8 @@
 using Pixi2D.Core;
 using Pixi2D.Events;
+using Pixi2D.Extensions;
 using SharpDX.Mathematics.Interop;
+using System.Drawing;
 
 namespace Pixi2D.Controls;
 
@@ -54,7 +56,7 @@ public class Button : Container
 
         // 创建文本标签
         _label = text;
-
+        _label.FillColor = Color.White.ToRawColor4();
         _label.MaxWidth = _buttonWidth - 10; // 留出边距
         _label.X = 5;
         _label.Y = (_buttonHeight - 14f) / 2; // 垂直居中 (大约)

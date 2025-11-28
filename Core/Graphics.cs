@@ -102,7 +102,7 @@ public partial class Graphics : DisplayObject
     public void Clear()
     {
         // 清除时必须释放所有形状持有的资源 
-        foreach (var shape in _shapes)
+        foreach (var shape in _shapes.ToArray())
         {
             shape.Dispose();
         }
@@ -246,7 +246,7 @@ public partial class Graphics : DisplayObject
 
         // 4. 遍历并渲染所有形状
         // 只有当笔刷非空时才传递，形状内部会判断是否为 null
-        foreach (var shape in _shapes)
+        foreach (var shape in _shapes.ToArray())
         {
             shape.Render(renderTarget, _activeFillBrush!, _activeStrokeBrush!, StrokeWidth);
         }
@@ -302,7 +302,7 @@ public partial class Graphics : DisplayObject
                 // 创建线性渐变画笔 
                 _strokeGradientStops = new GradientStopCollection(renderTarget, _strokeStyle.Stops);
 
-                var (sP, eP) = _strokeStyle.GetLinearGradientVectors(ref _cachedBounds) ;
+                var (sP, eP) = _strokeStyle.GetLinearGradientVectors(ref _cachedBounds);
 
                 var props = new LinearGradientBrushProperties
                 {

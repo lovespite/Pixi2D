@@ -551,7 +551,8 @@ partial class MessageBox
         contentLayout.AddChild(text);
 
         // 4. 创建取消按钮
-        var cancelButton = showCancelButton ? new Button(textFactory.Create(cancelText ?? DefaultCancelText), 80, 30) : null;
+        var cancelButton = showCancelButton ? new Button(textFactory.Create(cancelText ?? DefaultCancelText), 100, 30) 
+                                            : null;
 
         var height = 30 + spinLoading.Height + text.Height + (cancelButton?.Height ?? 0) + 60;
         // 5. 创建 MessageBox
@@ -608,7 +609,7 @@ partial class MessageBox
         var messageText = textFactory.Create(message ?? string.Empty, 14, Color.White);
         contentLayout.AddChild(messageText);
         // 4. 创建取消按钮
-        var cancelButton = showCancelButton ? new Button(textFactory.Create(cancelText ?? DefaultCancelText), 80, 30) : null;
+        var cancelButton = showCancelButton ? new Button(textFactory.Create(cancelText ?? DefaultCancelText), 100, 30) : null;
         var mb = new MessageBox(stage, new SizeF(340, 150), contentLayout, cancelButton is null ? [] : [cancelButton])
         {
             BackgroundColor = new RawColor4(0.15f, 0.15f, 0.18f, 0f),
