@@ -135,6 +135,13 @@ public sealed class Stage : Container
         OnResize?.Invoke(this, newWidth, newHeight);
     }
 
+    public void Resize(Size sz)
+    {
+        this.Width = sz.Width;
+        this.Height = sz.Height;
+        OnResize?.Invoke(this, sz.Width, sz.Height);
+    }
+
     public event Action<Stage, float, float>? OnResize;
 
     /// <summary>
