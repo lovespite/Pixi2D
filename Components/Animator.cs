@@ -123,6 +123,9 @@ public class Animator
     /// <param name="duration">动画持续时间 (秒)。</param>
     /// <param name="easing">缓动算法。</param>
     /// <param name="delay">启动延迟时间 (秒)。</param>
+    /// <remarks>
+    /// 在启用裁剪、AOT的项目中，请使用回调(Animating)方式创建动画器，避免使用匿名对象传递属性。<see cref="AnimatorUpdateCallback"/>
+    /// </remarks>
     public Animator(DisplayObject target, object? properties, float duration, EasingFunction easing = EasingFunction.Linear, float delay = 0f)
     {
         _target = target ?? throw new ArgumentNullException(nameof(target));

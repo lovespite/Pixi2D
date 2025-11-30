@@ -222,7 +222,12 @@ public class Switch : Container
         // 应用位置 (动画或直接设置)
         if (animate)
         {
-            _thumb.MoveXTo(targetX, 0.2f, EasingFunction.CubicEaseOut);
+            // _thumb.MoveXTo(targetX, 0.2f, EasingFunction.CubicEaseOut);
+            _thumb.Animate(0.2f, (_, progress) =>
+            {
+                float newX = _thumb.X + (targetX - _thumb.X) * progress;
+                _thumb.X = newX;
+            }, EasingFunction.CubicEaseOut);
 
             // 文字可以简单移动，或者淡入淡出，这里我们让它跟随移动
             // 为了视觉效果，直接设置位置，因为文字内容也变了

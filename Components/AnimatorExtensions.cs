@@ -20,6 +20,10 @@ public static class AnimatorExtensions
     /// <param name="easing">缓动函数。</param>
     /// <param name="delay">延迟时间 (秒)。</param>
     /// <returns>创建的 Animator 实例，可用于控制或等待。</returns>
+    /// <remarks>
+    /// 在启用裁剪、AOT发布的项目中，请使用回调的重载版本。<br />
+    /// 参见<see cref="Animate(DisplayObject, float, AnimatorUpdateCallback, EasingFunction, float)"/>
+    /// </remarks>
     public static Animator Animate(this DisplayObject target, object properties, float duration, EasingFunction easing = EasingFunction.Linear, float delay = 0f)
     {
         return new Animator(target, properties, duration, easing, delay);

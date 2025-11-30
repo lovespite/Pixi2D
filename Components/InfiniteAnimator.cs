@@ -73,6 +73,9 @@ public class InfiniteAnimator
     /// <param name="duration">单次循环的持续时间。</param>
     /// <param name="easing">缓动函数。</param>
     /// <param name="loopMode">循环模式 (Restart 或 PingPong)。</param>
+    /// <remarks>
+    /// 在启用裁剪、AOT发布的项目中，请使用（<see cref="Animating"/>）回调，而不是直接传入动态属性对象(properties)。<br /> 
+    /// </remarks>
     public InfiniteAnimator(DisplayObject target, object? properties, float duration, EasingFunction easing = EasingFunction.Linear, InfiniteLoopMode loopMode = InfiniteLoopMode.Restart, bool restoreOnStop = true)
     {
         _target = target ?? throw new ArgumentNullException(nameof(target));

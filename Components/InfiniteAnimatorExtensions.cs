@@ -5,6 +5,10 @@ public static class InfiniteAnimatorExtensions
     /// <summary>
     /// 创建并开始一个无限动画器。
     /// </summary>
+    /// <remarks>
+    /// 在启用裁剪、AOT发布的项目中，请使用回调的重载版本。<br />
+    /// 参见<see cref="InfiniteAnimate(DisplayObject, float, InfiniteAnimatorUpdateCallback, bool, EasingFunction, InfiniteLoopMode)"/>
+    /// </remarks>
     public static InfiniteAnimator InfiniteAnimate(this DisplayObject target, object properties, float duration, bool restoreOnStop = true, EasingFunction easing = EasingFunction.Linear, InfiniteLoopMode loopMode = InfiniteLoopMode.Restart)
     {
         return new InfiniteAnimator(target, properties, duration, easing, loopMode, restoreOnStop);
