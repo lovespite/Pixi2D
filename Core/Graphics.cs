@@ -97,6 +97,34 @@ public partial class Graphics : DisplayObject
     }
 
     /// <summary>
+    /// 获取图形的实际宽度 (由内容边界决定)。
+    /// 设置宽度会通过调整 ScaleX 来实现缩放。
+    /// </summary>
+    public override float Width
+    {
+        get => GetBounds().Width;
+        set
+        {
+            var w = GetBounds().Width;
+            if (w != 0) ScaleX = value / w;
+        }
+    }
+
+    /// <summary>
+    /// 获取图形的实际高度 (由内容边界决定)。
+    /// 设置高度会通过调整 ScaleY 来实现缩放。
+    /// </summary>
+    public override float Height
+    {
+        get => GetBounds().Height;
+        set
+        {
+            var h = GetBounds().Height;
+            if (h != 0) ScaleY = value / h;
+        }
+    }
+
+    /// <summary>
     /// 清除所有已绘制的图形。
     /// </summary> 
     public void Clear()
