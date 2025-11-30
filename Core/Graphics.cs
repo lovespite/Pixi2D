@@ -233,6 +233,16 @@ public partial class Graphics : DisplayObject
         _boundsDirty = true;
     }
 
+    public void DrawPolygon(PointF[] points)
+    {
+        if (points.Length < 3) return;
+        _shapes.Add(new GraphicsPolygon
+        {
+            Points = [.. points]
+        });
+        _boundsDirty = true;
+    }
+
     /// <summary>
     /// 渲染所有图形。
     /// </summary>
@@ -368,4 +378,37 @@ public partial class Graphics : DisplayObject
 
         Clear(); // Clear 会负责 dispose 所有的形状
     }
+
+    #region Polygon Stream Drawing Methods
+
+    private List<PointF> _currentPolygonPoints = [];
+    public Graphics BeginPolygon(float x, float y)
+    {
+        _currentPolygonPoints = [
+            new PointF { X = x, Y = y},
+        ];
+        return this;
+    }
+
+    public Graphics LineTo(float x, float y)
+    {
+        _currentPolygonPoints.Add(new PointF { X = x, Y = y });
+        return this;
+    }
+
+    public Graphics ClosePolygon()
+    {
+        if (_currentPolygonPoints.Count >= 2)
+        {
+            _shapes.Add(new GraphicsPolygon
+            {
+                Points = [.. _currentPolygonPoints]
+            });
+            _boundsDirty = true;
+        }
+        _currentPolygonPoints.Clear();
+        return this;
+    }
+
+    #endregion
 }

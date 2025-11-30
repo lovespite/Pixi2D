@@ -26,8 +26,7 @@ public class ComboBox : Container
 
     // --- 下拉浮动层 ---
     private readonly Graphics _overlay; // 全屏透明遮罩，用于检测点击外部
-    private readonly Panel _dropdownPanel;
-    private readonly FlowLayout _optionsContainer;
+    private readonly VirtualScrollList<object> _optionsList;
 
     // --- 数据 ---
     private readonly Text.Factory _textFactory;
@@ -39,7 +38,20 @@ public class ComboBox : Container
     private int _selectedIndex = -1;
     private float _width;
     private float _height;
+    private float _itemHeight = 28f;
     private string _placeholder = "Select...";
+
+    public override float Width
+    {
+        get => _width;
+        set => _ = value; // Not supported yet ...
+    }
+
+    public override float Height
+    {
+        get => _height;
+        set => _ = value; // Not supported yet ...
+    }
 
     /// <summary>
     /// 当选中的项发生改变时触发。 
@@ -61,11 +73,12 @@ public class ComboBox : Container
     /// <param name="textFactory">文本工厂，用于创建标签。</param>
     /// <param name="width">控件宽度。</param>
     /// <param name="height">控件高度。</param>
-    public ComboBox(Text.Factory textFactory, float width = 150f, float height = 30f)
+    public ComboBox(Text.Factory textFactory, float itemHeight, float width = 150f, float height = 30f)
     {
         _textFactory = textFactory;
         _width = width;
         _height = height;
+        _itemHeight = itemHeight;
 
         Interactive = true; // 自身可交互
 
@@ -98,13 +111,12 @@ public class ComboBox : Container
             Y = height / 2 - 3,
             Interactive = false
         };
-        _arrow.DrawArrowLine(
-            [new PointF(0, 0), new PointF(5, 5), new PointF(10, 0)],
-            Graphics.ArrowType.None,
-            0
-        );
-        _arrow.StrokeColor = new RawColor4(0.8f, 0.8f, 0.8f, 1f);
-        _arrow.StrokeWidth = 1.5f;
+        _arrow.DrawPolygon([
+            new PointF(0, 0),
+            new PointF(5, 5),
+            new PointF(10, 0)
+        ]);
+        _arrow.FillColor = new RawColor4(0.8f, 0.8f, 0.8f, 1f);
         _arrow.SetAnchorCenter();
         AddChild(_arrow);
 
@@ -119,28 +131,15 @@ public class ComboBox : Container
         };
         _overlay.OnClick += (e) => Close();
 
-        // 5. 初始化下拉面板
-        _dropdownPanel = new Panel(width, 0)
+        // 5. 初始化下拉面板 
+        _optionsList = new VirtualScrollList<object>(width, _itemHeight)
         {
-            Visible = false,
+            ItemRenderer = CreateOptionControl,
             BackgroundColor = new RawColor4(0.25f, 0.25f, 0.25f, 1f),
             BorderColor = new RawColor4(0.4f, 0.4f, 0.4f, 1f),
-            BorderWidth = 1f,
-            PaddingLeft = 0,
-            PaddingRight = 0,
-            PaddingTop = 0,
-            PaddingBottom = 0,
-            ClipContent = true
+            BorderWidth = 2,
+            ItemHeight = _itemHeight,
         };
-
-        // 6. 选项容器
-        _optionsContainer = new FlowLayout
-        {
-            Direction = FlowLayout.LayoutDirection.Vertical,
-            Width = width,
-            Gap = 0
-        };
-        _dropdownPanel.AddContent(_optionsContainer);
     }
 
     #region Public Properties
@@ -191,11 +190,7 @@ public class ComboBox : Container
     public void AddItem(object item)
     {
         _items.Add(item);
-
-        int index = _items.Count - 1;
-        var optionBtn = CreateOptionControl(item, index);
-        _optionsContainer.AddChild(optionBtn);
-
+        _optionsList.AddItem(item);
         UpdateDropdownSize();
     }
 
@@ -213,28 +208,15 @@ public class ComboBox : Container
     public void SetItems(IEnumerable<object> items)
     {
         ClearItemsInternal();
-        foreach (var item in items)
-        {
-            AddItem(item);
-        }
+        _optionsList.AddItems(items);
+        UpdateDropdownSize();
     }
 
-    /// <summary>
-    /// 批量设置字符串选项。
-    /// </summary>
-    public void SetItems(IEnumerable<string> items)
-    {
-        ClearItemsInternal();
-        foreach (var item in items)
-        {
-            AddItem(item);
-        }
-    }
 
     private void ClearItemsInternal()
     {
         _items.Clear();
-        _optionsContainer.ClearChildren();
+        _optionsList.Clear();
         _selectedIndex = -1;
         _selectedLabel.Content = _placeholder;
         _selectedLabel.FillColor = new RawColor4(0.7f, 0.7f, 0.7f, 1f);
@@ -292,8 +274,8 @@ public class ComboBox : Container
         UpdateDropdownPosition();
 
         // 显示面板
-        _dropdownPanel.Visible = true;
-        stage.AddChild(_dropdownPanel);
+        _optionsList.Visible = true;
+        stage.AddChild(_optionsList);
 
         // 旋转箭头
         _arrow.Rotation = (float)Math.PI;
@@ -308,10 +290,10 @@ public class ComboBox : Container
 
         _isOpen = false;
         _overlay.Visible = false;
-        _dropdownPanel.Visible = false;
+        _optionsList.Visible = false;
 
         _overlay.Parent?.RemoveChild(_overlay);
-        _dropdownPanel.Parent?.RemoveChild(_dropdownPanel);
+        _optionsList.Parent?.RemoveChild(_optionsList);
 
         _arrow.Rotation = 0;
     }
@@ -323,35 +305,11 @@ public class ComboBox : Container
     /// <summary>
     /// 创建单个选项的显示对象。
     /// </summary>
-    private Container CreateOptionControl(object item, int index)
+    private ComboBoxItem CreateOptionControl(object item, int index)
     {
-        //float itemHeight = 28f;
-
-        //var container = new Panel
-        //{
-        //    Interactive = true,
-        //    Width = _width,
-        //    Height = itemHeight,
-        //    BackgroundColor = new RawColor4(0, 0, 0, 0),
-        //};
-
-        //// 使用 item.Text 显示
-        //var txt = _textFactory.Create(item.ToString() ?? string.Empty, 14, Color.White);
-        //txt.X = 8;
-        //txt.Y = (itemHeight - 14) / 2f - 2;
-        //container.AddChild(txt);
-
-        //container.OnMouseOver += (_) => container.BackgroundColor = new RawColor4(0.3f, 0.4f, 0.6f, 1f);
-        //container.OnMouseOut += (_) => container.BackgroundColor = new RawColor4(0, 0, 0, 0);
-        //container.OnClick += (_) =>
-        //{
-        //    Select(index);
-        //    Close();
-        //};
-
-        var container = new ComboBoxItem(_textFactory, item)
+        var container = new ComboBoxItem(_textFactory, item, _itemHeight)
         {
-            Width = _width,
+            Width = _width - 16,
             Height = 28f,
             LabelTextColor = Color.White,
             HoverBackgroundColor = Color.FromArgb(0x33, 0x66, 0x99),
@@ -368,11 +326,13 @@ public class ComboBox : Container
 
     private void UpdateDropdownSize()
     {
-        float itemHeight = 28f;
-        float totalHeight = _items.Count * itemHeight;
+
+        float totalHeight = _items.Count * _itemHeight;
         float maxHeight = 300f;
 
-        _dropdownPanel.Height = Math.Min(totalHeight, maxHeight) + 2;
+        _optionsList.Height = Math.Clamp(totalHeight, _itemHeight, maxHeight) + 2;
+        _optionsList.ViewportHeight = _optionsList.Height;
+        _optionsList.Refresh();
     }
 
     private void UpdateDropdownPosition()
@@ -384,20 +344,20 @@ public class ComboBox : Container
         var worldTransform = this.GetWorldTransform();
         var worldPos = Vector2.Transform(new Vector2(0, _height), worldTransform);
 
-        _dropdownPanel.X = worldPos.X;
-        _dropdownPanel.Y = worldPos.Y;
+        _optionsList.X = worldPos.X;
+        _optionsList.Y = worldPos.Y;
 
-        if (_dropdownPanel.Y + _dropdownPanel.Height > stage.Height)
+        if (_optionsList.Y + _optionsList.Height > stage.Height)
         {
             var worldPosTop = Vector2.Transform(new Vector2(0, 0), worldTransform);
-            _dropdownPanel.Y = worldPosTop.Y - _dropdownPanel.Height;
+            _optionsList.Y = worldPosTop.Y - _optionsList.Height;
         }
     }
 
     public override void Update(float deltaTime)
     {
         base.Update(deltaTime);
-        if (_isOpen && _dropdownPanel.Parent != null)
+        if (_isOpen && _optionsList.Parent != null)
         {
             UpdateDropdownPosition();
         }
@@ -408,7 +368,7 @@ public class ComboBox : Container
         Close();
         _header.Dispose();
         _overlay.Dispose();
-        _dropdownPanel.Dispose();
+        _optionsList.Dispose();
         _arrow.Dispose();
         base.Dispose();
     }
@@ -477,9 +437,10 @@ internal class ComboBoxItem : Container
 
     public event Action<ComboBoxItem>? OnItemClick;
 
-    public ComboBoxItem(Text.Factory textFactory, object itemObject)
+    public ComboBoxItem(Text.Factory textFactory, object itemObject, float itemHeight = 28f)
     {
         ItemObject = itemObject;
+        _itemHeight = itemHeight;
         _label = textFactory.Create(itemObject.ToString() ?? string.Empty, 14, LabelTextColor);
         _label.X = 8;
         _label.Y = (_itemHeight - 14) / 2f - 2;
@@ -509,6 +470,6 @@ internal class ComboBoxItem : Container
         _background.Clear();
         _background.FillColor = NormalBackgroundColor.ToRawColor4();
         _background.StrokeColor = NormalBackgroundColor.ToRawColor4();
-        _background.DrawRectangle(0, 0, 150, _itemHeight);
+        _background.DrawRectangle(0, 0, _itemWidth, _itemHeight);
     }
 }

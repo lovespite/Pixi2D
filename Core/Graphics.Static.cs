@@ -342,6 +342,60 @@ partial class Graphics
         }
     }
 
+    private class GraphicsPolygon : IGraphicsShape
+    {
+        public PointF[] Points = [];
+        private PathGeometry? _cachedGeometry;
+        public void Render(RenderTarget renderTarget, Brush fillBrush, Brush strokeBrush, float strokeWidth)
+        {
+            if (Points.Length < 3) return;
+            if (_cachedGeometry is null || _cachedGeometry.Factory.NativePointer != renderTarget.Factory.NativePointer)
+            {
+                Dispose();
+                _cachedGeometry = BuildGeometry(renderTarget.Factory);
+            }
+            if (fillBrush is not null)
+            {
+                renderTarget.FillGeometry(_cachedGeometry, fillBrush);
+            }
+            if (strokeBrush is not null && strokeWidth > 0)
+            {
+                renderTarget.DrawGeometry(_cachedGeometry, strokeBrush, strokeWidth);
+            }
+        }
+        private PathGeometry BuildGeometry(Factory factory)
+        {
+            var geometry = new PathGeometry(factory);
+            using var sink = geometry.Open();
+            sink.BeginFigure(new RawVector2(Points[0].X, Points[0].Y), FigureBegin.Filled);
+            for (int i = 1; i < Points.Length; i++)
+            {
+                sink.AddLine(new RawVector2(Points[i].X, Points[i].Y));
+            }
+            sink.EndFigure(FigureEnd.Closed);
+            sink.Close();
+            return geometry;
+        }
+        public RectangleF GetBounds()
+        {
+            if (Points.Length == 0) return RectangleF.Empty;
+            float minX = Points[0].X, minY = Points[0].Y, maxX = Points[0].X, maxY = Points[0].Y;
+            foreach (var p in Points)
+            {
+                if (p.X < minX) minX = p.X;
+                if (p.Y < minY) minY = p.Y;
+                if (p.X > maxX) maxX = p.X;
+                if (p.Y > maxY) maxY = p.Y;
+            }
+            return new RectangleF(minX, minY, maxX - minX, maxY - minY);
+        }
+        public void Dispose()
+        {
+            _cachedGeometry?.Dispose();
+            _cachedGeometry = null;
+        }
+    }
+
     #endregion
 
 }
