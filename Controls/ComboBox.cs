@@ -208,10 +208,10 @@ public class ComboBox : Container
     public void SetItems(IEnumerable<object> items)
     {
         ClearItemsInternal();
+        _items.AddRange(items);
         _optionsList.AddItems(items);
         UpdateDropdownSize();
     }
-
 
     private void ClearItemsInternal()
     {
