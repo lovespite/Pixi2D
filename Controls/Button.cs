@@ -2,6 +2,7 @@ using Pixi2D.Core;
 using Pixi2D.Events;
 using Pixi2D.Extensions;
 using SharpDX.Mathematics.Interop;
+using System.Diagnostics;
 using System.Drawing;
 
 namespace Pixi2D.Controls;
@@ -272,12 +273,8 @@ public class Button : Container
     /// </summary>
     private void UpdateLabelPosition()
     {
-        var rect = _label.GetTextRect();
-        if (rect.Width == 0 && rect.Height == 0)
-        {
-            // 文本为空时不更新位置
-            return;
-        }
+        var rect = _label.GetTextRect(true);
+        if (rect.Width == 0 && rect.Height == 0) return;
 
         var x = (_buttonWidth - rect.Width) / 2;
         var y = (_buttonHeight - rect.Height) / 2;

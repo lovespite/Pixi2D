@@ -551,12 +551,102 @@ partial class MessageBox
         contentLayout.AddChild(text);
 
         // 4. 创建取消按钮
-        var cancelButton = showCancelButton ? new Button(textFactory.Create(cancelText ?? DefaultCancelText), 100, 30) 
+        var cancelButton = showCancelButton ? new Button(textFactory.Create(cancelText ?? DefaultCancelText), 100, 30)
                                             : null;
 
         var height = 30 + spinLoading.Height + text.Height + (cancelButton?.Height ?? 0) + 60;
         // 5. 创建 MessageBox
         var mb = new MessageBox(stage, new SizeF(160, height), contentLayout, cancelButton is null ? [] : [cancelButton])
+        {
+            BackgroundColor = new RawColor4(0.15f, 0.15f, 0.18f, 0f),
+            BorderWidth = 0,
+        };
+
+        // 6. 绑定事件
+        // 用户点击取消 -> cts.Cancel()
+        if (cancelButton is not null)
+        {
+            cancelButton.OnButtonClick += (btn) =>
+            {
+                if (!cts.IsCancellationRequested)
+                {
+                    cts.Cancel();
+                }
+            };
+        }
+
+        // cts 取消 -> 关闭对话框
+        var registration = cts.Token.Register(() =>
+        {
+            mb.Close();
+            mb.Dispose();
+        });
+
+        mb.Open();
+
+        return cts;
+    }
+
+    /// <summary>
+    /// 显示一个带有"取消"按钮的加载对话框 (使用矢量图形加载器)。
+    /// 返回一个 CancellationTokenSource，用户点击取消按钮时会触发取消。
+    /// 调用者也可以通过取消返回的 Source 来关闭对话框。
+    /// </summary>
+    /// <param name="message">加载提示信息。</param>
+    /// <param name="spinRadius">旋转图标的半径。默认为 20。</param>
+    /// <param name="spinColor">旋转图标的颜色。默认为白色。</param>
+    /// <param name="spinLineWidth">旋转图标的线条宽度。默认为 3。</param>
+    /// <param name="showCancelButton">是否显示取消按钮。</param>
+    /// <param name="cancelText">取消按钮的文本。</param>
+    /// <returns>用于控制取消的 CancellationTokenSource。</returns>
+    public static CancellationTokenSource ShowLoading(
+        string message,
+        float spinRadius = 20f,
+        RawColor4? spinColor = null,
+        float spinLineWidth = 3f,
+        bool showCancelButton = true,
+        string? cancelText = null)
+    {
+        CheckStaticDependencies();
+        var stage = DefaultStage!;
+        var textFactory = TextFactory!;
+        var cts = new CancellationTokenSource();
+
+        // 1. 创建内容布局 (垂直排列: 图标 + 文字)
+        var contentLayout = new FlowLayout
+        {
+            Padding = 25,
+            Gap = 15,
+            Width = 240,
+            Direction = FlowLayout.LayoutDirection.Vertical,
+            AlignCross = FlowLayout.AlignItems.Center,
+            JustifyMain = FlowLayout.JustifyContent.Center,
+        };
+
+        // 2. 创建矢量旋转组件
+        var spinLoading = new GraphicsSpinLoading(
+            radius: spinRadius,
+            color: spinColor ?? new RawColor4(1f, 1f, 1f, 1f),
+            lineWidth: spinLineWidth
+        );
+        contentLayout.AddChild(spinLoading);
+
+        // 3. 创建文本
+        var text = textFactory.Create(message, 14, Color.White);
+        var textMetrics = text.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget());
+        text.Height = textMetrics.Height;
+        text.Width = textMetrics.Width;
+        contentLayout.AddChild(text);
+
+        // 4. 创建取消按钮
+        var cancelButton = showCancelButton
+            ? new Button(textFactory.Create(cancelText ?? DefaultCancelText), 100, 30)
+            : null;
+
+        var height = 30 + spinLoading.Height + text.Height + (cancelButton?.Height ?? 0) + 60 + 45;
+
+        // 5. 创建 MessageBox
+        var mb = new MessageBox(stage, new SizeF(240, height), contentLayout, cancelButton is null ? [] : [cancelButton])
         {
             BackgroundColor = new RawColor4(0.15f, 0.15f, 0.18f, 0f),
             BorderWidth = 0,

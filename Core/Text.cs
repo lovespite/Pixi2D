@@ -292,7 +292,7 @@ public class Text : DisplayObject
 
             // 确保 TextLayout 存在，即使尚未渲染
             // 注意: 第一次调用可能需要一个有效的 RenderTarget
-            if (_textLayout is null && rt is not null)
+            if ((_textLayout is null || forceUpdate) && rt is not null)
             {
                 UpdateResources(rt);
             }
