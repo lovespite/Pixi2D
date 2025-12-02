@@ -84,7 +84,7 @@ public class ProgressBar : Container
     }
 
     /// <summary>
-    /// 当前数值。
+    /// 当前数值, 范围从 0 到 1。
     /// </summary>
     public float Value
     {

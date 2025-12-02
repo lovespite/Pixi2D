@@ -141,6 +141,37 @@ public abstract class DisplayObject : IDisposable
     }
 
     /// <summary>
+    /// Transforms the specified local coordinates to world coordinates using the current world transformation.
+    /// </summary>
+    /// <param name="x">The X-coordinate in local space to transform.</param>
+    /// <param name="y">The Y-coordinate in local space to transform.</param>
+    /// <returns>A <see cref="PointF"/> representing the transformed coordinates in world space.</returns>
+    public PointF ToWorldPoint(float x, float y)
+    {
+        Matrix3x2 worldTransform = GetWorldTransform();
+        return new PointF(
+            worldTransform.M11 * x + worldTransform.M21 * y + worldTransform.M31,
+            worldTransform.M12 * x + worldTransform.M22 * y + worldTransform.M32
+        );
+    }
+
+    /// <summary>
+    /// Transforms the specified point from local coordinates to world coordinates in place.
+    /// </summary>
+    /// <remarks>This method modifies the <paramref name="localOriginal"/> parameter directly. Use when you
+    /// need to convert a point's coordinates to the world space without creating a new instance.</remarks>
+    /// <param name="localOriginal">The point, in local coordinate space, to be transformed. The value is updated to represent the corresponding
+    /// world coordinates.</param>
+    public void ToWorldPoint(ref PointF localOriginal)
+    {
+        Matrix3x2 worldTransform = GetWorldTransform();
+        float x = localOriginal.X;
+        float y = localOriginal.Y;
+        localOriginal.X = worldTransform.M11 * x + worldTransform.M21 * y + worldTransform.M31;
+        localOriginal.Y = worldTransform.M12 * x + worldTransform.M22 * y + worldTransform.M32;
+    }
+
+    /// <summary>
     /// Must be set to true for this object to receive events.
     /// (为 true 时此对象才能接收事件。)
     /// </summary>

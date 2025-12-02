@@ -19,6 +19,8 @@ public class Number : Container
     private bool _isDirty;
     private Animator? _animator = null;
 
+    public Text InnerText => _text;
+
     public Number(Text text, decimal initValue = 0m, string format = FORMAT_COMMA)
     {
         _text = text;
@@ -31,6 +33,9 @@ public class Number : Container
 
     public string Prefix { get; set; } = string.Empty;
     public string Suffix { get; set; } = string.Empty;
+
+    public float AnimationDuration { get; set; } = 0.8f;
+    public bool Animating { get; set; } = true;
 
     public string Format
     {
@@ -48,7 +53,15 @@ public class Number : Container
         set
         {
             _targetValue = value;
-            _isDirty = true;
+            if (!Animating)
+            {
+                _value = value;
+                UpdateText();
+            }
+            else
+            {
+                _isDirty = true;
+            }
         }
     }
 
@@ -60,7 +73,15 @@ public class Number : Container
 
         _isDirty = false;
         _animator?.Stop();
-        _animator = this.Animate(duration: 0.8f, AnimatingUpdate, EasingFunction.CircleEaseInOut, delay: 0.1f);
+        if (AnimationDuration >= 0.001f)
+        {
+            _animator = this.Animate(duration: AnimationDuration, AnimatingUpdate, EasingFunction.CircleEaseInOut, delay: 0.1f);
+        }
+        else
+        {
+            _value = _targetValue;
+            UpdateText();
+        }
     }
 
     private void AnimatingUpdate(Animator _, float factor)
@@ -72,5 +93,8 @@ public class Number : Container
     private void UpdateText()
     {
         _text.Content = Prefix + _value.ToString(_format) + Suffix;
+        var rect = _text.GetTextRect(true);
+        this.Width = rect.Width;
+        this.Height = rect.Height;
     }
 }
