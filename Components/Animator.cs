@@ -142,7 +142,7 @@ public class Animator
         _target.OnUpdate += Update;
         _target.OnDisposed += Stop;
         _isPlaying = true;
-    } 
+    }
 
     /// <summary>
     /// 停止动画，并保持当前状态。
@@ -347,14 +347,28 @@ public class Animator
     public Animator ContinueWith(Action<Animator> continuation)
     {
         ArgumentNullException.ThrowIfNull(continuation);
-        Task.ContinueWith(_ => continuation(this), TaskScheduler.FromCurrentSynchronizationContext());
+        Task.ContinueWith(_ => continuation(this));
         return this;
     }
 
     public Animator ContinueWith(Action action)
     {
         ArgumentNullException.ThrowIfNull(action);
-        Task.ContinueWith(_ => action(), TaskScheduler.FromCurrentSynchronizationContext());
+        Task.ContinueWith(_ => action());
+        return this;
+    }
+
+    public Animator ContinueWith(Action<Animator> continuation, TaskScheduler scheduler)
+    {
+        ArgumentNullException.ThrowIfNull(continuation);
+        Task.ContinueWith(_ => continuation(this), scheduler);
+        return this;
+    }
+
+    public Animator ContinueWith(Action action, TaskScheduler scheduler)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        Task.ContinueWith(_ => action(), scheduler);
         return this;
     }
 }
