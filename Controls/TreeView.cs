@@ -24,6 +24,7 @@ namespace Pixi2D.Controls
         // --- 状态 ---
         private bool _isExpanded = false;
         private bool _isSelected = false;
+        private bool _isHovered = false; // 新增：追踪悬停状态
         private readonly float _indent = 20f; // 缩进量
 
         // --- 样式 ---
@@ -52,8 +53,11 @@ namespace Pixi2D.Controls
                 Interactive = true
             };
 
+            Height = _headerContainer.Height; // 初始高度为头部高度
+
             // 2. 头部背景 (Selection/Hover)
             _headerBackground = new Graphics();
+            // 初始绘制
             UpdateHeaderBackground();
             _headerContainer.AddChild(_headerBackground);
 
@@ -64,7 +68,7 @@ namespace Pixi2D.Controls
                 Y = 9,
                 FillColor = _arrowColor,
                 Interactive = true, // 箭头单独可点
-                Anchor = 0.5f, 
+                Anchor = 0.5f,
             };
             // 绘制一个指向右侧的三角形
             _arrow.DrawPolygon([
@@ -109,11 +113,13 @@ namespace Pixi2D.Controls
             // 悬停效果
             _headerContainer.OnMouseOver += (e) =>
             {
-                if (!_isSelected) _headerBackground.FillColor = _colorHover;
+                _isHovered = true;
+                UpdateHeaderBackground();
             };
             _headerContainer.OnMouseOut += (e) =>
             {
-                if (!_isSelected) _headerBackground.FillColor = _colorNormal;
+                _isHovered = false;
+                UpdateHeaderBackground();
             };
         }
 
@@ -151,8 +157,11 @@ namespace Pixi2D.Controls
             get => _isSelected;
             set
             {
-                _isSelected = value;
-                UpdateHeaderBackground();
+                if (_isSelected != value)
+                {
+                    _isSelected = value;
+                    UpdateHeaderBackground();
+                }
             }
         }
 
@@ -245,10 +254,26 @@ namespace Pixi2D.Controls
             return (w, h);
         }
 
+        /// <summary>
+        /// 更新头部背景颜色 (根据状态：选中 > 悬停 > 普通)。
+        /// </summary>
         private void UpdateHeaderBackground()
         {
             _headerBackground.Clear();
-            _headerBackground.FillColor = _isSelected ? _colorSelected : _colorNormal;
+
+            RawColor4 targetColor = _colorNormal;
+
+            if (_isSelected)
+            {
+                targetColor = _colorSelected;
+            }
+            else if (_isHovered)
+            {
+                targetColor = _colorHover;
+            }
+
+            _headerBackground.FillColor = targetColor;
+
             // 绘制一个覆盖头部的矩形，宽度设为一个较大值 (例如 2000)，依靠 TreeView 的 Clip 裁剪
             _headerBackground.DrawRectangle(0, 0, 2000, _headerContainer.Height);
         }
