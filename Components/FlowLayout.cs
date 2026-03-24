@@ -554,14 +554,8 @@ public class FlowLayout : Container
     /// </summary>
     public void AddBreak()
     {
-        AddChild(FlowBreak.Instance);
-    }
-
-    /// <summary>
-    /// 用于获取换行符实例的静态属性。 
-    /// e.g. layout.AddChild(FlowLayout.Break);
-    /// </summary>
-    public static FlowBreak Break => FlowBreak.Instance;
+        AddChild(new FlowBreak());
+    } 
 
     /// <summary>
     /// 一個用於 FlowList 的標記对象，表示換行（或換列）。 
@@ -575,7 +569,7 @@ public class FlowLayout : Container
             // (此對象不渲染任何內容。)
         }
 
-        private FlowBreak() { }
+        public FlowBreak() { }
 
         public static FlowBreak Instance { get; } = new();
     }
