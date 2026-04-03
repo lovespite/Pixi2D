@@ -54,7 +54,6 @@ public class Switch : Container
 
         // 2. 创建文本 (显示在轨道内部)
         _label = FancyText.Factory.From(textFactory).Create(_negativeText, height * 0.4f, Color.Gray);
-        _label.SetAnchor(0.5f, 0.5f); // 居中锚点，方便定位
         AddChild(_label);
 
         // 3. 创建滑块 (圆钮)
