@@ -317,7 +317,7 @@ public class FlowLayout : Container
     /// <summary>
     /// 重新計算所有子項的位置，支持对齐。 
     /// </summary>
-    public void UpdateLayout()
+    public virtual void UpdateLayout()
     {
         if (Children.Count == 0) return;
 
@@ -388,7 +388,7 @@ public class FlowLayout : Container
     /// <summary>
     /// 辅助方法：计算一行/一列在交叉轴上的最大尺寸。 
     /// </summary>
-    private float GetLineCrossSize(List<DisplayObject> lineItems)
+    protected float GetLineCrossSize(List<DisplayObject> lineItems)
     {
         float maxCrossSize = 0;
         bool isHorizontal = _direction == LayoutDirection.Horizontal;
@@ -410,7 +410,7 @@ public class FlowLayout : Container
     /// <param name="lineItems">该行/列中的可见元素 </param>
     /// <param name="crossPos">该行/列的交叉轴起始位置</param>
     /// <param name="maxCrossSizeOnLine">该行/列的最大交叉轴尺寸 </param>
-    private void LayoutLine(List<DisplayObject> lineItems, float crossPos, float maxCrossSizeOnLine)
+    protected void LayoutLine(List<DisplayObject> lineItems, float crossPos, float maxCrossSizeOnLine)
     {
         if (_direction == LayoutDirection.Horizontal)
         {
@@ -555,7 +555,7 @@ public class FlowLayout : Container
     public void AddBreak()
     {
         AddChild(new FlowBreak());
-    } 
+    }
 
     /// <summary>
     /// 一個用於 FlowList 的標記对象，表示換行（或換列）。 
@@ -572,5 +572,108 @@ public class FlowLayout : Container
         public FlowBreak() { }
 
         public static FlowBreak Instance { get; } = new();
+    }
+}
+
+/// <summary>
+/// 自动流式布局容器。
+/// 继承自 FlowLayout，当内容即将超出主轴（Width/Height）时，会自动在逻辑上换行/换列。
+/// 依然兼容手动的 FlowBreak。
+/// </summary>
+public class AutoFlowLayout : FlowLayout
+{
+    public override void UpdateLayout()
+    {
+        if (Children.Count == 0) return;
+
+        List<DisplayObject> currentLine = new List<DisplayObject>();
+
+        // 交叉轴的起始位置
+        float crossPos = Direction == LayoutDirection.Horizontal ? PaddingTop : PaddingLeft;
+
+        // 主轴的最大可用尺寸（用于判断是否需要自动换行）
+        float maxMainSize = Direction == LayoutDirection.Horizontal
+            ? (Width - PaddingLeft - PaddingRight)
+            : (Height - PaddingTop - PaddingBottom);
+
+        // 记录当前行在主轴上的累计尺寸
+        float currentLineMainSize = 0f;
+
+        for (int i = 0; i < Children.Count; i++)
+        {
+            var child = Children[i];
+
+            // 1. 处理手动的显式换行符 (保留原生功能)
+            if (child is FlowBreak)
+            {
+                if (currentLine.Count > 0)
+                {
+                    float lineCrossSize = GetLineCrossSize(currentLine);
+                    LayoutLine(currentLine, crossPos, lineCrossSize);
+                    crossPos += lineCrossSize + (lineCrossSize > 0 ? Gap : 0);
+                    currentLine.Clear();
+                    currentLineMainSize = 0f;
+                }
+                continue;
+            }
+
+            if (!child.Visible) continue;
+
+            // 获取当前元素在主轴上的尺寸
+            float childMainSize = Direction == LayoutDirection.Horizontal ? child.Width : child.Height;
+
+            // 2. 自动换行判断的核心逻辑
+            // 如果当前行已经有元素，并且容器有明确约束 (maxMainSize > 0)
+            // 且 当前累积尺寸 + 间距 + 新元素尺寸 > 容器最大尺寸，则触发逻辑换行
+            if (currentLine.Count > 0 && maxMainSize > 0 &&
+               (currentLineMainSize + Gap + childMainSize > maxMainSize))
+            {
+                // 结算并布局当前行
+                float lineCrossSize = GetLineCrossSize(currentLine);
+                LayoutLine(currentLine, crossPos, lineCrossSize);
+
+                // 游标向下/向右移动
+                crossPos += lineCrossSize + (lineCrossSize > 0 ? Gap : 0);
+
+                // 清空当前行状态，准备装载新行
+                currentLine.Clear();
+                currentLineMainSize = 0f;
+            }
+
+            // 将当前元素加入当前行
+            currentLine.Add(child);
+            currentLineMainSize += childMainSize + (currentLine.Count > 1 ? Gap : 0);
+        }
+
+        // 3. 布局最后一行
+        if (currentLine.Count > 0)
+        {
+            float lineCrossSize = GetLineCrossSize(currentLine);
+            LayoutLine(currentLine, crossPos, lineCrossSize);
+        }
+
+        // 4. 处理 AutoSize 逻辑 (和基类一致，包裹所有子元素)
+        if (!AutoSize) return;
+
+        float contentRight = 0f;
+        float contentBottom = 0f;
+
+        foreach (var child in Children)
+        {
+            if (!child.Visible || child is FlowBreak) continue;
+
+            float right = child.X + child.Width;
+            float bottom = child.Y + child.Height;
+
+            if (right > contentRight) contentRight = right;
+            if (bottom > contentBottom) contentBottom = bottom;
+        }
+
+        // 确保容器尺寸至少包含 Padding
+        float newWidth = Math.Max(contentRight + PaddingRight, PaddingLeft + PaddingRight);
+        float newHeight = Math.Max(contentBottom + PaddingBottom, PaddingTop + PaddingBottom);
+
+        if (this.Width != newWidth) this.Width = newWidth;
+        if (this.Height != newHeight) this.Height = newHeight;
     }
 }
