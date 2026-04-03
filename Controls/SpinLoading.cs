@@ -29,8 +29,8 @@ public class SpinLoading : Container
         _sprite.SetAnchor(0.5f, 0.5f);
 
         // 将 Sprite 放置在容器的 (0,0) 位置
-        _sprite.X = 0;
-        _sprite.Y = 0;
+        _sprite.X = sprite.Width / 2f;
+        _sprite.Y = sprite.Height / 2f;
 
         AddChild(_sprite);
 

@@ -116,7 +116,7 @@ public abstract class DisplayObject : IDisposable
         return Matrix3x2.CreateTranslation(-anchorOffsetX, -anchorOffsetY) *
                Matrix3x2.CreateScale(ScaleX, ScaleY) *
                Matrix3x2.CreateRotation(Rotation) *
-               Matrix3x2.CreateTranslation(X + anchorOffsetX, Y + anchorOffsetY);
+               Matrix3x2.CreateTranslation(X  , Y  );
     }
 
     /// <summary>

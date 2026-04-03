@@ -2,6 +2,7 @@ using Pixi2D.Core;
 using Pixi2D.Events;
 using Pixi2D.Extensions;
 using SharpDX.Direct2D1;
+using SharpDX.WIC;
 using System.Drawing;
 
 namespace Pixi2D.Controls;
