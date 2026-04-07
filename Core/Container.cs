@@ -145,7 +145,7 @@ public class Container : DisplayObject, IReadOnlyList<DisplayObject>
         // 没有子项被命中。
         // 检查这个容器本身是否被命中 (这依赖于 base.FindHitObject 和 this.HitTest)
         // 只有当 this.Interactive == true 时才会检查
-        return base.FindHitObject(worldPoint, myWorldTransform, hitEvent);
+        return base.FindHitObject(worldPoint, currentTransform, hitEvent);
     }
 
     /// <summary>
