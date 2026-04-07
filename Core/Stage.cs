@@ -54,6 +54,11 @@ public sealed class Stage : Container
         AcceptFocus = true;
     }
 
+    public override bool HitTest(PointF localPoint)
+    {
+        return Interactive;
+    }
+
     /// <summary>
     /// 渲染整个场景。
     /// 此方法现在会触发变换更新和渲染。
