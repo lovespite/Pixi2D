@@ -456,6 +456,14 @@ public class Text : DisplayObject
         {
         }
 
+        public TextMetrics MeasureText(string? text, float maxWidth)
+        {
+            if (string.IsNullOrEmpty(text)) return default;
+
+            using var layout = new TextLayout(m_dwFactory, text, new TextFormat(m_dwFactory, FontFamily, FontSize), maxWidth, float.MaxValue);
+            return layout.Metrics;
+        }
+
         public string FontFamily { get; set; } = "Arial";
         public FontWeight FontWeight { get; set; } = FontWeight.Regular;
         public FontStyle FontStyle { get; set; } = FontStyle.Normal;
