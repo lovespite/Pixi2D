@@ -306,9 +306,15 @@ public class FlowLayout : Container
     /// <summary>
     /// 清除所有子項。 
     /// </summary>
-    public new void ClearChildren()
+    public override void ClearChildren()
     {
         base.ClearChildren();
+        UpdateLayout();
+    }
+
+    public override void ClearChildren(bool dispose)
+    {
+        base.ClearChildren(dispose);
         UpdateLayout();
     }
 

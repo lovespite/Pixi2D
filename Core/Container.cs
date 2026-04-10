@@ -98,11 +98,21 @@ public class Container : DisplayObject, IReadOnlyList<DisplayObject>
         InsertChildAt(child, index + 1);
     }
 
-    public void ClearChildren()
+    public virtual void ClearChildren()
     {
         foreach (var child in Children)
         {
             child.Parent = null;
+        }
+        Children.Clear();
+    }
+
+    public virtual void ClearChildren(bool dispose)
+    {
+        foreach (var child in Children)
+        {
+            child.Parent = null;
+            if (dispose) child.Dispose();
         }
         Children.Clear();
     }
