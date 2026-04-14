@@ -1,6 +1,7 @@
 ﻿using Pixi2D.Core;
 using Pixi2D.Events;
 using Pixi2D.Extensions;
+using SharpDX.Mathematics.Interop;
 using System.Data;
 using System.Drawing;
 
@@ -111,6 +112,8 @@ public class Table : Container
     {
         _dataDirty = true;
     }
+
+    public void InvalidateData() => _dataDirty = true;
 
     // 内部状态缓存
     private bool _dataDirty = false;
@@ -600,15 +603,25 @@ public class TableCell : Container
         AddChild(m_text);
     }
 
+    private RawColor4 m_textColor = new(1, 1, 1, 1);
+    private RawColor4 m_bgColor = new(0, 0, 0, 0);
+    private RawColor4 m_strokeColor = new(0.33f, 0.33f, 0.33f, 1);
+
+    public RawColor4 BorderColor { get => m_strokeColor; set => m_strokeColor = value; }
+    public RawColor4 Color { get => m_textColor; set => m_textColor = value; }
+    public RawColor4 BackColor { get => m_bgColor; set => m_bgColor = value; }
+
     public void UpdateData(string text, float width, float height, bool isHeader, float maxColumnWidth)
     {
         // 1. 绘制背景与边框
         m_background.Clear();
         m_background.StrokeWidth = 1;
-        m_background.StrokeColor = Color.Gray.ToRawColor4();
+        m_background.StrokeColor = m_strokeColor;
+        m_background.FillColor = m_bgColor;
         m_background.DrawRectangle(0, 0, width, height);
 
         // 2. 更新文本和排版
+        m_text.FillColor = m_textColor;
         m_text.Content = text;
         m_text.MaxWidth = maxColumnWidth; // 设置文本最大换行宽度
 
