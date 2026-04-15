@@ -64,6 +64,8 @@ public class TextBox : Container
     private float _borderRadius = 4f;
 
     private bool _bgDirty = true;
+    private bool _layoutDirtty = true;
+
     /// <summary>
     /// 获取或设置输入框中的文本内容。 
     /// </summary>
@@ -104,18 +106,8 @@ public class TextBox : Container
         set
         {
             _boxHeight = value;
-            if (_multiline)
-            {
-                _textClipContainer.Y = _paddingY;
-                _textClipContainer.ClipHeight = _boxHeight - (_paddingY * 2);
-            }
-            else
-            {
-                float textHeight = _textFactory.FontSize + 2f;
-                _textClipContainer.Y = (_boxHeight - textHeight) / 2;
-                _textClipContainer.ClipHeight = textHeight + _paddingY;
-            }
             _bgDirty = true;
+            _layoutDirtty = true;
         }
     }
 
@@ -125,43 +117,18 @@ public class TextBox : Container
         set
         {
             _boxWidth = value;
-            _textClipContainer.ClipWidth = _boxWidth - (_paddingX * 2);
             _bgDirty = true;
+            _layoutDirtty = true;
         }
     }
 
 
     /// <summary>
-    /// 获取或设置是否启用多行模式。
+    /// 获取是否启用多行模式。
     /// 默认 false (单行，水平滚动)。
     /// true (多行，垂直换行，内容裁剪)。
     /// </summary>
-    public bool Multiline
-    {
-        get => _multiline;
-        set
-        {
-            if (_multiline != value)
-            {
-                _multiline = value;
-                _textDisplay.WordWrap = value; // 启用或禁用文本换行 
-                if (value)
-                {
-                    // 多行: 按宽度换行，重置滚动 
-                    _textDisplay.MaxWidth = _boxWidth - (_paddingX * 2);
-                    _textContainer.X = 0;
-                }
-                else
-                {
-                    // 单行: 不换行，无限宽度 
-                    _textDisplay.MaxWidth = float.MaxValue;
-                }
-                _caretPositionDirty = true;
-                _displayStateDirty = true;
-                UpdateTextAndCaret();
-            }
-        }
-    }
+    public bool Multiline => _multiline;
 
     #endregion
 
@@ -322,7 +289,7 @@ public class TextBox : Container
     /// <param name="textFactory">用于创建内部 Text 对象的工厂。</param>
     /// <param name="width">输入框宽度。</param>
     /// <param name="height">输入框高度。</param>
-    public TextBox(Text.Factory textFactory, float width = 200f, float height = 30f)
+    public TextBox(Text.Factory textFactory, float width = 200f, float height = 30f, bool multiline = false)
     {
         _textFactory = textFactory;
         _boxWidth = width;
@@ -365,8 +332,26 @@ public class TextBox : Container
 
         // 5. 创建文本显示
         _textDisplay = _textFactory.Create();
-        _textDisplay.WordWrap = false; // 默认: 不换行
-        _textDisplay.MaxWidth = float.MaxValue; // 默认: 无限宽度
+
+        _multiline = multiline;
+        if (_multiline)
+        {
+            _textDisplay.WordWrap = true;
+            // 多行: 按宽度换行，重置滚动 
+            _textDisplay.MaxWidth = Math.Max(1, _boxWidth - (_paddingX * 2));
+            _textContainer.X = 0;
+
+            _caretPositionDirty = true;
+            _displayStateDirty = true;
+            UpdateTextAndCaret();
+        }
+        else
+        {
+            _textDisplay.WordWrap = false; // 默认: 不换行 
+            // 单行: 不换行，无限宽度 
+            _textDisplay.MaxWidth = 1048576f;
+        }
+
         _textContainer.AddChild(_textDisplay);
 
         // 5.5 创建占位符文本 (可选)
@@ -941,6 +926,28 @@ public class TextBox : Container
     public override void Update(float deltaTime)
     {
         base.Update(deltaTime); // 更新子控件
+
+        if (_layoutDirtty)
+        {
+            if (_multiline)
+            {
+                _textClipContainer.X = _paddingX;
+                _textClipContainer.Y = _paddingY;
+                _textClipContainer.ClipWidth = _boxWidth - (_paddingX * 2);
+                _textClipContainer.ClipHeight = _boxHeight - (_paddingY * 2);
+                _textDisplay.MaxWidth = _boxWidth;
+            }
+            else
+            {
+                float textHeight = _textFactory.FontSize + 2f;
+                _textClipContainer.X = _paddingX;
+                _textClipContainer.Y = (_boxHeight - textHeight) / 2;
+                _textClipContainer.ClipHeight = textHeight + _paddingY;
+            }
+
+            _layoutDirtty = false;
+        }
+
         if (_caretPositionDirty)
         {
             TryUpdateCaretPosition();

@@ -445,9 +445,8 @@ partial class MessageBox
         text.Height = promptTextRect.Height; // 自动高度
 
         // 添加输入框
-        var textBox = new TextBox(textFactory, 375, inputHeight)
+        var textBox = new TextBox(textFactory, 375, inputHeight, multiline: multiline)
         {
-            Multiline = multiline,
             RequireShiftForNewLine = multiline,
             Text = defaultText ?? string.Empty,
         };

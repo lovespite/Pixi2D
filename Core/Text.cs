@@ -39,8 +39,8 @@ public class Text : DisplayObject
     private RawColor4 _borderColor = new(0, 0, 0, 0); // 默认透明
 
     // Layout & Style
-    private float _maxWidth = float.MaxValue;
-    private float _maxHeight = float.MaxValue;
+    private float _maxWidth = 1048576f;
+    private float _maxHeight = 1048576f;
     private WordWrapping _wordWrapping = WordWrapping.Wrap;
     private float _borderWidth = 0f;
     private float _borderRadius = 0f;
@@ -158,7 +158,7 @@ public class Text : DisplayObject
                                 fontWeight: _fontWeight,
                                 fontStyle: _fontStyle)
                 {
-                    WordWrapping = WordWrapping.Wrap
+                    WordWrapping = _wordWrapping // WordWrapping.Wrap
                 };
             _isDirty = true; // 标记布局仍需更新
         }
@@ -460,7 +460,7 @@ public class Text : DisplayObject
         {
             if (string.IsNullOrEmpty(text)) return default;
 
-            using var layout = new TextLayout(m_dwFactory, text, new TextFormat(m_dwFactory, FontFamily, FontSize), maxWidth, float.MaxValue);
+            using var layout = new TextLayout(m_dwFactory, text, new TextFormat(m_dwFactory, FontFamily, FontSize), maxWidth, 1048576f);
             return layout.Metrics;
         }
 
