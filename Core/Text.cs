@@ -508,6 +508,18 @@ public class Text : DisplayObject
                             color: fillColor.ToRawColor4());
         }
 
+        public Text Create(string text, Color fillColor)
+        {
+            return new Text(
+                            m_dwFactory,
+                            text: text,
+                            fontFamily: FontFamily,
+                            fontSize: FontSize,
+                            weight: FontWeight,
+                            style: FontStyle,
+                            color: fillColor.ToRawColor4());
+        }
+
         public Text Create(string text, FontStyle fontStyle)
         {
             return new Text(

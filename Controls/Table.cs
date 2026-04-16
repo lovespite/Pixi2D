@@ -79,7 +79,7 @@ public class Table : Container
     private void SubscribeEvents()
     {
         if (_dataSource is null) return;
-
+        if (!AutoUpdate) return;
         _dataSource.RowChanged += OnDataRowChanged;
         _dataSource.RowDeleted += OnDataRowChanged;
         _dataSource.ColumnChanged += OnDataColChanged;
@@ -113,7 +113,10 @@ public class Table : Container
         _dataDirty = true;
     }
 
-    public void InvalidateData() => _dataDirty = true;
+    public void NotifyDataChanged()
+    {
+        _dataDirty = true;
+    }
 
     // 内部状态缓存
     private bool _dataDirty = false;
@@ -156,6 +159,8 @@ public class Table : Container
 
     private float _lastWidth = 0;
     private float _lastHeight = 0;
+
+    public bool AutoUpdate { get; set; } = true;
 
     public Table(Text.Factory textFactory)
     {
