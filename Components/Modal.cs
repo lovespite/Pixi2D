@@ -201,6 +201,7 @@ public class Modal : Container
     public static void Alert(Stage stage, string content, string okText = "确定", Text.Factory? factory = null)
     {
         new Builder(factory)
+            .SetMaxSize(800, 600)
             .SetContent(content)
             .AddAction(okText)
             .Build()
