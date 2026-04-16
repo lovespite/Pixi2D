@@ -2,7 +2,6 @@
 using Pixi2D.Core;
 using Pixi2D.Events;
 using SharpDX.Mathematics.Interop;
-using System.ComponentModel.DataAnnotations;
 using System.Drawing;
 
 namespace Pixi2D.Components;
@@ -13,6 +12,9 @@ namespace Pixi2D.Components;
 /// [MessageBox.TextFactory] 和 [MessageBox.DefaultStage] 
 /// 必须在调用前被设置。 
 /// </summary>
+/// <remarks>
+/// 如果只是简单的提示文本消息，强烈建议使用更现代化设计的 <see cref="Modal"/> 组件。  <br /> 
+/// </remarks>
 public partial class MessageBox : Panel
 {
     /// <summary>
