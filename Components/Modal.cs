@@ -71,6 +71,7 @@ public class Modal : Container
 
         var width = stage.Width;
         var height = stage.Height;
+        float outerWidth, outerHeight;
 
         var mask = new Panel(width + 20, height + 20)
         {
@@ -79,7 +80,6 @@ public class Modal : Container
             Interactive = true,
             BackgroundColor = MaskColor,
         };
-        mask.OnClick += (e) => { if (MaskClosable) DestroyModal(); };
 
         var contentText = TextFactory.Create(Content);
         contentText.FillColor = ForeColor;
@@ -90,7 +90,7 @@ public class Modal : Container
         contentText.WordWrap = true;
         contentText.MaxWidth = MaxSize.Width - Padding * 2;
         var contentTextRect = contentText.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget());
-        var outerWidth = Math.Clamp(contentTextRect.Width + Padding * 2, 320, MaxSize.Width);
+        outerWidth = Math.Clamp(contentTextRect.Width + Padding * 2, 320, MaxSize.Width);
 
         var actionsBar = new AutoFlowLayout
         {
@@ -107,15 +107,16 @@ public class Modal : Container
             var btnRect = btnText.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget());
             var button = new Button(btnText, btnRect.Width + 20, btnRect.Height + 10);
             actionsBar.AddChild(button);
-            button.OnButtonClick += (e) =>
-            {
-                a.Callback?.Invoke();
-                DestroyModal();
-            };
+            button.Tag = a;
+            //button.OnButtonClick += (e) =>
+            //{
+            //    a.Callback?.Invoke();
+            //    DestroyModal();
+            //};
             if (button.Height > actionsBar.Height) actionsBar.Height = button.Height;
         }
 
-        var outerHeight = Math.Clamp(contentTextRect.Height + actionsBar.Height + Padding * 2, 120, MaxSize.Height);
+        outerHeight = Math.Clamp(contentTextRect.Height + actionsBar.Height + Padding * 2, 120, MaxSize.Height);
 
         //var boxX = (stage.Width - outerWidth) / 2;
         //var boxY = (stage.Height - outerHeight) / 2;
@@ -144,13 +145,39 @@ public class Modal : Container
 
         mask.AddChildren(bg, vbox);
         stage.AddChild(mask);
+
+        stage.OnResize += Stage_OnResize;
+
         Interlocked.Increment(ref s_modalCounter);
+
+        // Install event handlers
+        mask.OnClick += (e) => { if (MaskClosable) DestroyModal(); };
+        actionsBar.OfType<Button>().ToList().ForEach(btn =>
+        {
+            btn.OnButtonClick += (e) =>
+            {
+                if (btn.Tag is ModalAction action)
+                {
+                    action.Callback?.Invoke();
+                }
+                DestroyModal();
+            };
+        });
 
         void DestroyModal()
         {
             Interlocked.Decrement(ref s_modalCounter);
+            stage.OnResize -= Stage_OnResize;
             stage.RemoveChild(mask);
             mask.Dispose();
+        }
+
+        void Stage_OnResize(Stage arg1, float w, float h)
+        {
+            mask.SetSize(w + 20, h + 20);
+            var newPos = GetPopupPostion(new SizeF(outerWidth, outerHeight), new SizeF(w, h));
+            bg.SetPosition(newPos.X, newPos.Y);
+            vbox.SetPosition(newPos.X + 10, newPos.Y + 10);
         }
     }
 
