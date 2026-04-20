@@ -237,6 +237,19 @@ public class Modal : Container
         return tcs.Task;
     }
 
+    public static async Task<bool> Confirm(Stage stage, string content, string okText = "确定", string cancelText = "取消", Text.Factory? factory = null)
+    {
+        var tcs = new TaskCompletionSource<bool>();
+        new Builder(factory)
+            .SetMaxSize(800, 600)
+            .SetContent(content)
+            .AddAction(okText, () => tcs.SetResult(true))
+            .AddAction(cancelText, () => tcs.SetResult(false))
+            .Build()
+            .Popup(stage);
+        return await tcs.Task;
+    }
+
     public class Builder
     {
         private readonly Modal m_modal;
