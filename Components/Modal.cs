@@ -225,14 +225,16 @@ public class Modal : Container
         public Action? Callback { get; init; }
     }
 
-    public static void Alert(Stage stage, string content, string okText = "确定", Text.Factory? factory = null)
+    public static Task Alert(Stage stage, string content, string okText = "确定", Text.Factory? factory = null)
     {
+        var tcs = new TaskCompletionSource();
         new Builder(factory)
             .SetMaxSize(800, 600)
             .SetContent(content)
-            .AddAction(okText)
+            .AddAction(okText, tcs.SetResult)
             .Build()
             .Popup(stage);
+        return tcs.Task;
     }
 
     public class Builder
