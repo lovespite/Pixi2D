@@ -4,13 +4,13 @@ using System.Reflection.Metadata;
 
 namespace Pixi2D.Components;
 
-public class GeneralProgressMessage
+public readonly struct GeneralProgressMessage
 {
-    public string? Message { get; init; }
-    public float Progress { get; init; } = 0f;
+    public readonly string? Message { get; init; }
+    public readonly float Progress { get; init; }
 }
 
-public class GeneralProgressBridge: IDisposable
+public class GeneralProgressBridge : IDisposable
 {
     public event Action<GeneralProgressMessage>? OnProgress;
     public event Action? OnAbort;
