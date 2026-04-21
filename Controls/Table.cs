@@ -1,9 +1,8 @@
 ﻿using Pixi2D.Core;
 using Pixi2D.Events;
-using Pixi2D.Extensions;
 using SharpDX.Mathematics.Interop;
-using System.Data;
-using System.Drawing;
+
+using DataTable = System.Collections.Generic.IReadOnlyList<string[]>;
 
 namespace Pixi2D.Controls;
 
@@ -58,60 +57,60 @@ public class Table : Container
     }
 
     // --- 数据源绑定 ---
-    public DataTable? DataSource
+    public IReadOnlyList<string[]>? DataSource
     {
         get => _dataSource;
         set
         {
             if (_dataSource == value) return;
 
-            UnsubscribeEvents(); // 先取消订阅旧数据源的事件
+            // UnsubscribeEvents(); // 先取消订阅旧数据源的事件
 
             _dataSource = value;
             _dataDirty = true;
             ScrollY = 0;
             ScrollX = 0;
 
-            SubscribeEvents();
+            // SubscribeEvents();
         }
     }
 
-    private void SubscribeEvents()
-    {
-        if (_dataSource is null) return;
-        if (!AutoUpdate) return;
-        _dataSource.RowChanged += OnDataRowChanged;
-        _dataSource.RowDeleted += OnDataRowChanged;
-        _dataSource.ColumnChanged += OnDataColChanged;
-        _dataSource.TableCleared += OnDataTableCleared;
-    }
+    //private void SubscribeEvents()
+    //{
+    //    if (_dataSource is null) return;
+    //    if (!AutoUpdate) return;
+    //    _dataSource.RowChanged += OnDataRowChanged;
+    //    _dataSource.RowDeleted += OnDataRowChanged;
+    //    _dataSource.ColumnChanged += OnDataColChanged;
+    //    _dataSource.TableCleared += OnDataTableCleared;
+    //}
 
-    private void UnsubscribeEvents()
-    {
-        if (_dataSource is null) return;
+    //private void UnsubscribeEvents()
+    //{
+    //    if (_dataSource is null) return;
 
-        _dataSource.RowChanged -= OnDataRowChanged;
-        _dataSource.RowDeleted -= OnDataRowChanged;
-        _dataSource.ColumnChanged -= OnDataColChanged;
-        _dataSource.TableCleared -= OnDataTableCleared;
-    }
+    //    _dataSource.RowChanged -= OnDataRowChanged;
+    //    _dataSource.RowDeleted -= OnDataRowChanged;
+    //    _dataSource.ColumnChanged -= OnDataColChanged;
+    //    _dataSource.TableCleared -= OnDataTableCleared;
+    //}
 
     // --- 事件处理函数 ---
 
-    private void OnDataColChanged(object sender, DataColumnChangeEventArgs e)
-    {
-        _dataDirty = true;
-    }
+    //private void OnDataColChanged(object sender, DataColumnChangeEventArgs e)
+    //{
+    //    _dataDirty = true;
+    //}
 
-    private void OnDataRowChanged(object sender, DataRowChangeEventArgs e)
-    {
-        _dataDirty = true;
-    }
+    //private void OnDataRowChanged(object sender, DataRowChangeEventArgs e)
+    //{
+    //    _dataDirty = true;
+    //}
 
-    private void OnDataTableCleared(object sender, DataTableClearEventArgs e)
-    {
-        _dataDirty = true;
-    }
+    //private void OnDataTableCleared(object sender, DataTableClearEventArgs e)
+    //{
+    //    _dataDirty = true;
+    //}
 
     public void NotifyDataChanged()
     {
@@ -415,7 +414,7 @@ public class Table : Container
             _stage = null;
         }
 
-        UnsubscribeEvents(); // 确保控件销毁时不会留下强引用
+        // UnsubscribeEvents(); // 确保控件销毁时不会留下强引用
         _dataSource = null;
 
         base.Dispose(); // 调用基类清理逻辑
@@ -444,9 +443,9 @@ public class Table : Container
         if (_dataDirty)
         {
             CalculateDimensions();
-            _dataDirty = false;
-            _layoutDirty = true; // 尺寸变了，必须要重新布局视窗内的 Cell
             UpdateScrollBars();
+            _layoutDirty = true; // 尺寸变了，必须要重新布局视窗内的 Cell
+            _dataDirty = false;
         }
 
         // 2. 布局“脏”了（比如数据变了、或者发生了滚动）
@@ -464,14 +463,14 @@ public class Table : Container
 
     private void CalculateDimensions()
     {
-        if (DataSource == null || DataSource.Columns.Count == 0)
+        if (DataSource == null || DataSource.Count == 0 || DataSource[0].Length == 0)
         {
             _totalWidth = 0; _totalHeight = 0;
             return;
         }
 
-        int colCount = DataSource.Columns.Count;
-        int rowCount = DataSource.Rows.Count + 1; // +1 用于表头(Header)
+        int colCount = DataSource[0].Length;
+        int rowCount = DataSource.Count;
 
         _colWidths = new float[colCount];
         _colPositions = new float[colCount];
@@ -492,8 +491,7 @@ public class Table : Container
 
             for (int r = 0; r < rowCount; r++)
             {
-                string text = (r == 0) ? DataSource.Columns[c].ColumnName
-                                       : Convert.ToString(DataSource.Rows[r - 1][c]) ?? "";
+                string text = DataSource[r][c];
 
                 // 测量文本，留出内边距。如果文本超出 MaxColumnWidth，会根据其自动换行
                 var size = m_textFactory.MeasureText(text, MaxColumnWidth);
@@ -552,14 +550,11 @@ public class Table : Container
             {
                 TableCell cell = GetOrCreateCell();
 
-                // 判定是否是表头
-                bool isHeader = (r == 0);
-                string text = isHeader
-                    ? DataSource.Columns[c].ColumnName
-                    : DataSource.Rows[r - 1][c]?.ToString() ?? "";
+                // 判定是否是表头 
+                string text = DataSource[r][c];
 
                 // 填充数据并更新UI配置
-                cell.UpdateData(text, _colWidths[c], _rowHeights[r], isHeader, MaxColumnWidth);
+                cell.UpdateData(text, _colWidths[c], _rowHeights[r], MaxColumnWidth);
 
                 // 设置相对坐标（绝对坐标 - 滚动偏移量）
                 cell.X = _colPositions[c] - ScrollX;
@@ -616,7 +611,7 @@ public class TableCell : Container
     public RawColor4 Color { get => m_textColor; set => m_textColor = value; }
     public RawColor4 BackColor { get => m_bgColor; set => m_bgColor = value; }
 
-    public void UpdateData(string text, float width, float height, bool isHeader, float maxColumnWidth)
+    public void UpdateData(string text, float width, float height, float maxColumnWidth)
     {
         // 1. 绘制背景与边框
         m_background.Clear();
