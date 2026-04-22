@@ -520,8 +520,10 @@ public class FancyText : DisplayObject
 
     #region Factory
 
+
     public class Factory(SharpDX.DirectWrite.Factory dwFactory)
     {
+        public Factory() : this(dwFactory: Text.Factory.Shared) { }
         public SharpDX.DirectWrite.Factory DwfInstance { get; } = dwFactory;
         public string FontFamily { get; set; } = "Arial";
         public float FontSize { get; set; } = 16f;

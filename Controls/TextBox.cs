@@ -289,11 +289,13 @@ public class TextBox : Container
     /// <param name="textFactory">用于创建内部 Text 对象的工厂。</param>
     /// <param name="width">输入框宽度。</param>
     /// <param name="height">输入框高度。</param>
-    public TextBox(Text.Factory textFactory, float width = 200f, float height = 30f, bool multiline = false)
+    public TextBox(Text.Factory textFactory, float width = 200f, float height = 30f, bool multiline = false, int maxLength = -1)
     {
         _textFactory = textFactory;
         _boxWidth = width;
         _boxHeight = height;
+
+        MaxLength = maxLength;
 
         float textHeight = _textFactory.FontSize + 2f; // 估算单行文本高度
         // 1. 创建背景
@@ -391,6 +393,8 @@ public class TextBox : Container
         this.OnKeyPress += HandleKeyPress;
         this.OnMouseWheel += HandleMouseWheel;
     }
+
+    public int MaxLength { get; private set; }
 
     public override void Dispose()
     {
@@ -560,8 +564,11 @@ public class TextBox : Container
     {
         if (c == '\r') c = '\n'; // 转换为换行符
         DeleteSelection(); // 先删除选区
-        _textBuilder.Insert(_caretIndex, c);
-        _caretIndex++;
+        if (MaxLength < 0 || _textBuilder.Length < MaxLength)
+        {
+            _textBuilder.Insert(_caretIndex, c);
+            _caretIndex++;
+        }
         _selectionStart = _caretIndex; // 清除选区
         UpdateTextAndCaret();
     }
@@ -602,8 +609,11 @@ public class TextBox : Container
                     if (!string.IsNullOrEmpty(pasteText))
                     {
                         DeleteSelection(); // 替换选区
-                        _textBuilder.Insert(_caretIndex, pasteText);
-                        _caretIndex += pasteText.Length;
+                        if (MaxLength < 0 || _textBuilder.Length + pasteText.Length <= MaxLength)
+                        {
+                            _textBuilder.Insert(_caretIndex, pasteText);
+                            _caretIndex += pasteText.Length;
+                        }
                         _selectionStart = _caretIndex;
                         UpdateTextAndCaret();
                     }
