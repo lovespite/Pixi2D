@@ -26,6 +26,7 @@ public class FancyText : DisplayObject
     private float _fontSize;
     private FontStyle _fontStyle;
     private FontWeight _fontWeight;
+    private TextAlignment _textAlignment;
     private bool _wordWrap = false;
     private float _maxWidth = float.MaxValue;
     private bool _isLayoutDirty = true;
@@ -282,6 +283,12 @@ public class FancyText : DisplayObject
         set { _borderStyle = value; _isBrushDirty = true; }
     }
 
+    public TextAlignment TextAlignment
+    {
+        get => _textAlignment;
+        set { if (_textAlignment != value) { _textAlignment = value; InvalidateLayout(); } }
+    }
+
     #endregion
 
     #region Layout & Rendering
@@ -303,7 +310,8 @@ public class FancyText : DisplayObject
         // 2. 创建 TextFormat
         _textFormat = new TextFormat(_dwFactory, _fontFamily, _fontWeight, _fontStyle, _fontSize)
         {
-            WordWrapping = _wordWrap ? WordWrapping.Wrap : WordWrapping.NoWrap
+            WordWrapping = _wordWrap ? WordWrapping.Wrap : WordWrapping.NoWrap,
+            TextAlignment = _textAlignment,
         };
 
         // 3. 创建 TextLayout
@@ -516,7 +524,14 @@ public class FancyText : DisplayObject
         _cachedRenderTarget = null;
     }
 
-    #endregion 
+    public TextMetrics GetTextRect(bool forceUpdate)
+    {
+        if (forceUpdate) InvalidateLayout();
+        UpdateLayoutIfNeeded();
+        return _textLayout?.Metrics ?? new TextMetrics();
+    }
+
+    #endregion
 
     #region Factory
 

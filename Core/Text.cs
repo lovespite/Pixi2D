@@ -42,6 +42,7 @@ public class Text : DisplayObject
     private float _maxWidth = 1048576f;
     private float _maxHeight = 1048576f;
     private WordWrapping _wordWrapping = WordWrapping.Wrap;
+    private TextAlignment _textAligment = SharpDX.DirectWrite.TextAlignment.Leading; // 默认左对齐
     private float _borderWidth = 0f;
     private float _borderRadius = 0f;
 
@@ -140,6 +141,20 @@ public class Text : DisplayObject
         }
     }
 
+    public TextAlignment TextAlignment
+    {
+        get => _textAligment;
+        set
+        {
+            if (_textAligment != value)
+            {
+                _textAligment = value;
+                _isDirty = true;
+                Invalidate();
+            }
+        }
+    }
+
     private readonly SharpDX.DirectWrite.Factory _dwFactory;
 
     /// <summary>
@@ -158,7 +173,8 @@ public class Text : DisplayObject
                                 fontWeight: _fontWeight,
                                 fontStyle: _fontStyle)
                 {
-                    WordWrapping = _wordWrapping // WordWrapping.Wrap
+                    WordWrapping = _wordWrapping,
+                    TextAlignment = _textAligment,
                 };
             _isDirty = true; // 标记布局仍需更新
         }
