@@ -41,7 +41,19 @@ public enum EasingFunction
     /// <summary>
     /// 圆形缓动 - 渐入渐出
     /// </summary>
-    CircleEaseInOut
+    CircleEaseInOut,
+    /// <summary>
+    /// 二次缓动 - 渐入
+    /// </summary> 
+    QuadraticEaseIn,
+    /// <summary>
+    /// 二次缓动 - 渐出
+    /// </summary>
+    QuadraticEaseOut,
+    /// <summary>
+    /// 二次缓动 - 渐入渐出
+    /// </summary>
+    QuadraticEaseInOut,
 }
 
 /// <summary>
@@ -339,6 +351,10 @@ public class Animator
             EasingFunction.CircleEaseInOut => t < 0.5f
                 ? (1 - MathF.Sqrt(1 - MathF.Pow(2 * t, 2))) / 2
                 : (MathF.Sqrt(1 - MathF.Pow(-2 * t + 2, 2)) + 1) / 2,
+
+            EasingFunction.QuadraticEaseIn => t * t,
+            EasingFunction.QuadraticEaseOut => 1 - (1 - t) * (1 - t),
+            EasingFunction.QuadraticEaseInOut => t < 0.5f ? 2 * t * t : 1 - MathF.Pow(-2 * t + 2, 2) / 2,
 
             _ => t
         };
