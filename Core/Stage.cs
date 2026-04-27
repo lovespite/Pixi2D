@@ -23,6 +23,7 @@ public sealed class Stage : Container
 
     private RenderTarget? _cachedRenderTarget;
     public IClipboardProvider? ClipboardProvider { get; set; }
+    public nint HostWindowHandle { get; set; }
 
     public bool SetClipboardText(string text)
     {
