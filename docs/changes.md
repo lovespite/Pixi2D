@@ -4,7 +4,9 @@
 
 ### Host Pump（让 setTimeout / setInterval 真正滴答）
 
-- `external/qjs.net` @ `35819f94` — 新增 `public QuickJSEngine.PumpEventLoop()` / `QuickJSRuntime.PumpEventLoop()`（非阻塞单次 `EventLoop.DrainQueue`），upstream-friendly 改动
+- `external/qjs.net` @ `35819f94` → `ad6c748`：
+  - `35819f94` — 新增 `public QuickJSEngine.PumpEventLoop()` / `QuickJSRuntime.PumpEventLoop()`（非阻塞单次 `EventLoop.DrainQueue`）
+  - `ad6c748` — `EventLoop.ProcessTimers` 改用 cumulative scheduling（`next = previous_deadline + interval`），消除 setInterval 漂移；超过一个完整 interval 落后时 snap-forward 防爆炸
 - `Pixi2D.Markup/IScriptEngine.cs` — 接口默认方法 `void Pump() {}`；`NullScriptEngine` 沿用空
 - `Pixi2D.Scripting.QuickJs/QuickJsScriptEngine.cs` — `Pump()` 转发到底层引擎
 - `Pixi2D.Host/HostNative.cs` — `LibraryImport` P/Invoke `SetTimer` / `KillTimer`（**零 WinForms 依赖**）

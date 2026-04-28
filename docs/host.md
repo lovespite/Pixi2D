@@ -67,6 +67,7 @@ Program.Main
 * 退化策略：若 `SetTimer` 失败（罕见），自动回退到 `OnPaint` 心跳（拖窗会停，但至少基本场景能跑）。
 * 回调与渲染同线程（D2D 主消息循环线程），无需 `RunOnUIThread` 编组。
 * 最小有效间隔：受 `WM_TIMER` 的 `USER_TIMER_MINIMUM`（10ms）下限钳制；当前固定 16ms (~60Hz)，足以驱动 `setInterval(>=10ms)` 的应用。
+* **无累积漂移**：qjs.net `EventLoop` 已采用 cumulative scheduling（`next_deadline = previous_deadline + interval`），`setInterval(100ms)` 长期运行误差收敛到 <1%，与 wall-clock 同步；远超一个 interval 落后（suspend / GC pause / 模态阻塞）时自动 snap-forward 防止 burst 补发。
 * Pump 异常被捕获并写到诊断回调，不会中断渲染或 timer 心跳。
 
 ## 6. 鼠标按键映射
