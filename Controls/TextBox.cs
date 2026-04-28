@@ -124,11 +124,35 @@ public class TextBox : Container
 
 
     /// <summary>
-    /// 获取是否启用多行模式。
+    /// 是否启用多行模式。
     /// 默认 false (单行，水平滚动)。
     /// true (多行，垂直换行，内容裁剪)。
+    /// 运行时切换会立即重置文本显示的换行/最大宽度，并重新布局。
     /// </summary>
-    public bool Multiline => _multiline;
+    public bool Multiline
+    {
+        get => _multiline;
+        set
+        {
+            if (_multiline == value) return;
+            _multiline = value;
+            if (_multiline)
+            {
+                _textDisplay.WordWrap = true;
+                _textDisplay.MaxWidth = Math.Max(1, _boxWidth - (_paddingX * 2));
+                _textContainer.X = 0;
+            }
+            else
+            {
+                _textDisplay.WordWrap = false;
+                _textDisplay.MaxWidth = 1048576f;
+            }
+            _caretPositionDirty = true;
+            _displayStateDirty = true;
+            _layoutDirtty = true;
+            UpdateTextAndCaret();
+        }
+    }
 
     #endregion
 

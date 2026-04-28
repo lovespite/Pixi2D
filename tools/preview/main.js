@@ -1,0 +1,168 @@
+// =====================================================================
+// Pixi2D PXML Preview — main.js
+// ---------------------------------------------------------------------
+// 这是一个用 PXML + JS + Pixi2D.Host 自举的 .pxml 预览/编辑器，
+// 与旧 WinForms `Pixi2D.Preview` 工具功能对等（MVP 范围）：
+//   • 命令行透传的目标 .pxml 路径 (globalThis.hostArgs[0]) 启动加载
+//   • 内联多行编辑器
+//   • AutoSave: 文本变更后 500ms 防抖回写磁盘
+//   • AutoHotReload: 800ms 轮询 mtime, 外部修改自动重载
+//   • Pxml.parse → 渲染对象树 + 诊断列表 + 状态栏统计
+// =====================================================================
+
+const POLL_TEXT_MS    = 200;   // editor 文本变化检测
+const SAVE_DEBOUNCE   = 500;   // AutoSave 防抖
+const POLL_FILE_MS    = 800;   // 磁盘 mtime 轮询
+const SUPPRESS_MS     = 1200;  // 自写入后忽略外部回调的窗口
+
+let currentPath  = (typeof globalThis.hostArgs !== 'undefined' && hostArgs[0]) ? hostArgs[0] : null;
+let lastSeenText = '';
+let lastSavedAt  = 0;
+let lastDiskMtime = 0;
+let saveTimer    = null;
+let suppressUntil = 0;
+
+// ── 启动 ──────────────────────────────────────────────────────────────
+function init() {
+    swAutoSave.IsOn   = true;
+    swAutoReload.IsOn = true;
+
+    if (currentPath) {
+        try {
+            const txt = fs.readFile(currentPath, 'utf8');
+            editor.Text = txt;
+            lastSeenText = txt;
+            lastDiskMtime = safeMtime(currentPath);
+            lblPath.Content = currentPath;
+            setStatus('loaded ' + currentPath);
+        } catch (e) {
+            setStatus('error: ' + e.message);
+            lblPath.Content = '(load failed)';
+        }
+    } else {
+        editor.Text = '<?xml version="1.0" encoding="utf-8"?>\n<panel id="root" width="640" height="360" />\n';
+        lastSeenText = editor.Text;
+        lblPath.Content = '(no file - editing in memory)';
+        setStatus('no input file; edit and Reload to parse');
+    }
+
+    parseAndRender();
+
+    // editor 事件缺失，用轮询检测变化（→ debounce save → AutoSave）
+    setInterval(checkEditorChange, POLL_TEXT_MS);
+    setInterval(checkDiskChange,   POLL_FILE_MS);
+}
+
+// ── 编辑器轮询 ────────────────────────────────────────────────────────
+function checkEditorChange() {
+    const t = editor.Text;
+    if (t === lastSeenText) return;
+    lastSeenText = t;
+    parseAndRender();
+    if (currentPath && swAutoSave.IsOn) {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveNow, SAVE_DEBOUNCE);
+    }
+}
+
+function saveNow() {
+    saveTimer = null;
+    if (!currentPath) return;
+    try {
+        fs.writeFile(currentPath, editor.Text, 'utf8');
+        lastSavedAt = Date.now();
+        suppressUntil = lastSavedAt + SUPPRESS_MS;
+        lastDiskMtime = safeMtime(currentPath);
+        setStatus('saved ' + currentPath + ' (' + new Date(lastSavedAt).toLocaleTimeString() + ')');
+    } catch (e) {
+        setStatus('save error: ' + e.message);
+    }
+}
+
+// ── 磁盘 mtime 轮询 ───────────────────────────────────────────────────
+function checkDiskChange() {
+    if (!currentPath || !swAutoReload.IsOn) return;
+    if (Date.now() < suppressUntil) return;
+    const m = safeMtime(currentPath);
+    if (m === 0 || m === lastDiskMtime) return;
+    lastDiskMtime = m;
+    try {
+        const txt = fs.readFile(currentPath, 'utf8');
+        if (txt === editor.Text) return;
+        editor.Text = txt;
+        lastSeenText = txt;
+        parseAndRender();
+        setStatus('reloaded from disk @ ' + new Date().toLocaleTimeString());
+    } catch (e) {
+        setStatus('reload error: ' + e.message);
+    }
+}
+
+function safeMtime(path) {
+    try {
+        const s = fs.stat(path);
+        // qjs.net fs.stat 返回的对象通常有 mtimeMs / mtime
+        if (s && typeof s.mtimeMs === 'number') return s.mtimeMs;
+        if (s && s.mtime) return new Date(s.mtime).getTime();
+        return 0;
+    } catch (_) { return 0; }
+}
+
+// ── Pxml.parse + 渲染 ────────────────────────────────────────────────
+function parseAndRender() {
+    const r = Pxml.parse(editor.Text, currentPath || '<editor>');
+    renderTree(r.tree || []);
+    renderDiagnostics(r.diagnostics || []);
+    const errs = (r.diagnostics || []).filter(d => d.severity === 'Error').length;
+    const warns = (r.diagnostics || []).filter(d => d.severity === 'Warning').length;
+    setStatus((r.ok ? 'parsed ok' : 'parse failed') + ' — errors=' + errs + ' warnings=' + warns);
+}
+
+function renderTree(nodes) {
+    UI.clear('treePanel');
+    if (nodes.length === 0) { UI.appendText('treePanel', '(empty)', '#888888', 13); return; }
+    for (const n of nodes) {
+        const indent = '  '.repeat(n.depth);
+        const idPart = n.id ? '  #' + n.id : '';
+        UI.appendText('treePanel', indent + '<' + n.type + '>' + idPart, '#cdd9e5', 13);
+    }
+}
+
+function renderDiagnostics(diags) {
+    UI.clear('diagPanel');
+    if (diags.length === 0) {
+        UI.appendText('diagPanel', '(no diagnostics)', '#669966', 13);
+        return;
+    }
+    for (const d of diags) {
+        const color = d.severity === 'Error' ? '#ff6b6b'
+                    : d.severity === 'Warning' ? '#f1c40f'
+                    : '#88aaff';
+        const loc = (d.line ? '(' + d.line + ',' + d.column + ') ' : '');
+        const tag = d.element ? ' <' + d.element + '>' : '';
+        const att = d.attribute ? ' @' + d.attribute : '';
+        UI.appendText('diagPanel', loc + d.severity + ':' + tag + att + ' ' + d.message, color, 13);
+    }
+}
+
+function setStatus(msg) {
+    status.Content = msg;
+}
+
+// ── 事件处理（PXML on-* 引用） ───────────────────────────────────────
+function onReload() {
+    if (!currentPath) { parseAndRender(); return; }
+    try {
+        const txt = fs.readFile(currentPath, 'utf8');
+        editor.Text = txt;
+        lastSeenText = txt;
+        lastDiskMtime = safeMtime(currentPath);
+        parseAndRender();
+        setStatus('manual reload @ ' + new Date().toLocaleTimeString());
+    } catch (e) {
+        setStatus('reload error: ' + e.message);
+    }
+}
+
+// ── 启动 ─────────────────────────────────────────────────────────────
+init();

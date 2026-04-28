@@ -231,3 +231,21 @@
 - 没有任何方法/属性被标记为 `[Obsolete]` (除已存在的 `List`/`ScrollableList`)。
 - 主项目无新增 NuGet 依赖。
 - WinForms 仅在 `Pixi2D.Preview` 引入，主项目保持纯净。
+
+## v0.5 (2026-04)
+
+### 自举 PXML Preview (`tools/preview`)
+
+把 `Pixi2D.Preview` (414 行 WinForms) 用 PXML+JS 重写一份作为最大体量 demo，验证 DSL/事件循环/IO 在真实工具下的可用性。
+旧 `Pixi2D.Preview` 项目保留作为 fallback。详见 [`docs/preview.md`](./preview.md)。
+
+### 新基础设施
+
+* `Pixi2D.Scripting.PxmlScriptApi.Install(engine, host)`：JS 端获得 `globalThis.Pxml` (parse) + `globalThis.UI` (clear/appendText/setText/getText/exists)。
+  全部走基础类型 + 手写 JSON, AOT-friendly。
+* `Pixi2D.Host` CLI：PXML 之后的位置参数收集到 `globalThis.hostArgs: string[]`。
+* `Controls/TextBox.cs`: `Multiline` 由只读改为可写属性（PXML 入口；运行时切换 `WordWrap` / `MaxWidth`）。
+
+### Breaking changes
+
+无。`PixiHostWindow` ctor 新增 `string[]? extraArgs = null` 可选参数；`CliOptions` 新增 `ExtraArgs`。

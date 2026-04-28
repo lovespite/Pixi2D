@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pixi2D PXML Preview (self-hosted)
+  本身就是一个 PXML 文件 + JS 脚本 (main.js)，由 Pixi2D.Host 启动。
+  通过 Host 命令行的额外位置参数把目标 .pxml 路径传入：
+      Pixi2D.Host.exe tools\preview\main.pxml [watch] target.pxml
+  无目标时会留空编辑器，可手动粘贴 / 输入。
+-->
+<panel id="root" width="1280" height="800" background-color="#0e1116">
+
+    <!-- 顶栏 (高 36) -->
+    <fancy-text id="lblPath"      x="12"   y="10" content="(no file)" />
+    <button     id="btnReload"    x="900"  y="6"  width="80"  height="24" text="Reload"      on-click="onReload" />
+    <fancy-text                   x="990"  y="10" content="AutoSave" />
+    <switch     id="swAutoSave"   x="1060" y="6"  width="48"  height="24" />
+    <fancy-text                   x="1118" y="10" content="AutoReload" />
+    <switch     id="swAutoReload" x="1200" y="6"  width="48"  height="24" />
+
+    <!-- 左：编辑器 -->
+    <text-box id="editor" x="8" y="44" width="540" height="720"
+              multiline="true"
+              placeholder-text="(粘贴或编辑 .pxml；目标文件路径作为命令行额外参数传入)" />
+
+    <!-- 右上：对象树面板 -->
+    <fancy-text x="556" y="44" content="Object Tree" />
+    <panel id="treePanel" x="556" y="68" width="716" height="336"
+           background-color="#1b1f25" />
+
+    <!-- 右下：诊断面板 -->
+    <fancy-text x="556" y="412" content="Diagnostics" />
+    <panel id="diagPanel" x="556" y="436" width="716" height="328"
+           background-color="#1b1f25" />
+
+    <!-- 底部状态栏 -->
+    <fancy-text id="status" x="12" y="774" content="ready" />
+
+</panel>

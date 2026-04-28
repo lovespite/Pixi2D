@@ -84,3 +84,16 @@ Program.Main
 * 仅 Windows x64（D2DWindow 是 Win32 + 原生 quickjs.dll）。
 * 渲染线程 = 主消息循环线程：所有外部回调（`FileSystemWatcher`、网络等）必须 `RunOnUIThread` 编组。
 * 错误叠加只是窗口左上角红色 DrawText，未来可加结构化诊断面板。
+
+## 8. v0.5：透传 hostArgs
+
+PXML 路径之后未被识别为选项的所有位置参数会被收集到 `globalThis.hostArgs: string[]`，供 JS 读取。
+
+```powershell
+Pixi2D.Host.exe my-tool.pxml --watch arg1 arg2
+# 在 my-tool.js 中：
+#   hostArgs[0] === "arg1"
+#   hostArgs[1] === "arg2"
+```
+
+典型用途：[`tools/preview`](../tools/preview/README.md) 用 `hostArgs[0]` 接收要预览的目标 .pxml 路径。

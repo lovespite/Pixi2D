@@ -44,7 +44,8 @@ internal static class Program
                 opts.Watch,
                 opts.Title,
                 opts.Width,
-                opts.Height);
+                opts.Height,
+                opts.ExtraArgs);
             window.Run();
             return 0;
         }
@@ -58,7 +59,7 @@ internal static class Program
 
     private static void ShowUsage()
     {
-        Console.Error.WriteLine("用法: Pixi2D.Host.exe <foo.pxml> [选项]");
+        Console.Error.WriteLine("用法: Pixi2D.Host.exe <foo.pxml> [选项] [-- arg1 arg2 ...]");
         Console.Error.WriteLine("选项:");
         Console.Error.WriteLine("  --script <foo.js>   显式指定 JS; 默认使用同名 .js");
         Console.Error.WriteLine("  --no-console        不分配控制台窗口");
@@ -66,6 +67,7 @@ internal static class Program
         Console.Error.WriteLine("  --width  <N>        窗口宽度 (默认 1024)");
         Console.Error.WriteLine("  --height <N>        窗口高度 (默认 720)");
         Console.Error.WriteLine("  --title  <S>        窗口标题");
+        Console.Error.WriteLine("PXML 之后的额外位置参数会以 globalThis.hostArgs (string[]) 形式注入到 JS。");
     }
 }
 
@@ -78,6 +80,7 @@ internal sealed class CliOptions
     public int Width { get; init; } = 1024;
     public int Height { get; init; } = 720;
     public string Title { get; init; } = "Pixi2D Host";
+    public string[] ExtraArgs { get; init; } = Array.Empty<string>();
 
     public static CliOptions? Parse(string[] args)
     {
@@ -85,6 +88,7 @@ internal sealed class CliOptions
         string? pxml = null, js = null, title = null;
         bool useConsole = true, watch = false;
         int width = 1024, height = 720;
+        var extras = new List<string>();
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -99,7 +103,8 @@ internal sealed class CliOptions
                 case "--title":      title  = i + 1 < args.Length ? args[++i] : null; break;
                 default:
                     if (a.StartsWith("-", StringComparison.Ordinal)) return null;
-                    pxml ??= a;
+                    if (pxml is null) pxml = a;
+                    else              extras.Add(a);
                     break;
             }
         }
@@ -114,6 +119,7 @@ internal sealed class CliOptions
             Width = width,
             Height = height,
             Title = title ?? $"Pixi2D Host - {Path.GetFileName(pxml)}",
+            ExtraArgs = extras.ToArray(),
         };
     }
 }

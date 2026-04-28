@@ -19,6 +19,7 @@ public sealed class PixiHostWindow : Direct2D1Window
     private readonly string _pxmlPath;
     private readonly string? _jsPath;
     private readonly bool _watch;
+    private readonly string[] _extraArgs;
 
     private readonly Stage _stage = new();
     private QuickJsScriptEngine? _engine;
@@ -34,12 +35,13 @@ public sealed class PixiHostWindow : Direct2D1Window
 
     public override string WindowClassName => "Pixi2DHostWindow";
 
-    public PixiHostWindow(string pxmlPath, string? jsPath, bool watch, string title, int w, int h)
+    public PixiHostWindow(string pxmlPath, string? jsPath, bool watch, string title, int w, int h, string[]? extraArgs = null)
         : base(title, w, h)
     {
         _pxmlPath = Path.GetFullPath(pxmlPath);
         _jsPath = jsPath is null ? null : Path.GetFullPath(jsPath);
         _watch = watch;
+        _extraArgs = extraArgs ?? Array.Empty<string>();
 
         BackgroundColor = new RawColor4(0.10f, 0.10f, 0.12f, 1f);
 
@@ -141,6 +143,12 @@ public sealed class PixiHostWindow : Direct2D1Window
             var factory = new QuickJsProxyFactory();
             ScriptBootstrap.Install(_engine, loader.Host, factory, LogDiagnostic);
 
+            // Preview / 工具脚本所需的 PXML 解析 + 容器操作 API（globalThis.Pxml / UI）。
+            PxmlScriptApi.Install(_engine, loader.Host);
+
+            // 把宿主命令行中 PXML 之后的额外位置参数以 string[] 形式暴露给 JS。
+            _engine.Execute("globalThis.hostArgs = " + BuildJsStringArray(_extraArgs) + ";", "<host-args>");
+
             // 加载 JS:  <script src> 暂未实现解析, 这里走 jsPath/同名 .js
             var jsFile = ResolveJs();
             if (jsFile is not null && File.Exists(jsFile))
@@ -227,4 +235,41 @@ public sealed class PixiHostWindow : Direct2D1Window
         MouseButton.X2 => 4,
         _ => 0,
     };
+
+    /// <summary>构造一段 JS 字符串字面量数组（避免引入 JSON 反射）。</summary>
+    private static string BuildJsStringArray(string[] items)
+    {
+        if (items.Length == 0) return "[]";
+        var sb = new System.Text.StringBuilder("[");
+        for (int i = 0; i < items.Length; i++)
+        {
+            if (i > 0) sb.Append(',');
+            sb.Append(EscapeJs(items[i]));
+        }
+        sb.Append(']');
+        return sb.ToString();
+    }
+
+    private static string EscapeJs(string s)
+    {
+        var sb = new System.Text.StringBuilder(s.Length + 2);
+        sb.Append('"');
+        foreach (var c in s)
+        {
+            switch (c)
+            {
+                case '\\': sb.Append("\\\\"); break;
+                case '"':  sb.Append("\\\""); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
+                default:
+                    if (c < 0x20) sb.Append("\\u").Append(((int)c).ToString("X4"));
+                    else sb.Append(c);
+                    break;
+            }
+        }
+        sb.Append('"');
+        return sb.ToString();
+    }
 }

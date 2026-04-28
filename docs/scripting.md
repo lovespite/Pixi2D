@@ -102,3 +102,45 @@ if (typeof onInc === 'function') btnInc.on('click', onInc);
 * 本仓库新增的 `Pixi2D.Scripting` 与 `Pixi2D.Scripting.QuickJs` 项目均启用 `<IsAotCompatible>true</IsAotCompatible>`，运行时**零反射**。
 * `Pixi2D.Markup.PxmlLoader` 当前用反射写入控件属性，**尚未** AOT-clean（v0.4 议题）。
 * SharpDX / Direct2D 互操作链亦未承诺 AOT；本批次只承诺新代码。
+
+## 5. v0.5 新增：Preview / 工具脚本辅助 API
+
+下面这组 API 由 `Pixi2D.Scripting.PxmlScriptApi.Install` 注册，专为**自举工具**（如 `tools/preview`）准备，避免给每个新控件都补 `[JSExport]` 代理。所有数据用基础类型 + JSON 跨边界。
+
+### 5.1 `Pxml.parse(text, virtualPath?) → result`
+
+把任意 PXML 文本解析为对象树并收集诊断；不抛异常。
+
+```js
+const r = Pxml.parse(text, '/path/to/file.pxml');
+// r = {
+//   ok: true | false,
+//   diagnostics: [{ severity: 'Error'|'Warning'|'Info',
+//                   line, column, element?, attribute?, message, file? }, ...],
+//   tree: [{ depth, type, id }, ...]   // 深度优先平铺
+// }
+```
+
+### 5.2 `UI.*` 容器操作（按 PXML id 寻址）
+
+```js
+UI.clear(id);                              // 清空 Container/Panel 内容（Panel 保留背景）
+UI.appendText(id, text, color?, fontSize?);// 追加 FancyText, 颜色 #RGB / #RRGGBB
+UI.setText(id, text);                      // 写 Button/TextBox/FancyText/Text 等的文本
+UI.getText(id);                            // 读上述文本
+UI.exists(id);                             // id → DisplayObject 是否存在
+```
+
+### 5.3 `globalThis.hostArgs: string[]`
+
+由 `Pixi2D.Host` CLI 在 PXML 路径之后收集到的额外位置参数；用来把"目标文件"等参数传给脚本。
+
+```powershell
+Pixi2D.Host.exe my-tool.pxml extra1 extra2
+# JS:  hostArgs[0] === "extra1"
+```
+
+### 5.4 `fs` / `fsAsync`
+
+继承 [qjs.net](https://github.com/lovespite/qjs.net) 默认安装的同步 / 异步文件系统模块；常用：
+`fs.readFile(path, 'utf8')`、`fs.writeFile(path, text, 'utf8')`、`fs.stat(path)`（返回含 `mtimeMs` 的对象）。
