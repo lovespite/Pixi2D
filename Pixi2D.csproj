@@ -8,6 +8,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- 子项目 (类库 / 预览器) 不应被主项目编译 -->
+    <Compile Remove="Pixi2D.Markup\**" />
+    <Compile Remove="Pixi2D.Preview\**" />
+    <EmbeddedResource Remove="Pixi2D.Markup\**" />
+    <EmbeddedResource Remove="Pixi2D.Preview\**" />
+    <None Remove="Pixi2D.Markup\**" />
+    <None Remove="Pixi2D.Preview\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="SharpDX.Direct2D1" Version="4.2.0" />
     <PackageReference Include="SharpDX.DXGI" Version="4.2.0" />
     <PackageReference Include="SharpDX.XAudio2" Version="4.2.0" />
