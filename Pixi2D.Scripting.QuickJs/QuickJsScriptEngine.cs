@@ -42,6 +42,8 @@ public sealed class QuickJsScriptEngine : IScriptEngine
     public void RegisterFunction(string name, Func<object?[], object?> implementation)
         => _engine.RegisterFunction(name, implementation, argCount: 0);
 
+    public void Pump() => _engine.PumpEventLoop();
+
     public void Dispose()
     {
         if (_disposed) return;

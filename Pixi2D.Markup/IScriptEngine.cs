@@ -27,6 +27,13 @@ public interface IScriptEngine : IDisposable
     /// 注册一个全局可调用的 .NET 委托（基础类型参数/返回值），供脚本侧调用。
     /// </summary>
     void RegisterFunction(string name, Func<object?[], object?> implementation);
+
+    /// <summary>
+    /// 推动一次脚本引擎的内置事件循环（处理 setTimeout / setInterval / 微任务等）。
+    /// 默认空实现；不支持事件循环的引擎可忽略。宿主可在每帧渲染前调用以保证定时器滴答。
+    /// 必须在 JS 线程调用。
+    /// </summary>
+    void Pump() { }
 }
 
 /// <summary>

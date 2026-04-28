@@ -66,6 +66,14 @@ public sealed class PixiHostWindow : Direct2D1Window
 
     protected override void OnPaint(RenderTarget target, float deltaTimeInSeconds)
     {
+        // 推动 JS 事件循环 (setTimeout / setInterval / 微任务) — 在渲染前执行,
+        // 让脚本在本帧 UI 之前更新到位; 异常吞掉避免渲染中断, 由 OnLog 路径已经记录.
+        if (_engine is not null)
+        {
+            try { _engine.Pump(); }
+            catch (Exception ex) { LogDiagnostic(DiagnosticSeverity.Error, "[pump] " + ex.Message); }
+        }
+
         _stage.Render(target);
 
         if (_loadError is not null)
