@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWindowsForms>false</UseWindowsForms>
+    <RootNamespace>Pixi2D.Host</RootNamespace>
+    <AssemblyName>Pixi2D.Host</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pixi2D.csproj" />
+    <ProjectReference Include="..\Pixi2D.Markup\Pixi2D.Markup.csproj" />
+    <ProjectReference Include="..\Pixi2D.Scripting\Pixi2D.Scripting.csproj" />
+    <ProjectReference Include="..\Pixi2D.Scripting.QuickJs\Pixi2D.Scripting.QuickJs.csproj" />
+    <ProjectReference Include="..\external\D2DWindow\D2DWindow.csproj" />
+  </ItemGroup>
+
+  <!-- 显式拷贝原生 quickjs.dll 到输出目录 (透传可能在某些 SDK 版本下失效) -->
+  <ItemGroup>
+    <None Include="..\external\qjs.net\qjs.net\quickjs.dll"
+          Condition="Exists('..\external\qjs.net\qjs.net\quickjs.dll')"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="quickjs.dll" />
+  </ItemGroup>
+
+</Project>

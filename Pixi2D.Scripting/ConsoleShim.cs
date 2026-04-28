@@ -16,22 +16,22 @@ public static class ConsoleShim
         engine.RegisterFunction("__pixi_log_info", args =>
         {
             var msg = Format(args);
-            log?.Invoke(DiagnosticSeverity.Info, msg);
-            Console.Out.WriteLine(msg);
+            if (log is not null) log(DiagnosticSeverity.Info, msg);
+            else Console.Out.WriteLine(msg);
             return null;
         });
         engine.RegisterFunction("__pixi_log_warn", args =>
         {
             var msg = Format(args);
-            log?.Invoke(DiagnosticSeverity.Warning, msg);
-            Console.Out.WriteLine("WARN  " + msg);
+            if (log is not null) log(DiagnosticSeverity.Warning, msg);
+            else Console.Out.WriteLine("WARN  " + msg);
             return null;
         });
         engine.RegisterFunction("__pixi_log_error", args =>
         {
             var msg = Format(args);
-            log?.Invoke(DiagnosticSeverity.Error, msg);
-            Console.Error.WriteLine("ERROR " + msg);
+            if (log is not null) log(DiagnosticSeverity.Error, msg);
+            else Console.Error.WriteLine("ERROR " + msg);
             return null;
         });
 

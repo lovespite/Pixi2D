@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  scripted-login: 用户名/密码 + 登录按钮; JS 验证后通过 console 输出反馈。
+-->
+<panel id="root" width="420" height="260" background-color="#202225">
+    <fancy-text id="title" x="20" y="16" content="登录" />
+
+    <fancy-text id="lblUser" x="20" y="56" content="用户名" />
+    <text-box   id="txtUser" x="100" y="50" width="280" height="28" />
+
+    <fancy-text id="lblPass" x="20" y="100" content="密码" />
+    <text-box   id="txtPass" x="100" y="94" width="280" height="28" />
+
+    <button id="btnLogin" x="100" y="150" width="120" height="34" text="登录" on-click="onLogin" />
+    <fancy-text id="lblStatus" x="20" y="200" content="" />
+</panel>

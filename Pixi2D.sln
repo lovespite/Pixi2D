@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pixi2D.Scripting", "Pixi2D.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pixi2D.Scripting.QuickJs", "Pixi2D.Scripting.QuickJs\Pixi2D.Scripting.QuickJs.csproj", "{C52B5EA9-1580-48DF-951A-2096B157EFF4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pixi2D.Host", "Pixi2D.Host\Pixi2D.Host.csproj", "{194CBBA8-4F60-48C2-9C03-8B462CF1513E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -131,6 +133,18 @@ Global
 		{C52B5EA9-1580-48DF-951A-2096B157EFF4}.Release|x64.Build.0 = Release|Any CPU
 		{C52B5EA9-1580-48DF-951A-2096B157EFF4}.Release|x86.ActiveCfg = Release|Any CPU
 		{C52B5EA9-1580-48DF-951A-2096B157EFF4}.Release|x86.Build.0 = Release|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Debug|x64.Build.0 = Debug|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Debug|x86.Build.0 = Debug|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Release|x64.ActiveCfg = Release|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Release|x64.Build.0 = Release|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Release|x86.ActiveCfg = Release|Any CPU
+		{194CBBA8-4F60-48C2-9C03-8B462CF1513E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,5 +1,56 @@
 # 改动清单 (feat/dsl-xml-js)
 
+## v0.3 — QuickJS 集成 + D2DWindow 渲染宿主
+
+### 子模块
+
+- `external/qjs.net` ← https://github.com/lovespite/qjs.net.git (MIT)
+- `external/D2DWindow` ← https://github.com/lovespite/D2DWindow.git
+- 克隆仓库后必须 `git submodule update --init --recursive`。
+
+### 新增项目
+
+- `Pixi2D.Scripting/Pixi2D.Scripting.csproj` (`net9.0`, `IsAotCompatible=true`)
+  - `IControlProxy` / `IProxyFactory`：脚本桥接抽象，零反射。
+  - `ScriptBootstrap.Install / BindNamedObjects / ApplyOnAttributes`：脚本环境装配流程。
+  - `ConsoleShim`：注册 `console.log/info/warn/error`。
+- `Pixi2D.Scripting.QuickJs/Pixi2D.Scripting.QuickJs.csproj` (`net10.0-windows`, `IsAotCompatible=true`)
+  - `QuickJsScriptEngine : IScriptEngine`：包装 `QuickJsNet.QuickJSEngine`。
+  - `Proxies.cs`：10 个 `[JSExport] partial XxxProxy`（DisplayObject/Container/Panel/Button/FancyText/TextBox/Switch/Number/ProgressBar/Modal）。
+  - `QuickJsProxyFactory`：`switch (control)` 静态分派。
+  - 引用 `QuickJsNet.SourceGenerators` 作 Analyzer，编译期生成绑定。
+- `Pixi2D.Host/Pixi2D.Host.csproj` (`net10.0-windows`, `Exe`, `RuntimeIdentifier=win-x64`)
+  - `Program.Main`：CLI + AllocConsole/AttachConsole + 启动循环。
+  - `PixiHostWindow : Direct2D1Window`：渲染 Stage、转发输入事件、管理 QuickJS 生命周期、`--watch` 热重载。
+  - 显式 `<Content Include="..\external\qjs.net\qjs.net\quickjs.dll" CopyToOutputDirectory="PreserveNewest" />`。
+
+### 修改
+
+- `Pixi2D.Markup/IScriptEngine.cs`
+  - 新增 `RegisterFunction(string, Func<object?[], object?>)` 抽象方法
+  - `NullScriptEngine` 提供空实现
+- `Pixi2D.csproj` —— 编译排除 `external/**`、新增 `Compile Remove` 规则
+- `Pixi2D.sln` —— 加入 4 个新项目（含子模块）
+
+### 示例
+
+- `Pixi2D.Markup/Examples/scripted-counter.pxml` + `.js` —— Switch 切换计数器
+- `Pixi2D.Markup/Examples/scripted-login.pxml` + `.js` —— TextBox 登录校验
+
+### 文档
+
+- `docs/scripting.md` —— [JSExport] 代理列表、`obj.on('event', fn)` 订阅模式、AOT 边界
+- `docs/host.md` —— CLI 参数、AllocConsole 策略、启动时序、watch 模式
+
+### 关键技术决策
+
+- **零运行时反射**：所有 .NET ↔ JS 桥接走 `qjs.net` 的 `[JSExport] partial class` source generator；`QuickJsProxyFactory` 用静态 `switch` 取代类型反射。
+- **事件订阅**：JS 端统一 `obj.on('camelCase', fn)` / `off`（与 qjs.net 内置语义一致），不使用 `obj.onClick = fn`。
+- **on-* 胶水**：在用户脚本之后 emit 一行 JS `if (typeof handler === 'function') id.on('event', handler);`，仍然零反射。
+- **`OnDeviceReady` 时序坑**：`Direct2D1Window` 在基类 ctor 期间同步触发 `OnDeviceReady`，此时派生字段为空；`BuildScene` 必须放在 `OnLoad`（`Run()` 之后）。
+
+---
+
 ## v0.2 — 错误诊断 + 内联编辑器 + 更多示例
 
 ### 新增
