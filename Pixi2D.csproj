@@ -11,10 +11,22 @@
     <!-- 子项目 (类库 / 预览器) 不应被主项目编译 -->
     <Compile Remove="Pixi2D.Markup\**" />
     <Compile Remove="Pixi2D.Preview\**" />
+    <Compile Remove="Pixi2D.Scripting\**" />
+    <Compile Remove="Pixi2D.Scripting.QuickJs\**" />
+    <Compile Remove="Pixi2D.Host\**" />
+    <Compile Remove="external\**" />
     <EmbeddedResource Remove="Pixi2D.Markup\**" />
     <EmbeddedResource Remove="Pixi2D.Preview\**" />
+    <EmbeddedResource Remove="Pixi2D.Scripting\**" />
+    <EmbeddedResource Remove="Pixi2D.Scripting.QuickJs\**" />
+    <EmbeddedResource Remove="Pixi2D.Host\**" />
+    <EmbeddedResource Remove="external\**" />
     <None Remove="Pixi2D.Markup\**" />
     <None Remove="Pixi2D.Preview\**" />
+    <None Remove="Pixi2D.Scripting\**" />
+    <None Remove="Pixi2D.Scripting.QuickJs\**" />
+    <None Remove="Pixi2D.Host\**" />
+    <None Remove="external\**" />
   </ItemGroup>
 
   <ItemGroup>

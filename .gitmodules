@@ -1,0 +1,6 @@
+[submodule "external/qjs.net"]
+	path = external/qjs.net
+	url = https://github.com/lovespite/qjs.net.git
+[submodule "external/D2DWindow"]
+	path = external/D2DWindow
+	url = https://github.com/lovespite/D2DWindow.git
