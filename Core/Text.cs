@@ -226,6 +226,30 @@ public class Text : DisplayObject
     }
 
     /// <summary>
+    /// 无参构造：从 <see cref="UIContext.Current"/> 读取默认 DWrite Factory 与字体属性。
+    /// 主要用于 XML(DSL) 反序列化与脚本场景。
+    /// </summary>
+    public Text() : this(
+        UIContext.Current.DWriteFactory ?? Factory.Shared,
+        text: string.Empty,
+        fontFamily: UIContext.Current.DefaultFontFamily,
+        fontSize: UIContext.Current.DefaultFontSize,
+        style: UIContext.Current.DefaultFontStyle,
+        weight: UIContext.Current.DefaultFontWeight,
+        color: UIContext.Current.DefaultFontColor)
+    { }
+
+    /// <summary>
+    /// 使用 <see cref="UIContext.Current"/> 默认设置创建一个 <see cref="Text"/>。
+    /// </summary>
+    public static Text CreateDefault(string content = "")
+    {
+        var t = new Text();
+        if (!string.IsNullOrEmpty(content)) t.Content = content;
+        return t;
+    }
+
+    /// <summary>
     /// 确保所有 DWrite 资源都已创建并为最新。
     /// </summary>
     private void UpdateResources(RenderTarget renderTarget)
