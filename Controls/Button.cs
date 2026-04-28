@@ -88,6 +88,7 @@ public class Button : Container
             if (_buttonWidth != value)
             {
                 _buttonWidth = value;
+                _label.MaxWidth = Math.Max(0, value - 10);
                 _bgDirty = true;
                 _textPositionDirty = true;
             }
