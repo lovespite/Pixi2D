@@ -78,6 +78,10 @@ public static class ElementRegistry
         s_factoryMap[elementName] = factory;
     }
 
+    /// <summary>反查元素名是否注册了工厂函数。</summary>
+    public static bool HasFactory(string elementName)
+        => s_factoryMap.ContainsKey(elementName);
+
     /// <summary>
     /// 反查元素名对应的类型。未注册时返回 null。
     /// </summary>
