@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pixi2D.csproj" />
+    <ProjectReference Include="..\Pixi2D.Markup\Pixi2D.Markup.csproj" />
+    <ProjectReference Include="..\Pixi2D.Scripting\Pixi2D.Scripting.csproj" />
+    <ProjectReference Include="..\external\qjs.net\qjs.net\QuickJsNet.csproj" />
+    <ProjectReference Include="..\external\qjs.net\QuickJsNet.SourceGenerators\QuickJsNet.SourceGenerators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

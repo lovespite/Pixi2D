@@ -22,6 +22,11 @@ public interface IScriptEngine : IDisposable
     /// 调用脚本中已定义的全局函数。
     /// </summary>
     object? Invoke(string functionName, params object?[] args);
+
+    /// <summary>
+    /// 注册一个全局可调用的 .NET 委托（基础类型参数/返回值），供脚本侧调用。
+    /// </summary>
+    void RegisterFunction(string name, Func<object?[], object?> implementation);
 }
 
 /// <summary>
@@ -56,5 +61,6 @@ public sealed class NullScriptEngine : IScriptEngine
     public void Execute(string source, string? sourceName = null) { }
     public void SetGlobal(string name, object? value) { }
     public object? Invoke(string functionName, params object?[] args) => null;
+    public void RegisterFunction(string name, Func<object?[], object?> implementation) { }
     public void Dispose() { }
 }
