@@ -34,6 +34,11 @@ public class GraphicsSpinLoading : Container
     /// <param name="radius">加载器的半径。默认为 20。</param>
     /// <param name="color">加载器的颜色。默认为白色。</param>
     /// <param name="lineWidth">线条宽度。默认为 3。</param>
+    /// <summary>
+    /// 无参构造：默认半径 20、白色、线宽 3。
+    /// </summary>
+    public GraphicsSpinLoading() : this(20f, null, 3f) { }
+
     public GraphicsSpinLoading(float radius = 20f, RawColor4? color = null, float lineWidth = 3f)
     {
         Radius = radius;

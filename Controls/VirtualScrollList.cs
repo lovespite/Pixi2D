@@ -49,6 +49,11 @@ public class VirtualScrollList<T> : Panel
     /// <param name="width">列表宽度。</param>
     /// <param name="height">列表高度（可视区域高度）。</param>
     /// <param name="itemHeight">每个列表项的高度。</param>
+    /// <summary>
+    /// 无参构造：默认尺寸 200x300，行高 40。
+    /// </summary>
+    public VirtualScrollList() : this(200f, 300f, 40f) { }
+
     public VirtualScrollList(float width = 200f, float height = 300f, float itemHeight = 40f) : base(width, height)
     {
         ContentContainer.Interactive = true;

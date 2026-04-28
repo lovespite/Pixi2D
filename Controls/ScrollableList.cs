@@ -32,6 +32,11 @@ public class ScrollableList : Panel
     /// <summary>
     /// 创建一个新的可滚动列表。
     /// </summary>
+    /// <summary>
+    /// 无参构造：默认尺寸 200x300。
+    /// </summary>
+    public ScrollableList() : this(200f, 300f) { }
+
     public ScrollableList(float width = 200f, float height = 300f) : base(width, height)
     {
         ContentContainer.Interactive = true;

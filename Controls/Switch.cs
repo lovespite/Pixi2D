@@ -43,6 +43,11 @@ public class Switch : Container
     /// <param name="textFactory">用于创建内部文本的工厂。</param>
     /// <param name="width">控件宽度。</param>
     /// <param name="height">控件高度。</param>
+    /// <summary>
+    /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
+    /// </summary>
+    public Switch() : this(UIContext.Current.DefaultTextFactory) { }
+
     public Switch(Text.Factory textFactory, float width = 48f, float height = 24f)
     {
         _switchWidth = width;

@@ -21,6 +21,11 @@ public class Number : Container
 
     public Text InnerText => _text;
 
+    /// <summary>
+    /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
+    /// </summary>
+    public Number() : this(Text.CreateDefault(string.Empty)) { }
+
     public Number(Text text, decimal initValue = 0m, string format = FORMAT_COMMA)
     {
         _text = text;

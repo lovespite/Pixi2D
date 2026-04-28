@@ -41,6 +41,12 @@ public class Button : Container
     /// <summary>
     /// 创建一个新按钮。
     /// </summary>
+    /// <summary>
+    /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂创建空标签按钮。
+    /// 主要用于 XML(DSL) 反序列化与脚本场景。
+    /// </summary>
+    public Button() : this(Pixi2D.Core.Text.CreateDefault(string.Empty)) { }
+
     public Button(Text text, float width = 100f, float height = 30f)
     {
         _buttonWidth = width;

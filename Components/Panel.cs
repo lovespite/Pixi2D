@@ -29,6 +29,11 @@ public class Panel : Container
     /// <summary>
     /// 创建一个新面板。
     /// </summary>
+    /// <summary>
+    /// 无参构造：默认尺寸 200x200。
+    /// </summary>
+    public Panel() : this(200f, 200f) { }
+
     public Panel(float width = 200f, float height = 200f)
     {
         _panelWidth = width;

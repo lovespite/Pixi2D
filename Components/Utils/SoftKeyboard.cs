@@ -185,6 +185,11 @@ public class SoftKeyboard : Panel
     /// <summary>
     /// 创建软键盘。
     /// </summary>
+    /// <summary>
+    /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
+    /// </summary>
+    public SoftKeyboard() : this(UIContext.Current.DefaultTextFactory) { }
+
     public SoftKeyboard(Text.Factory textFactory, float width = 640f, float height = 240f)
         : base(width, height)
     {

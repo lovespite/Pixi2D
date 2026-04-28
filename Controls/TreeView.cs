@@ -42,6 +42,11 @@ namespace Pixi2D.Controls
         /// </summary>
         public string Key { get; set; } = "";
 
+        /// <summary>
+        /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
+        /// </summary>
+        public TreeNode() : this(UIContext.Current.DefaultTextFactory, string.Empty) { }
+
         public TreeNode(Text.Factory textFactory, string text)
         {
             _textFactory = textFactory;
@@ -290,6 +295,11 @@ namespace Pixi2D.Controls
         private TreeNode? _selectedNode;
 
         public event Action<TreeNode>? OnSelectionChanged;
+
+        /// <summary>
+        /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
+        /// </summary>
+        public TreeView() : this(UIContext.Current.DefaultTextFactory) { }
 
         public TreeView(Text.Factory textFactory, float width = 200f, float height = 300f) : base(width, height)
         {

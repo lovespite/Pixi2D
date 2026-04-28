@@ -289,6 +289,11 @@ public class TextBox : Container
     /// <param name="textFactory">用于创建内部 Text 对象的工厂。</param>
     /// <param name="width">输入框宽度。</param>
     /// <param name="height">输入框高度。</param>
+    /// <summary>
+    /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
+    /// </summary>
+    public TextBox() : this(UIContext.Current.DefaultTextFactory) { }
+
     public TextBox(Text.Factory textFactory, float width = 200f, float height = 30f, bool multiline = false, int maxLength = -1)
     {
         _textFactory = textFactory;

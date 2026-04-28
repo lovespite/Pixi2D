@@ -161,6 +161,11 @@ public class Table : Container
 
     public bool AutoUpdate { get; set; } = true;
 
+    /// <summary>
+    /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
+    /// </summary>
+    public Table() : this(UIContext.Current.DefaultTextFactory) { }
+
     public Table(Text.Factory textFactory)
     {
         m_textFactory = textFactory;
@@ -592,6 +597,11 @@ public class TableCell : Container
 {
     private readonly Graphics m_background;
     private readonly Text m_text;
+
+    /// <summary>
+    /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
+    /// </summary>
+    public TableCell() : this(Text.CreateDefault(string.Empty)) { }
 
     public TableCell(Text text)
     {

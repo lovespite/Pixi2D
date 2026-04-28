@@ -63,6 +63,11 @@ public class FancyText : DisplayObject
     /// <summary>
     /// 使用指定的工厂创建 FancyText。
     /// </summary>
+    /// <summary>
+    /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
+    /// </summary>
+    public FancyText() : this(Factory.From(UIContext.Current.DefaultTextFactory)) { }
+
     public FancyText(Factory factory) : this(factory.DwfInstance)
     {
         // 从工厂复制默认样式

@@ -32,6 +32,11 @@ public class ProgressBar : Container
     /// </summary>
     /// <param name="width">宽度。</param>
     /// <param name="height">高度。</param>
+    /// <summary>
+    /// 无参构造：默认尺寸 200x20。
+    /// </summary>
+    public ProgressBar() : this(200f, 20f) { }
+
     public ProgressBar(float width = 200f, float height = 20f)
     {
         _barWidth = width;

@@ -38,9 +38,11 @@ public class Modal : Container
     }
 
     /// <summary>
-    /// 私有构造函数，只允许通过静态方法创建
+    /// 默认构造函数。<br />
+    /// 推荐通过 <see cref="Builder"/> 或静态便利方法创建；
+    /// 公开此构造仅为支持 XML(DSL) 反序列化与对象初始化器场景。
     /// </summary>
-    private Modal()
+    public Modal()
     {
         m_actions = [];
         Content = string.Empty;

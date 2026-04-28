@@ -30,6 +30,11 @@ public class ListItem : Container
     /// <summary>
     /// 创建一个新的列表项。
     /// </summary>
+    /// <summary>
+    /// 无参构造：默认尺寸 200x40。
+    /// </summary>
+    public ListItem() : this(200f, 40f) { }
+
     public ListItem(float width = 200f, float height = 40f)
     {
         _itemWidth = width;

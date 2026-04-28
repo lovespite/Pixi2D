@@ -73,6 +73,11 @@ public class ComboBox : Container
     /// <param name="textFactory">文本工厂，用于创建标签。</param>
     /// <param name="width">控件宽度。</param>
     /// <param name="height">控件高度。</param>
+    /// <summary>
+    /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
+    /// </summary>
+    public ComboBox() : this(UIContext.Current.DefaultTextFactory, 28f) { }
+
     public ComboBox(Text.Factory textFactory, float itemHeight, float width = 150f, float height = 30f)
     {
         _textFactory = textFactory;
@@ -436,6 +441,11 @@ internal class ComboBoxItem : Container
     public object ItemObject { get; }
 
     public event Action<ComboBoxItem>? OnItemClick;
+
+    /// <summary>
+    /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂创建空 item。
+    /// </summary>
+    public ComboBoxItem() : this(UIContext.Current.DefaultTextFactory, string.Empty) { }
 
     public ComboBoxItem(Text.Factory textFactory, object itemObject, float itemHeight = 28f)
     {
