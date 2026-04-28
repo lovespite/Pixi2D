@@ -66,7 +66,7 @@ if (-not (Test-Path $exe) -and -not $NoBuild) {
 }
 if (-not (Test-Path $exe)) { Write-Error "Pixi2D.Host.exe not found at $exe"; return }
 
-$args = @("`"$($demo.Pxml)`"")
-if (-not $NoWatch) { $args += "--watch" }
-Write-Host "Launching $($demo.Name) → $exe $($args -join ' ')"
-& $exe @args
+$cliArgs = @($demo.Pxml)
+if (-not $NoWatch) { $cliArgs += "--watch" }
+Write-Host "Launching $($demo.Name) → $exe $($cliArgs -join ' ')"
+& $exe @cliArgs
