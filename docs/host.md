@@ -61,11 +61,13 @@ Program.Main
 
 ## 5b. JS 事件循环 Pump (v0.4+)
 
-* `OnPaint` 每帧在 `_stage.Render(target)` 之前调用 `_engine?.Pump()`，转发到 `QuickJSEngine.PumpEventLoop()`。
-* 这是 `setTimeout` / `setInterval` / `clearTimeout` / `clearInterval` / `queueMicrotask` 在 Host 中真正滴答的前提。
+* **主心跳走 Win32 `WM_TIMER`**：`OnLoad` 注册 `SetTimer(handle, id, 16, NULL)`；窗口的 `WndProc`（`HandleWndProc` override）在收到 `WM_TIMER` 时调用 `_engine.Pump()`。
+* `WM_TIMER` 关键属性：在 size/move modal loop（拖动 / 缩放 / 标题栏菜单 / `WM_ENTERSIZEMOVE` 期间）**也会被派发**，所以 `setInterval` / `setTimeout` 在用户操作窗口时**仍然滴答**，不会被冻结。
+* 与 `System.Windows.Forms.Timer` 同底层（也是 `WM_TIMER`），但**零 WinForms 依赖**：纯 `LibraryImport` P/Invoke `user32.dll`（AOT 友好，启用 `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` 满足 source-gen 要求）。
+* 退化策略：若 `SetTimer` 失败（罕见），自动回退到 `OnPaint` 心跳（拖窗会停，但至少基本场景能跑）。
 * 回调与渲染同线程（D2D 主消息循环线程），无需 `RunOnUIThread` 编组。
-* 最小有效间隔 ≈ 渲染 fps（~16ms）；想要更小周期需要让 D2DWindow 跑更高帧率或自行起线程。
-* Pump 异常被捕获并写到诊断回调，不会中断渲染。
+* 最小有效间隔：受 `WM_TIMER` 的 `USER_TIMER_MINIMUM`（10ms）下限钳制；当前固定 16ms (~60Hz)，足以驱动 `setInterval(>=10ms)` 的应用。
+* Pump 异常被捕获并写到诊断回调，不会中断渲染或 timer 心跳。
 
 ## 6. 鼠标按键映射
 

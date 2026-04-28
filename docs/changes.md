@@ -7,8 +7,11 @@
 - `external/qjs.net` @ `35819f94` — 新增 `public QuickJSEngine.PumpEventLoop()` / `QuickJSRuntime.PumpEventLoop()`（非阻塞单次 `EventLoop.DrainQueue`），upstream-friendly 改动
 - `Pixi2D.Markup/IScriptEngine.cs` — 接口默认方法 `void Pump() {}`；`NullScriptEngine` 沿用空
 - `Pixi2D.Scripting.QuickJs/QuickJsScriptEngine.cs` — `Pump()` 转发到底层引擎
-- `Pixi2D.Host/PixiHostWindow.cs` — `OnPaint` 在 `_stage.Render` 之前调用 `_engine?.Pump()`，异常吞掉转日志
-- 影响：`setTimeout` / `setInterval` / `clearTimeout` / `clearInterval` / `queueMicrotask` 现在在 Host 渲染期间真正滴答；最小有效间隔 ≈ 渲染 fps（~16ms）
+- `Pixi2D.Host/HostNative.cs` — `LibraryImport` P/Invoke `SetTimer` / `KillTimer`（**零 WinForms 依赖**）
+- `Pixi2D.Host/PixiHostWindow.cs` — `OnLoad` 注册 16ms `WM_TIMER`；override `HandleWndProc` 拦截 `WM_TIMER` → `_engine.Pump()`；`Dispose` 调 `KillTimer`
+- `Pixi2D.Host.csproj` — `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>`（`LibraryImport` source-gen 需求）
+- 影响：`setTimeout` / `setInterval` / `clearTimeout` / `clearInterval` / `queueMicrotask` 现在在 Host 渲染期间真正滴答，**且在窗口拖动 / 缩放 / 模态消息循环期间也不会被冻结**（`WM_TIMER` 在 size/move modal loop 里仍被派发）
+- 退化：若 `SetTimer` 失败，回退到 `OnPaint` 心跳；最小有效间隔 ~16ms
 
 ### `demos/` 目录（仓库根，新）
 

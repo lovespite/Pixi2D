@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <UseWindowsForms>false</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Pixi2D.Host</RootNamespace>
     <AssemblyName>Pixi2D.Host</AssemblyName>
   </PropertyGroup>

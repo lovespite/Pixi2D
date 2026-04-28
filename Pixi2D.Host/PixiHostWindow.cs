@@ -27,6 +27,11 @@ public sealed class PixiHostWindow : Direct2D1Window
     private FileSystemWatcher? _watcher;
     private DateTime _lastReload = DateTime.MinValue;
 
+    // WM_TIMER pump：与渲染解耦，让 setInterval 在拖窗 / 缩放 / 模态循环里也能滴答。
+    private const nuint PumpTimerId = 0x1D01;
+    private const uint  PumpTimerIntervalMs = 16; // ~60Hz；WM_TIMER 受 USER_TIMER_MINIMUM(10ms) 下限钳制
+    private bool _pumpTimerInstalled;
+
     public override string WindowClassName => "Pixi2DHostWindow";
 
     public PixiHostWindow(string pxmlPath, string? jsPath, bool watch, string title, int w, int h)
@@ -62,17 +67,42 @@ public sealed class PixiHostWindow : Direct2D1Window
     {
         BuildScene();
         if (_watch) StartWatcher();
+
+        // 注册 WM_TIMER 驱动 JS 事件循环；与渲染解耦，避免拖窗/缩放时 setInterval 被冻住。
+        if (Handle != IntPtr.Zero)
+        {
+            var id = HostNative.SetTimer(Handle, PumpTimerId, PumpTimerIntervalMs, IntPtr.Zero);
+            _pumpTimerInstalled = id != 0;
+            if (!_pumpTimerInstalled)
+            {
+                LogDiagnostic(DiagnosticSeverity.Warning,
+                    $"[host] SetTimer 失败 (Win32Error={Marshal.GetLastWin32Error()}); 退化到 OnPaint 心跳");
+            }
+        }
+    }
+
+    protected override IntPtr HandleWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        if (msg == HostNative.WM_TIMER && (nuint)wParam == PumpTimerId)
+        {
+            PumpEngine();
+            return IntPtr.Zero;
+        }
+        return base.HandleWndProc(hWnd, msg, wParam, lParam);
+    }
+
+    private void PumpEngine()
+    {
+        if (_engine is null) return;
+        try { _engine.Pump(); }
+        catch (Exception ex) { LogDiagnostic(DiagnosticSeverity.Error, "[pump] " + ex.Message); }
     }
 
     protected override void OnPaint(RenderTarget target, float deltaTimeInSeconds)
     {
-        // 推动 JS 事件循环 (setTimeout / setInterval / 微任务) — 在渲染前执行,
-        // 让脚本在本帧 UI 之前更新到位; 异常吞掉避免渲染中断, 由 OnLog 路径已经记录.
-        if (_engine is not null)
-        {
-            try { _engine.Pump(); }
-            catch (Exception ex) { LogDiagnostic(DiagnosticSeverity.Error, "[pump] " + ex.Message); }
-        }
+        // 主心跳走 WM_TIMER (HandleWndProc); 这里仅在 timer 未注册成功时兜底,
+        // 确保即便 SetTimer 失败 setInterval 仍能跟随渲染帧滴答 (拖窗会停).
+        if (!_pumpTimerInstalled) PumpEngine();
 
         _stage.Render(target);
 
@@ -178,6 +208,11 @@ public sealed class PixiHostWindow : Direct2D1Window
 
     public override void Dispose()
     {
+        if (_pumpTimerInstalled && Handle != IntPtr.Zero)
+        {
+            HostNative.KillTimer(Handle, PumpTimerId);
+            _pumpTimerInstalled = false;
+        }
         _watcher?.Dispose();
         DisposeScene();
         base.Dispose();
