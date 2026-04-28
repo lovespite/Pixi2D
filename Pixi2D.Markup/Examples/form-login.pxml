@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 登录表单：标题、输入框、密码、记住我开关、按钮 -->
+<panel id="login-form" width="360" height="320" background-color="#1f2329">
+    <fancy-text id="title" x="20" y="16" content="登录 Pixi2D" />
+
+    <fancy-text x="20" y="64"  content="账号" />
+    <text-box   id="username" x="20" y="84"  width="320" height="32" />
+
+    <fancy-text x="20" y="128" content="密码" />
+    <text-box   id="password" x="20" y="148" width="320" height="32" />
+
+    <switch     id="remember" x="20" y="200" />
+    <fancy-text x="60" y="204" content="记住我" />
+
+    <button id="btn-login"  x="20"  y="248" text="登录"   on-click="onLogin" />
+    <button id="btn-cancel" x="200" y="248" text="取消"   on-click="onCancel" />
+</panel>

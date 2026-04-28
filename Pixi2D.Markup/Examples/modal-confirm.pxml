@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 模态确认框 -->
+<modal id="confirm-dialog" width="400" height="200">
+    <panel id="dialog" width="400" height="200" background-color="#2b2f36">
+        <fancy-text x="24" y="24" content="删除确认" />
+        <fancy-text x="24" y="64" content="确定要删除选中的 3 个文件吗？此操作不可撤销。" />
+        <button id="btn-cancel"  x="160" y="140" text="取消" on-click="onCancel" />
+        <button id="btn-confirm" x="270" y="140" text="删除" on-click="onConfirm" />
+    </panel>
+</modal>

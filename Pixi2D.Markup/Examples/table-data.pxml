@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 表格数据 -->
+<panel id="table-demo" width="560" height="280" background-color="#202225">
+    <fancy-text x="20" y="12" content="销售统计" />
+    <table id="sales" x="20" y="40" width="520" height="220">
+        <table-cell><text content="月份" /></table-cell>
+        <table-cell><text content="收入" /></table-cell>
+        <table-cell><text content="支出" /></table-cell>
+        <table-cell><text content="利润" /></table-cell>
+
+        <table-cell><text content="一月" /></table-cell>
+        <table-cell><text content="¥120,000" /></table-cell>
+        <table-cell><text content="¥48,000" /></table-cell>
+        <table-cell><text content="¥72,000" /></table-cell>
+
+        <table-cell><text content="二月" /></table-cell>
+        <table-cell><text content="¥98,000" /></table-cell>
+        <table-cell><text content="¥51,000" /></table-cell>
+        <table-cell><text content="¥47,000" /></table-cell>
+
+        <table-cell><text content="三月" /></table-cell>
+        <table-cell><text content="¥154,000" /></table-cell>
+        <table-cell><text content="¥62,000" /></table-cell>
+        <table-cell><text content="¥92,000" /></table-cell>
+    </table>
+</panel>

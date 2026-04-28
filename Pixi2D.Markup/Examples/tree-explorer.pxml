@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 文件浏览树 -->
+<panel id="explorer" width="380" height="420" background-color="#161b22">
+    <fancy-text x="12" y="8" content="项目结构" />
+    <tree-view id="tree" x="12" y="36" width="356" height="376">
+        <tree-node>
+            <text content="Pixi2D" />
+            <tree-node><text content="Core" /></tree-node>
+            <tree-node>
+                <text content="Controls" />
+                <tree-node><text content="Button.cs" /></tree-node>
+                <tree-node><text content="Panel.cs" /></tree-node>
+                <tree-node><text content="TextBox.cs" /></tree-node>
+            </tree-node>
+            <tree-node>
+                <text content="Components" />
+                <tree-node><text content="Modal.cs" /></tree-node>
+                <tree-node><text content="FlowLayout.cs" /></tree-node>
+            </tree-node>
+        </tree-node>
+        <tree-node>
+            <text content="Pixi2D.Markup" />
+            <tree-node><text content="ElementRegistry.cs" /></tree-node>
+            <tree-node><text content="PxmlLoader.cs" /></tree-node>
+        </tree-node>
+    </tree-view>
+</panel>
