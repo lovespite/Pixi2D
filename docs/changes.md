@@ -1,5 +1,35 @@
 # 改动清单 (feat/dsl-xml-js)
 
+## v0.4 — Host Pump + 可运行 Demo 库
+
+### Host Pump（让 setTimeout / setInterval 真正滴答）
+
+- `external/qjs.net` @ `35819f94` — 新增 `public QuickJSEngine.PumpEventLoop()` / `QuickJSRuntime.PumpEventLoop()`（非阻塞单次 `EventLoop.DrainQueue`），upstream-friendly 改动
+- `Pixi2D.Markup/IScriptEngine.cs` — 接口默认方法 `void Pump() {}`；`NullScriptEngine` 沿用空
+- `Pixi2D.Scripting.QuickJs/QuickJsScriptEngine.cs` — `Pump()` 转发到底层引擎
+- `Pixi2D.Host/PixiHostWindow.cs` — `OnPaint` 在 `_stage.Render` 之前调用 `_engine?.Pump()`，异常吞掉转日志
+- 影响：`setTimeout` / `setInterval` / `clearTimeout` / `clearInterval` / `queueMicrotask` 现在在 Host 渲染期间真正滴答；最小有效间隔 ≈ 渲染 fps（~16ms）
+
+### `demos/` 目录（仓库根，新）
+
+- `demos/run.ps1` — `-List` / `-Name <模糊>` / `-NoBuild` / `-NoWatch` / `-Configuration`
+- `demos/README.md` — demo 索引 + 启动方式 + 编写指南
+- 12 个 demo（01-hello / 02-counter / 03-login / 04-calculator / 05-form-validation / 06-theme-toggle / 07-modal-flow / 08-progress-stepper / 09-switch-grid / 10-dashboard / 11-stopwatch / 12-progress-animate）
+- 每个目录含 `main.pxml`、可选 `main.js`、`README.md`（首行非标题被 `run.ps1 -List` 抓为描述）
+
+### 文档
+
+- `docs/demos.md` — demo 索引（与 demos/README 对应）
+- `docs/host.md` — 补 Pump 段
+- `README.md` — 加 demos 链接
+
+### 关键修复 / Tips
+
+- TextBox 的 placeholder 属性名实际是 `PlaceholderText`；PXML 应写 `placeholder-text="..."`，不是 `placeholder=`
+- `setInterval` 在 Host 中不会自动滴答 —— 必须由 `_engine.Pump()` 推动（v0.4 已内置）
+
+---
+
 ## v0.3 — QuickJS 集成 + D2DWindow 渲染宿主
 
 ### 子模块

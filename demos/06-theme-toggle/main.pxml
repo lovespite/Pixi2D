@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel id="root" width="500" height="320" background-color="#111827">
+    <fancy-text id="title"   x="24" y="20"  content="主题切换" />
+
+    <fancy-text x="24" y="70"  content="深色模式" />
+    <switch     id="swDark"   x="160" y="68" />
+
+    <fancy-text x="24" y="110" content="紧凑布局" />
+    <switch     id="swCompact" x="160" y="108" />
+
+    <fancy-text id="lblTheme"   x="24" y="170" content="当前主题: 深色" />
+    <fancy-text id="lblDensity" x="24" y="200" content="布局密度: 标准" />
+    <fancy-text id="lblPreview" x="24" y="240" content="[预览] Pixi2D — A lightweight UI library" />
+    <fancy-text id="lblHint"    x="24" y="280" content="切换开关查看实时效果" />
+</panel>

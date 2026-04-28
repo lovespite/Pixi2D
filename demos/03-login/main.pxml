@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel id="root" width="420" height="280" background-color="#0f172a">
+    <fancy-text x="24" y="20" content="登录" />
+
+    <fancy-text x="24" y="60" content="用户名" />
+    <text-box id="txtUser" x="100" y="56" width="280" height="28" placeholder-text="admin" />
+
+    <fancy-text x="24" y="100" content="密码" />
+    <text-box id="txtPass" x="100" y="96" width="280" height="28" placeholder-text="≥ 4 字符" />
+
+    <button     id="btnLogin"  x="24"  y="160" width="100" height="32" text="登录" on-click="onLogin" />
+    <button     id="btnClear"  x="140" y="160" width="80"  height="32" text="清空" on-click="onClear" />
+    <fancy-text id="lblStatus" x="24"  y="220" content="请输入凭据" />
+</panel>

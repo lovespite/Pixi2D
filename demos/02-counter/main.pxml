@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel id="root" width="460" height="240" background-color="#202225">
+    <fancy-text id="title"    x="20" y="16"  content="Scripted Counter" />
+    <fancy-text id="lblCount" x="20" y="60"  content="0" />
+
+    <button id="btnInc"   x="20"  y="130" width="80" height="32" text="+1"   on-click="onInc" />
+    <button id="btnReset" x="120" y="130" width="80" height="32" text="重置" on-click="onReset" />
+
+    <switch     id="swLog"      x="270" y="130" />
+    <fancy-text id="lblLogHint" x="270" y="170" content="开关日志" />
+</panel>

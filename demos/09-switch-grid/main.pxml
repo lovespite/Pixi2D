@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel id="root" width="420" height="320" background-color="#1f2937">
+    <fancy-text x="24" y="16" content="开关矩阵" />
+
+    <fancy-text x="24" y="60"  content="WiFi" />
+    <switch     id="sw1" x="180" y="58" />
+    <fancy-text x="24" y="100" content="蓝牙" />
+    <switch     id="sw2" x="180" y="98" />
+    <fancy-text x="24" y="140" content="飞行模式" />
+    <switch     id="sw3" x="180" y="138" />
+    <fancy-text x="24" y="180" content="勿扰" />
+    <switch     id="sw4" x="180" y="178" />
+
+    <fancy-text x="24" y="240" content="启用计数:" />
+    <number     id="cnt" x="160" y="236" width="60" height="28" value="0" suffix=" 项" />
+</panel>

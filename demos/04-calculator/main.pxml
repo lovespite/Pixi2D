@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel id="root" width="320" height="440" background-color="#111827">
+    <fancy-text id="display" x="20" y="20" content="0" />
+
+    <button id="b7"   x="20"  y="80"  width="60" height="50" text="7" on-click="onDigit7" />
+    <button id="b8"   x="90"  y="80"  width="60" height="50" text="8" on-click="onDigit8" />
+    <button id="b9"   x="160" y="80"  width="60" height="50" text="9" on-click="onDigit9" />
+    <button id="bDiv" x="230" y="80"  width="60" height="50" text="÷" on-click="onDiv" />
+
+    <button id="b4"   x="20"  y="140" width="60" height="50" text="4" on-click="onDigit4" />
+    <button id="b5"   x="90"  y="140" width="60" height="50" text="5" on-click="onDigit5" />
+    <button id="b6"   x="160" y="140" width="60" height="50" text="6" on-click="onDigit6" />
+    <button id="bMul" x="230" y="140" width="60" height="50" text="×" on-click="onMul" />
+
+    <button id="b1"   x="20"  y="200" width="60" height="50" text="1" on-click="onDigit1" />
+    <button id="b2"   x="90"  y="200" width="60" height="50" text="2" on-click="onDigit2" />
+    <button id="b3"   x="160" y="200" width="60" height="50" text="3" on-click="onDigit3" />
+    <button id="bSub" x="230" y="200" width="60" height="50" text="−" on-click="onSub" />
+
+    <button id="b0"   x="20"  y="260" width="130" height="50" text="0"  on-click="onDigit0" />
+    <button id="bDot" x="160" y="260" width="60"  height="50" text="."  on-click="onDot" />
+    <button id="bAdd" x="230" y="260" width="60"  height="50" text="+"  on-click="onAdd" />
+
+    <button id="bClr" x="20"  y="330" width="130" height="50" text="C"  on-click="onClear" />
+    <button id="bEq"  x="160" y="330" width="130" height="50" text="="  on-click="onEq" />
+</panel>

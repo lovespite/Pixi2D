@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel id="root" width="500" height="280" background-color="#0f172a">
+    <fancy-text x="24" y="20" content="模态流程" />
+    <button     id="btnDelete" x="24" y="80" width="120" height="36" text="删除文件" on-click="onAskDelete" />
+    <fancy-text id="lblStatus" x="24" y="160" content="操作记录: (无)" />
+
+    <modal id="dlg" width="500" height="280">
+        <panel id="dlgPanel" width="500" height="280" background-color="#1f2937">
+            <fancy-text x="40" y="60"  content="删除确认" />
+            <fancy-text x="40" y="100" content="确定要删除 3 个文件吗？此操作不可撤销。" />
+            <button id="btnCancel"  x="240" y="180" width="100" height="36" text="取消" on-click="onCancel" />
+            <button id="btnConfirm" x="360" y="180" width="100" height="36" text="删除" on-click="onConfirm" />
+        </panel>
+    </modal>
+</panel>

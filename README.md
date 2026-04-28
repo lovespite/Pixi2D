@@ -20,10 +20,12 @@
 - [`docs/dsl-overview.md`](docs/dsl-overview.md) — 设计哲学与初始化样板
 - [`docs/element-mapping.md`](docs/element-mapping.md) — PXML 元素 / 属性映射表
 - [`docs/scripting.md`](docs/scripting.md) — JS 端 API、`[JSExport]` 代理、AOT 边界
-- [`docs/host.md`](docs/host.md) — `Pixi2D.Host` CLI / 控制台 / watch
-- [`docs/changes.md`](docs/changes.md) — 改动清单 (v0.1 / v0.2 / v0.3)
+- [`docs/host.md`](docs/host.md) — `Pixi2D.Host` CLI / 控制台 / Pump / watch
+- [`docs/demos.md`](docs/demos.md) — **可运行 Demo 索引（12 个 PXML+JS 演示）**
+- [`docs/changes.md`](docs/changes.md) — 改动清单 (v0.1 / v0.2 / v0.3 / v0.4)
 - [`Pixi2D.Markup/Schema/pixi2d.xsd`](Pixi2D.Markup/Schema/pixi2d.xsd) — XML schema (v0.1)
-- [`Pixi2D.Markup/Examples/`](Pixi2D.Markup/Examples/) — 示例 .pxml 文件
+- [`Pixi2D.Markup/Examples/`](Pixi2D.Markup/Examples/) — 内置最小示例 .pxml
+- [`demos/`](demos/) — **可运行 demo 套件**
 
 快速体验：
 
@@ -36,4 +38,8 @@ dotnet run --project Pixi2D.Preview -- Pixi2D.Markup\Examples\hello.pxml
 
 # Host: 渲染 + 跑 JS 脚本 (同名 .js 自动加载)
 dotnet run --project Pixi2D.Host -- Pixi2D.Markup\Examples\scripted-counter.pxml --watch
+
+# 一键体验所有 demo
+.\demos\run.ps1 -List
+.\demos\run.ps1 -Name stopwatch
 ```

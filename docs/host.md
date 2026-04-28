@@ -59,6 +59,14 @@ Program.Main
 * 防抖 500ms；变化后通过 `RunOnUIThread` 编组到 UI 线程，调用 `BuildScene()` 重建场景。
 * 重建时 dispose 旧 `QuickJsScriptEngine` 并重新执行用户脚本（保守策略，避免脏状态）。
 
+## 5b. JS 事件循环 Pump (v0.4+)
+
+* `OnPaint` 每帧在 `_stage.Render(target)` 之前调用 `_engine?.Pump()`，转发到 `QuickJSEngine.PumpEventLoop()`。
+* 这是 `setTimeout` / `setInterval` / `clearTimeout` / `clearInterval` / `queueMicrotask` 在 Host 中真正滴答的前提。
+* 回调与渲染同线程（D2D 主消息循环线程），无需 `RunOnUIThread` 编组。
+* 最小有效间隔 ≈ 渲染 fps（~16ms）；想要更小周期需要让 D2DWindow 跑更高帧率或自行起线程。
+* Pump 异常被捕获并写到诊断回调，不会中断渲染。
+
 ## 6. 鼠标按键映射
 
 | D2DWindow `MouseButton` | Pixi2D `Stage.DispatchMouseDown(_, int button)` |

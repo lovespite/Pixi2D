@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel id="root" width="520" height="220" background-color="#111827">
+    <fancy-text x="24" y="16" content="进度动画" />
+
+    <progress-bar id="bar"    x="24" y="80" width="472" height="20" value="0" />
+    <fancy-text   id="lblPct" x="24" y="120" content="0 %" />
+
+    <button id="btnStart" x="24"  y="160" width="100" height="32" text="开始" on-click="onStart" />
+    <button id="btnPause" x="140" y="160" width="100" height="32" text="暂停" on-click="onPause" />
+    <button id="btnReset" x="256" y="160" width="100" height="32" text="重置" on-click="onReset" />
+</panel>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel id="root" width="520" height="220" background-color="#0b1220">
+    <fancy-text x="24" y="20" content="进度步进" />
+
+    <progress-bar id="bar" x="24" y="80" width="472" height="18" value="0.4" />
+    <fancy-text   id="lblPct" x="24" y="120" content="40 %" />
+
+    <button id="btnDec"   x="24"  y="160" width="80" height="32" text="− 10" on-click="onDec" />
+    <button id="btnInc"   x="120" y="160" width="80" height="32" text="+ 10" on-click="onInc" />
+    <button id="btnReset" x="220" y="160" width="80" height="32" text="重置" on-click="onReset" />
+</panel>

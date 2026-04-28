@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel id="root" width="480" height="200" background-color="#1f2937">
+    <fancy-text x="24" y="24" content="Hello, Pixi2D!" />
+    <fancy-text x="24" y="64" content="这是最小 PXML 示例 — 没有脚本，纯静态布局。" />
+    <fancy-text x="24" y="120" content="编辑 main.pxml 看 --watch 热重载效果。" />
+</panel>

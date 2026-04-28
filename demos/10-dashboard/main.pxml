@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<panel id="dashboard" width="640" height="320" background-color="#0d1117">
+    <fancy-text x="20" y="16"  content="系统状态" />
+
+    <fancy-text x="20"  y="60"  content="CPU" />
+    <progress-bar id="cpu"    x="100" y="60"  width="500" height="14" value="0.42" />
+
+    <fancy-text x="20"  y="92"  content="内存" />
+    <progress-bar id="memory" x="100" y="92"  width="500" height="14" value="0.71" />
+
+    <fancy-text x="20"  y="124" content="磁盘" />
+    <progress-bar id="disk"   x="100" y="124" width="500" height="14" value="0.18" />
+
+    <fancy-text x="20"  y="156" content="网络" />
+    <progress-bar id="net"    x="100" y="156" width="500" height="14" value="0.55" />
+
+    <fancy-text id="status" x="20" y="220" content="状态：运行正常" />
+</panel>
