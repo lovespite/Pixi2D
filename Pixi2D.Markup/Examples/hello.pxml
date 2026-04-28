@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 最简单的 Hello World：一个面板 + 一段标题 + 一个按钮 -->
+<panel id="root" width="320" height="180" background-color="#202225">
+    <fancy-text id="title" x="20" y="16" content="Hello, Pixi2D!" />
+    <button id="btnOk" x="20" y="80" text="OK" on-click="onOkClick" />
+</panel>

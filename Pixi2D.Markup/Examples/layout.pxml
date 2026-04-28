@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FlowLayout + 多个控件演示 -->
+<panel id="root" width="480" height="320" background-color="#1e1e1e">
+    <flow-layout id="actions" x="12" y="12" width="456" height="40">
+        <button text="新建" on-click="onNew" />
+        <button text="保存" on-click="onSave" />
+        <button text="导出" on-click="onExport" />
+    </flow-layout>
+    <progress-bar id="prog" x="12" y="64" width="456" height="14" />
+    <text-box id="input" x="12" y="96" width="456" height="32" />
+    <switch id="dark" x="12" y="140" />
+</panel>

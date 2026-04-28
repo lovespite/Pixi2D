@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pixi2D PXML Schema (v0.1)
+  说明:
+    * 实际属性集合非常庞大, 此 schema 使用 anyAttribute processContents="lax"
+      允许任何额外属性, 由 PxmlLoader 通过反射处理。
+    * 每个控件作为根元素时都允许使用; 也可以放在 <ui> 包装下。
+    * on-* 形式的属性留给脚本引擎绑定 (handler 名称为字符串)。
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="https://pixi2d.dev/pxml/v1"
+           xmlns="https://pixi2d.dev/pxml/v1"
+           elementFormDefault="qualified">
+
+  <xs:attributeGroup name="displayObjectAttrs">
+    <xs:attribute name="id"        type="xs:string"/>
+    <xs:attribute name="name"      type="xs:string"/>
+    <xs:attribute name="x"         type="xs:float"/>
+    <xs:attribute name="y"         type="xs:float"/>
+    <xs:attribute name="width"     type="xs:float"/>
+    <xs:attribute name="height"    type="xs:float"/>
+    <xs:attribute name="visible"   type="xs:boolean"/>
+    <xs:attribute name="alpha"     type="xs:float"/>
+    <xs:attribute name="rotation"  type="xs:float"/>
+    <xs:attribute name="scale"     type="xs:float"/>
+    <xs:attribute name="anchor-x"  type="xs:float"/>
+    <xs:attribute name="anchor-y"  type="xs:float"/>
+    <xs:attribute name="interactive"  type="xs:boolean"/>
+    <xs:attribute name="accept-focus" type="xs:boolean"/>
+  </xs:attributeGroup>
+
+  <xs:complexType name="containerType">
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:any processContents="lax" namespace="##any"/>
+    </xs:sequence>
+    <xs:attributeGroup ref="displayObjectAttrs"/>
+    <xs:anyAttribute processContents="lax"/>
+  </xs:complexType>
+
+  <xs:complexType name="leafType" mixed="true">
+    <xs:attributeGroup ref="displayObjectAttrs"/>
+    <xs:anyAttribute processContents="lax"/>
+  </xs:complexType>
+
+  <xs:element name="ui" type="containerType"/>
+  <xs:element name="container" type="containerType"/>
+  <xs:element name="panel" type="containerType"/>
+  <xs:element name="modal" type="containerType"/>
+  <xs:element name="flow-layout" type="containerType"/>
+  <xs:element name="auto-flow-layout" type="containerType"/>
+  <xs:element name="list" type="containerType"/>
+  <xs:element name="list-item" type="containerType"/>
+  <xs:element name="scrollable-list" type="containerType"/>
+  <xs:element name="tree-view" type="containerType"/>
+  <xs:element name="tree-node" type="containerType"/>
+  <xs:element name="table" type="containerType"/>
+  <xs:element name="table-cell" type="containerType"/>
+  <xs:element name="combo-box" type="containerType"/>
+  <xs:element name="message-box" type="containerType"/>
+  <xs:element name="soft-keyboard" type="containerType"/>
+  <xs:element name="graphics" type="containerType"/>
+
+  <xs:element name="text" type="leafType"/>
+  <xs:element name="fancy-text" type="leafType"/>
+  <xs:element name="button" type="leafType"/>
+  <xs:element name="fancy-button" type="leafType"/>
+  <xs:element name="text-box" type="leafType"/>
+  <xs:element name="number" type="leafType"/>
+  <xs:element name="switch" type="leafType"/>
+  <xs:element name="progress-bar" type="leafType"/>
+  <xs:element name="icon-label" type="leafType"/>
+  <xs:element name="spin-loading" type="leafType"/>
+  <xs:element name="graphics-spin-loading" type="leafType"/>
+  <xs:element name="sprite" type="leafType"/>
+</xs:schema>

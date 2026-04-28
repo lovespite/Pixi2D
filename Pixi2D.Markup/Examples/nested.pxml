@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ui 包装 + 嵌套 panel -->
+<ui>
+    <panel id="outer" width="600" height="400" background-color="#0e1116">
+        <panel id="header" x="0" y="0" width="600" height="48" background-color="#161b22">
+            <fancy-text x="12" y="12" content="标题栏" />
+        </panel>
+        <panel id="body" x="0" y="48" width="600" height="352" background-color="#0e1116">
+            <list id="items" x="12" y="12" width="280" height="320">
+                <list-item><text content="项 1" /></list-item>
+                <list-item><text content="项 2" /></list-item>
+                <list-item><text content="项 3" /></list-item>
+            </list>
+        </panel>
+    </panel>
+</ui>
