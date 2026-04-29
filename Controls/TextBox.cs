@@ -66,6 +66,14 @@ public class TextBox : Container
     private bool _bgDirty = true;
     private bool _layoutDirtty = true;
 
+    // 多行滚动条 (内部, 仅 _multiline 且内容超出时显示)
+    private const float ScrollBarWidth = 8f;
+    private Graphics? _scrollTrack;
+    private Graphics? _scrollThumb;
+    private bool _isDraggingThumb = false;
+    private float _dragThumbStartLocalY = 0f;
+    private float _dragContainerStartY = 0f;
+
     /// <summary>
     /// 获取或设置输入框中的文本内容。 
     /// </summary>
@@ -74,8 +82,10 @@ public class TextBox : Container
         get => _textBuilder.ToString();
         set
         {
+            var newValue = value ?? string.Empty;
+            var old = _textBuilder.ToString();
             _textBuilder.Clear();
-            _textBuilder.Append(value);
+            _textBuilder.Append(newValue);
             // 确保光标位置有效 
             _caretIndex = 0;
             _selectionStart = 0; //  重置选区
@@ -83,8 +93,19 @@ public class TextBox : Container
             _displayStateDirty = true;
             TryUpdateTextDisplay();
             TryUpdateCaretPosition();
+            if (!ReferenceEquals(old, newValue) && !string.Equals(old, newValue, StringComparison.Ordinal))
+                RaiseTextChanged();
         }
     }
+
+    /// <summary>
+    /// 文本内容发生变化时触发。
+    /// 包含: 用户输入 / 退格 / 删除 / 粘贴 / 程序设置 Text setter。
+    /// JS 端: <c>obj.on('textChanged', text =&gt; ...)</c> 由 <c>[JSExport]</c> 自动暴露。
+    /// </summary>
+    public event EventHandler<string>? TextChanged;
+
+    private void RaiseTextChanged() => TextChanged?.Invoke(this, _textBuilder.ToString());
 
     /// <summary>
     /// Gets or sets the placeholder text displayed when the input field is empty.
@@ -203,6 +224,7 @@ public class TextBox : Container
         end = Math.Clamp(end, 0, _textBuilder.Length);
         _selectionStart = start;
         _caretIndex = end;
+        _caretPositionDirty = true;
         TryUpdateCaretPosition();
     }
 
@@ -210,7 +232,65 @@ public class TextBox : Container
     {
         _selectionStart = 0;
         _caretIndex = _textBuilder.Length;
+        _caretPositionDirty = true;
         TryUpdateCaretPosition();
+    }
+
+    /// <summary>
+    /// 光标位置（同时塌缩选区）。get 返回当前光标 char index；set 会 clamp 并触发滚动到光标。
+    /// </summary>
+    public int SelectionStart
+    {
+        get => _caretIndex;
+        set
+        {
+            int c = Math.Clamp(value, 0, _textBuilder.Length);
+            _selectionStart = c;
+            _caretIndex = c;
+            _caretPositionDirty = true;
+            TryUpdateCaretPosition();
+        }
+    }
+
+    /// <summary>
+    /// 选区长度（end - start，绝对值）。
+    /// </summary>
+    public int SelectionLength
+    {
+        get => Math.Abs(_caretIndex - _selectionStart);
+        set
+        {
+            int len = Math.Max(0, value);
+            int start = Math.Min(_selectionStart, _caretIndex);
+            int end = Math.Clamp(start + len, 0, _textBuilder.Length);
+            _selectionStart = start;
+            _caretIndex = end;
+            _caretPositionDirty = true;
+            TryUpdateCaretPosition();
+        }
+    }
+
+    /// <summary>
+    /// 文本总长度（字符数）。
+    /// </summary>
+    public int Length => _textBuilder.Length;
+
+    /// <summary>
+    /// 滚动并定位光标到第 <paramref name="line1Based"/> 行起始。
+    /// 多行模式下会触发可见区滚动。
+    /// </summary>
+    public void ScrollToLine(int line1Based)
+    {
+        if (line1Based < 1) line1Based = 1;
+        int idx = 0;
+        int line = 1;
+        var s = _textBuilder;
+        while (idx < s.Length && line < line1Based)
+        {
+            if (s[idx] == '\n') line++;
+            idx++;
+        }
+        SelectionStart = idx;
     }
 
     #endregion
@@ -406,6 +486,26 @@ public class TextBox : Container
         AcceptFocus = true; // 允许接受焦点
         _background.OnMouseDown += HandleMouseDown; // 背景也响应点击
 
+        // 8. 多行滚动条 (track + thumb, 默认隐藏)
+        _scrollTrack = new Graphics
+        {
+            Visible = false,
+            Interactive = false,
+            FillColor = new RawColor4(0.18f, 0.18f, 0.18f, 0.6f),
+        };
+        AddChild(_scrollTrack);
+        _scrollThumb = new Graphics
+        {
+            Visible = false,
+            Interactive = true,
+            FillColor = new RawColor4(0.55f, 0.55f, 0.55f, 0.85f),
+        };
+        AddChild(_scrollThumb);
+        _scrollThumb.OnMouseDown += HandleThumbMouseDown;
+        _scrollThumb.OnMouseMove += HandleThumbMouseMove;
+        _scrollThumb.OnMouseUp += HandleThumbMouseUp;
+        _scrollThumb.OnMouseOut += HandleThumbMouseUp;
+
         // 注册事件
         // 当点击时，请求 Stage 设置我们为焦点 
         this.OnMouseDown += HandleMouseDown;
@@ -592,14 +692,16 @@ public class TextBox : Container
     private void InsertCharToCaret(char c)
     {
         if (c == '\r') c = '\n'; // 转换为换行符
-        DeleteSelection(); // 先删除选区
+        bool changed = DeleteSelection(); // 先删除选区
         if (MaxLength < 0 || _textBuilder.Length < MaxLength)
         {
             _textBuilder.Insert(_caretIndex, c);
             _caretIndex++;
+            changed = true;
         }
         _selectionStart = _caretIndex; // 清除选区
         UpdateTextAndCaret();
+        if (changed) RaiseTextChanged();
     }
 
     private void HandleKeyDown(DisplayObjectEvent evt)
@@ -630,6 +732,7 @@ public class TextBox : Container
                     if (DeleteSelection())
                     {
                         UpdateTextAndCaret();
+                        RaiseTextChanged();
                     }
                     return;
                 case VK_V: // Ctrl+V 
@@ -645,6 +748,7 @@ public class TextBox : Container
                         }
                         _selectionStart = _caretIndex;
                         UpdateTextAndCaret();
+                        RaiseTextChanged();
                     }
                     return;
             }
@@ -694,6 +798,7 @@ public class TextBox : Container
                     if (DeleteSelection()) // 优先删除选区
                     {
                         UpdateTextAndCaret();
+                        RaiseTextChanged();
                     }
                     else if (_caretIndex > 0)
                     {
@@ -701,6 +806,7 @@ public class TextBox : Container
                         _caretIndex--;
                         _selectionStart = _caretIndex; // 清除选区
                         UpdateTextAndCaret();
+                        RaiseTextChanged();
                     }
                     break;
 
@@ -709,6 +815,7 @@ public class TextBox : Container
                     if (DeleteSelection()) // 优先删除选区
                     {
                         UpdateTextAndCaret();
+                        RaiseTextChanged();
                     }
                     else if (_caretIndex < _textBuilder.Length)
                     {
@@ -716,6 +823,7 @@ public class TextBox : Container
                         // 光标位置不变
                         _selectionStart = _caretIndex; // 清除选区
                         UpdateTextAndCaret(); // 文本和光标 X 坐标需要更新
+                        RaiseTextChanged();
                     }
                     break;
 
@@ -1021,6 +1129,9 @@ public class TextBox : Container
         }
 
         _placeholder.Visible = _textBuilder.Length == 0;
+
+        // 滚动条 (多行 + 内容超出时显示)
+        UpdateScrollBar();
     }
 
     #endregion
@@ -1053,6 +1164,93 @@ public class TextBox : Container
         // 强制重新计算，即使没有标记为 dirty
         _caretPositionDirty = false; // 避免跳过计算
         TryUpdateCaretPosition();
+    }
+
+    #endregion
+
+    #region Scroll Bar (multiline)
+
+    private void UpdateScrollBar()
+    {
+        if (_scrollTrack is null || _scrollThumb is null) return;
+        if (!_multiline)
+        {
+            _scrollTrack.Visible = false;
+            _scrollThumb.Visible = false;
+            return;
+        }
+        var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
+        if (layout is null)
+        {
+            _scrollTrack.Visible = false;
+            _scrollThumb.Visible = false;
+            return;
+        }
+        float textHeight = layout.Metrics.Height;
+        float clipHeight = _textClipContainer.ClipHeight ?? 0f;
+        float maxScrollY = Math.Max(0, textHeight - clipHeight);
+        if (maxScrollY <= 0.5f || clipHeight <= 0)
+        {
+            _scrollTrack.Visible = false;
+            _scrollThumb.Visible = false;
+            return;
+        }
+
+        float trackX = _boxWidth - ScrollBarWidth - 1f;
+        float trackY = _paddingY;
+        float trackH = _boxHeight - (_paddingY * 2);
+
+        _scrollTrack.Clear();
+        _scrollTrack.DrawRectangle(0, 0, ScrollBarWidth, trackH);
+        _scrollTrack.X = trackX;
+        _scrollTrack.Y = trackY;
+        _scrollTrack.Visible = true;
+
+        float ratio = clipHeight / textHeight;
+        float thumbH = Math.Max(20f, trackH * ratio);
+        float scrollFraction = (-_textContainer.Y) / maxScrollY;
+        scrollFraction = Math.Clamp(scrollFraction, 0f, 1f);
+        float thumbY = trackY + scrollFraction * (trackH - thumbH);
+
+        _scrollThumb.Clear();
+        _scrollThumb.DrawRectangle(0, 0, ScrollBarWidth, thumbH);
+        _scrollThumb.X = trackX;
+        _scrollThumb.Y = thumbY;
+        _scrollThumb.Visible = true;
+    }
+
+    private void HandleThumbMouseDown(DisplayObjectEvent evt)
+    {
+        if (_scrollThumb is null) return;
+        _isDraggingThumb = true;
+        _dragThumbStartLocalY = evt.LocalPosition.Y;
+        _dragContainerStartY = _textContainer.Y;
+        evt.StopPropagation();
+    }
+
+    private void HandleThumbMouseMove(DisplayObjectEvent evt)
+    {
+        if (!_isDraggingThumb || _scrollTrack is null) return;
+        var layout = _textDisplay.GetTextLayout(GetStage()?.GetCachedRenderTarget());
+        if (layout is null) return;
+        float textHeight = layout.Metrics.Height;
+        float clipHeight = _textClipContainer.ClipHeight ?? 0f;
+        float maxScrollY = Math.Max(0, textHeight - clipHeight);
+        if (maxScrollY <= 0) return;
+        float trackH = _boxHeight - (_paddingY * 2);
+        float ratio = clipHeight / textHeight;
+        float thumbH = Math.Max(20f, trackH * ratio);
+        float deltaLocalY = evt.LocalPosition.Y - _dragThumbStartLocalY;
+        // thumb 在 track 内的可移动范围 = trackH - thumbH，对应 _textContainer.Y 0..-maxScrollY
+        float availTrack = Math.Max(1f, trackH - thumbH);
+        float scrollDelta = -(deltaLocalY * (maxScrollY / availTrack));
+        float newY = Math.Clamp(_dragContainerStartY + scrollDelta, -maxScrollY, 0f);
+        _textContainer.Y = newY;
+    }
+
+    private void HandleThumbMouseUp(DisplayObjectEvent evt)
+    {
+        _isDraggingThumb = false;
     }
 
     #endregion

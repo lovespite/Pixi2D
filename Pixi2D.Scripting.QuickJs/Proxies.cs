@@ -80,7 +80,13 @@ public partial class FancyTextProxy : IControlProxy
 public partial class TextBoxProxy : IControlProxy
 {
     private readonly TextBox _tb;
-    public TextBoxProxy(TextBox tb) { _tb = tb; }
+    public event Action<string>? Changed;
+
+    public TextBoxProxy(TextBox tb)
+    {
+        _tb = tb;
+        _tb.TextChanged += (_, s) => Changed?.Invoke(s);
+    }
     DisplayObject IControlProxy.Wrapped => _tb;
 
     public string Id { get => _tb.Name ?? string.Empty; set => _tb.Name = value; }
@@ -94,6 +100,17 @@ public partial class TextBoxProxy : IControlProxy
     public string Value { get => _tb.Text; set => _tb.Text = value; }
     public string Placeholder { get => _tb.PlaceholderText; set => _tb.PlaceholderText = value; }
     public bool ReadOnly { get => _tb.ReadOnly; set => _tb.ReadOnly = value; }
+
+    public int SelectionStart { get => _tb.SelectionStart; set => _tb.SelectionStart = value; }
+    public int SelectionLength { get => _tb.SelectionLength; set => _tb.SelectionLength = value; }
+    public int Length => _tb.Length;
+
+    public void ScrollToLine(int line) => _tb.ScrollToLine(line);
+    public void ScrollToCaret() => _tb.ScrollToCaret();
+    public void ScrollToTop() => _tb.ScollToTop();
+    public void ScrollToBottom() => _tb.ScrollToBottom();
+    public void SelectAll() => _tb.SelectAll();
+    public void Focus() => _tb.Focus();
 }
 
 [JSExport]

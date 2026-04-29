@@ -14,7 +14,6 @@
 //       不要写 .Text / .IsOn / .Content）。
 // =====================================================================
 
-const POLL_TEXT_MS    = 200;   // editor 文本变化检测（fallback；优先用 changed 事件）
 const SAVE_DEBOUNCE   = 500;   // AutoSave 防抖
 const POLL_FILE_MS    = 800;   // 磁盘 mtime 轮询
 const SUPPRESS_MS     = 1200;  // 自写入后忽略外部回调的窗口
@@ -52,12 +51,21 @@ function init() {
 
     parseAndRender();
 
-    // editor 事件缺失，用轮询检测变化（→ debounce save → AutoSave）
-    setInterval(checkEditorChange, POLL_TEXT_MS);
-    setInterval(checkDiskChange,   POLL_FILE_MS);
+    // editor 文本变化 → debounce 解析 + 保存
+    editor.on('changed', (txt) => {
+        if (txt === lastSeenText) return;
+        lastSeenText = txt;
+        parseAndRender();
+        if (currentPath && swAutoSave.isOn) {
+            if (saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(saveNow, SAVE_DEBOUNCE);
+        }
+    });
+
+    setInterval(checkDiskChange, POLL_FILE_MS);
 }
 
-// ── 编辑器轮询 ────────────────────────────────────────────────────────
+// ── 编辑器轮询 (legacy fallback) ──────────────────────────────────────
 function checkEditorChange() {
     const t = editor.text;
     if (t === lastSeenText) return;
