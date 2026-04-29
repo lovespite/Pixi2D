@@ -28,7 +28,7 @@ Pixi2D.Host.exe foo.pxml --debug-wait       # 启动后阻塞等待 Debugger 接
 | type           | payload 字段                                                                                | 说明                                |
 |----------------|---------------------------------------------------------------------------------------------|-----------------------------------|
 | `hello`        | `host`, `version`, `pxmlPath`, `pid`                                                        | 客户端连接后立即下发                  |
-| `tree.update`  | `root: { id, kind, name, x, y, w, h, visible, children[] }`                                 | 元素树（默认 1Hz）                   |
+| `tree.update`  | `root: { id, kind, name, x, y, w, h, scaleX, scaleY, rotation, alpha, anchorX, anchorY, visible, interactive, acceptFocus, children[] }` | 元素树（默认 1Hz）                   |
 | `console`      | `level: 'log'/'warn'/'error'`, `text`, `ts`                                                 | `console.log/warn/error` 输出       |
 | `network`      | `phase: 'start'/'end'/'error'`, `url`, `method?`, `status?`, `bytes?`, `headers?`, `ms?`, `error?`, `ts` | HTTP 资源请求生命周期                |
 | `file`         | `path`, `kind: 'pxml'/'js'/'asset'`, `size`, `mtime`                                        | 已打开/加载的文件                    |
@@ -39,8 +39,19 @@ Pixi2D.Host.exe foo.pxml --debug-wait       # 启动后阻塞等待 Debugger 接
 
 | type            | payload                | 响应                                       |
 |-----------------|------------------------|------------------------------------------|
-| `eval`          | `code: string`         | 异步 → `evalResult` 帧                     |
-| `tree.refresh`  | `{}`                   | 立即触发一次 `tree.update`，并 `tree.refresh.reply` 回 `{ok:true}` |
+| `eval`             | `code: string`                              | 异步 → `evalResult` 帧                     |
+| `tree.refresh`     | `{}`                                        | 立即触发一次 `tree.update`，并 `tree.refresh.reply` 回 `{ok:true}` |
+| `tree.setProperty` | `id: int`, `name: string`, `value: any`     | 设置节点属性；同步 `tree.setProperty.reply` 回 `{ok:true}` 或 `{ok:false, error}`。setter 在 UI 线程异步执行；运行期异常通过 `error` 帧推送 |
+
+**`tree.setProperty` 白名单**（区分大小写）：
+
+| 属性 | 类型 |
+|---|---|
+| `X` `Y` `Width` `Height` `Alpha` `Rotation` `ScaleX` `ScaleY` `AnchorX` `AnchorY` | number |
+| `Visible` `Interactive` `AcceptFocus` | bool |
+| `Name` | string |
+
+未列出的属性会返回 `{ok:false, error:"property not writable: ..."}`。节点 id 在 GC 后失效（`tree.update` 重新分配新 id），此时返回 `{ok:false, error:"node not found (gc'd?)"}`。
 
 ## 节流与一致性
 
@@ -69,7 +80,10 @@ Pixi2D.Host.exe foo.pxml --debug-wait       # 启动后阻塞等待 Debugger 接
 `
 
 5 个面板：
-- **Tree** — Stage 元素树（缩进文本，1 Hz 刷新；可手动 Refresh）
+- **Tree** — 左侧真正的 WinUI 3 `TreeView`（可折叠/展开，1 Hz 自动刷新通过 id 增量 reconcile，**保留展开状态**）；右侧属性面板：
+  - 选中节点显示 14 个常用属性 + Id/Kind 只读
+  - number/string 用 TextBox（`LostFocus` 或 `Enter` 提交）；bool 用 CheckBox（点击即提交）
+  - 提交后通过 `tree.setProperty` 帧发往 Host，错误显示在底部 InfoBar
 - **Console** — JS `console.log/warn/error` 输出（带时间戳）
 - **Network** — HTTP 请求生命周期（status / 字节 / 耗时）
 - **Files** — 已加载的本地资源（.pxml / .js / AssetLoader 触发的本地文件）

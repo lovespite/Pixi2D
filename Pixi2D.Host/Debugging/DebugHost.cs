@@ -181,6 +181,26 @@ public sealed class DebugHost : IDisposable
             case "tree.refresh":
                 _toUi(PushTree);
                 return new JsonObject { ["ok"] = true };
+            case "tree.setProperty":
+            {
+                try
+                {
+                    int id   = payload?["id"]?.GetValue<int>() ?? throw new ArgumentException("missing id");
+                    string n = payload?["name"]?.GetValue<string>() ?? throw new ArgumentException("missing name");
+                    var val  = payload?["value"];
+                    var d    = TreeSerializer.Resolve(id) ?? throw new InvalidOperationException("node not found (gc'd?)");
+                    _toUi(() =>
+                    {
+                        try { TreeSerializer.SetProperty(d, n, val); }
+                        catch (Exception ex) { _bridge.Send("error", new JsonObject { ["message"] = "setProperty: " + ex.Message }); }
+                    });
+                    return new JsonObject { ["ok"] = true };
+                }
+                catch (Exception ex)
+                {
+                    return new JsonObject { ["ok"] = false, ["error"] = ex.Message };
+                }
+            }
             case "eval":
             {
                 var code = payload?["code"]?.GetValue<string>() ?? string.Empty;

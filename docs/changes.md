@@ -1,5 +1,32 @@
 # 改动清单 (feat/dsl-xml-js)
 
+## v0.7.1 — Debugger Follow-ups ⏳
+
+### Host
+- `Pixi2D.Host/Assets/AssetLoader.cs` — 修 `LocalFileTouched` bug：原条件 `uri.IsFile && data.DiskPath is not null` 导致本地文件永远不触发（FileAssetProvider 不写 DiskPath）。改为 `if (uri.IsFile)` 并用 `data.DiskPath ?? uri.LocalPath`
+- `Pixi2D.Host/Debugging/TreeSerializer.cs` — 重写：
+  - 新增 `id → WeakReference<DisplayObject>` 反查表（`_byId`）
+  - `SerializeNode` 输出新增字段：`scaleX/scaleY/rotation/alpha/anchorX/anchorY/interactive/acceptFocus`
+  - 新增 `Resolve(int id) → DisplayObject?`
+  - 新增 `SetProperty(d, name, value)` 白名单 setter（14 个属性，不在白名单返回 throw）
+- `Pixi2D.Host/Debugging/DebugHost.cs` — `HandleRequest` 增 `tree.setProperty` case：解析 → Resolve → 调度 UI 线程执行 setter，同步返回 `{ok:true}` / `{ok:false,error}`，运行期 setter 异常通过 `error` 帧推送
+
+### Debugger
+- `Pixi2D.Debugger/Connection/DebugClient.cs` — 增 `RequestAsync(type, payload, timeout)` 通用请求/应答（按 id 匹配 `{type}.reply` 帧）
+- `Pixi2D.Debugger/Models/Models.cs` — `TreeNodeVm` 实现 `INotifyPropertyChanged`（reconcile 改字段时 UI 自动刷新）；新增 14 个属性字段；新增 `PropertyRow` VM (Name/Kind/Value/BoolValue/IsBool/IsTextEditable + Bool/Text Visibility)
+- `Pixi2D.Debugger/MainWindow.xaml` — Tree 页改为 `*,8,*` 双栏：左 WinUI 3 `TreeView`（折叠/展开），右属性面板 `ListView`（TextBox/CheckBox 就地编辑） + `InfoBar` 错误提示
+- `Pixi2D.Debugger/MainWindow.xaml.cs` —
+  - 删除扁平 `TreeFlat`，改 `TreeRoots: ObservableCollection<TreeNodeVm>`
+  - `ReconcileRoot` / `ReconcileNode`：按 id 自顶向下匹配，复用同 id VM（仅改字段，触发 INPC），新增 add，缺失 remove，仅在序列变化时整批替换 → **保留展开状态**
+  - `OnTreeItemInvoked` 选中节点 → 填 14 行 Property + Id/Kind 只读
+  - `CommitProp`：解析为 number/bool/string → 发 `tree.setProperty` → 处理 ok/error
+
+### Docs
+- `docs/debugger.md` — `tree.update` 字段补全；`tree.setProperty` 协议表 + 白名单；UI 客户端 Tree 面板说明更新
+- `docs/changes.md` — 本节
+
+---
+
 ## v0.7 — AssetLoader (Phase A) ⏳
 
 ### Host 资源加载层 (`Pixi2D.Host/Assets/`)

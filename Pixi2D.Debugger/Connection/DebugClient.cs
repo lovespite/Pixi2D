@@ -64,6 +64,22 @@ public sealed class DebugClient : IDisposable
         return tcs.Task;
     }
 
+    /// <summary>通用请求/应答 (Host 回 "{type}.reply" 帧带相同 id)。</summary>
+    public Task<JsonObject?> RequestAsync(string type, JsonObject payload, TimeSpan timeout)
+    {
+        var id = Interlocked.Increment(ref _nextId);
+        var tcs = new TaskCompletionSource<JsonObject?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingById[id] = tcs;
+        Send(type, payload, id);
+        _ = Task.Delay(timeout).ContinueWith(_ =>
+        {
+            if (_pendingById.TryRemove(id, out var t)) t.TrySetResult(null);
+        });
+        return tcs.Task;
+    }
+
+    private readonly ConcurrentDictionary<int, TaskCompletionSource<JsonObject?>> _pendingById = new();
+
     /// <summary>外部 (UI) 调用：用最近一次 evalResult 完成挂起的 eval。</summary>
     public void CompleteOldestEval(JsonObject result)
     {
@@ -123,9 +139,15 @@ public sealed class DebugClient : IDisposable
             var node = JsonNode.Parse(line);
             if (node is null) return;
             string? type = node["type"]?.GetValue<string>();
+            int? id = node["id"]?.GetValue<int>();
             var payload = node["payload"];
             if (string.IsNullOrEmpty(type)) return;
 
+            if (id.HasValue && _pendingById.TryRemove(id.Value, out var byId))
+            {
+                byId.TrySetResult(payload as JsonObject ?? new JsonObject());
+                return;
+            }
             if (type == "evalResult" && payload is JsonObject po) CompleteOldestEval(po);
             OnFrame?.Invoke(type, payload);
         }

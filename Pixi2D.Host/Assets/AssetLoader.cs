@@ -133,8 +133,8 @@ public sealed class AssetLoader
             // 写入 L1 (本地文件 → 路径条目；HTTP 小文件 → 字节)
             _cache.PutMemory(data);
 
-            if (uri.IsFile && data.DiskPath is not null)
-                LocalFileTouched?.Invoke(uri, data.DiskPath);
+            if (uri.IsFile)
+                LocalFileTouched?.Invoke(uri, data.DiskPath ?? uri.LocalPath);
 
             Loaded?.Invoke(requestId, data);
             return data;
