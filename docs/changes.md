@@ -37,6 +37,46 @@
 - DebugBridge (TCP + JSON-line) + ConsoleHook / NetworkHook / FileTracker / TreeSerializer / EvalHandler
 - `Pixi2D.Debugger` WinUI 3 项目 (元素树 / Console / Network / Files / REPL)
 
+## v0.7 — DebugBridge (Phase B) ✅
+
+### Host 调试桥 (`Pixi2D.Host/Debugging/`)
+- `DebugBridge.cs` — `TcpListener` 单连接 + `Channel<string>` 写队列 + JSON-line 解析；`Send/SendWithId/OnRequest`
+- `TreeSerializer.cs` — `Stage.Root` → JSON；`ConditionalWeakTable<DisplayObject,object>` 派发稳定 int id
+- `DebugHost.cs` — 把 `Engine.OnLog` / `HttpAssetProvider.RequestStart/End/Error` / `AssetLoader.LocalFileTouched` 串到 bridge；接 `tree.refresh` / `eval` 入站；1 Hz tree.update 周期推送
+
+### CLI / 启用
+- `Program.cs` 新增 `--debug [port]`（默认 9229，仅 127.0.0.1）/ `--debug-wait`
+- 未启用时所有 hook 不创建（zero-cost）
+
+### 文档
+- `docs/debugger.md`（新）—— 协议规范、帧表、消息样例
+
+## v0.7 — Pixi2D.Debugger (Phase C) ✅
+
+### 新项目 `Pixi2D.Debugger/`（独立 WinUI 3 unpackaged exe）
+- `Pixi2D.Debugger.csproj` — `net10.0-windows10.0.19041.0` + `WindowsAppSDK 1.6.241114003`；显式 `Sdk.props/Sdk.targets` 导入；末尾 no-op 覆盖 `CopyLocalFilesOutputGroup` / `_GenerateProjectPriFileCore` / `_ComputeInputPris` / `GetMrtPackagingOutputs` / `_ValidateConfiguration` / `_GetProjectArchitecture` / `_GetDefaultResourceLanguage` / `GetOptionalProjectOutputs`，避开 VS-only `Microsoft.Build.AppxPackage.dll` / `Microsoft.Build.Packaging.Pri.Tasks.dll` 加载错误（unpackaged 不需要 PRI/Appx 任务）
+- `app.manifest` — DPI Aware PerMonitorV2 + Win10/11 supportedOS GUIDs
+- `App.xaml(.cs)` + `MainWindow.xaml(.cs)` — `Pivot` 5 个面板（Tree/Console/Network/Files/Eval）+ 顶部 host:port 连接条
+- `Connection/DebugClient.cs` — TcpClient + JSON-line reader/writer + `EvalAsync` FIFO 等待 `evalResult`
+- `Models/Models.cs` — `TreeNodeVm/ConsoleEntry/NetEntry/FileEntry`（带 `Display` 计算属性供 `ItemTemplate` 直接绑定）
+- 主窗口订阅 `OnFrame` 事件，`DispatcherQueue.TryEnqueue` 切回 UI 线程后塞入 5 个 `ObservableCollection`；元素树以缩进文本扁平显示；Console / Files 自动去重 / 限长
+
+### 加入解决方案
+- `Pixi2D.sln` 加入 `Pixi2D.Debugger`
+- 根 `Pixi2D.csproj` 增加 `Compile/EmbeddedResource/None Remove="Pixi2D.Debugger\**"`，避免 root project glob 抓到子项目源文件
+
+### 验证
+- `dotnet build Pixi2D.sln` 通过 (0 errors, 仅既有 4 warnings)
+- `Pixi2D.Debugger.exe` 已生成于 `bin\Debug\net10.0-windows10.0.19041.0\`
+
+### 用法
+```
+# 终端 1
+Pixi2D.Host.exe demos\12-assets\main.pxml --debug
+# 终端 2
+Pixi2D.Debugger.exe   # 默认连 127.0.0.1:9229
+```
+
 ---
 
 ## v0.6.1 — Table 增量更新 + TextBox 光标定位

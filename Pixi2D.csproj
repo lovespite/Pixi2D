@@ -14,18 +14,21 @@
     <Compile Remove="Pixi2D.Scripting\**" />
     <Compile Remove="Pixi2D.Scripting.QuickJs\**" />
     <Compile Remove="Pixi2D.Host\**" />
+    <Compile Remove="Pixi2D.Debugger\**" />
     <Compile Remove="external\**" />
     <EmbeddedResource Remove="Pixi2D.Markup\**" />
     <EmbeddedResource Remove="Pixi2D.Preview\**" />
     <EmbeddedResource Remove="Pixi2D.Scripting\**" />
     <EmbeddedResource Remove="Pixi2D.Scripting.QuickJs\**" />
     <EmbeddedResource Remove="Pixi2D.Host\**" />
+    <EmbeddedResource Remove="Pixi2D.Debugger\**" />
     <EmbeddedResource Remove="external\**" />
     <None Remove="Pixi2D.Markup\**" />
     <None Remove="Pixi2D.Preview\**" />
     <None Remove="Pixi2D.Scripting\**" />
     <None Remove="Pixi2D.Scripting.QuickJs\**" />
     <None Remove="Pixi2D.Host\**" />
+    <None Remove="Pixi2D.Debugger\**" />
     <None Remove="external\**" />
   </ItemGroup>
 

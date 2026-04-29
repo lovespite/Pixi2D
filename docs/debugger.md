@@ -53,3 +53,26 @@ Pixi2D.Host.exe foo.pxml --debug-wait       # 启动后阻塞等待 Debugger 接
 - Host 关闭连接后客户端应 1s/2s/4s/... 指数退避重连
 - 协议解析失败：Host 发送 `error` 帧并保持连接
 - 客户端发送非法 JSON：Host 静默丢弃当前行
+
+---
+
+## Pixi2D.Debugger (UI 客户端)
+
+独立 WinUI 3 程序，位于 `Pixi2D.Debugger/`。运行方式：
+
+`powershell
+# 1. 启动 Host 并打开调试桥
+.\Pixi2D.Host\bin\Debug\net10.0-windows\win-x64\Pixi2D.Host.exe demos\12-assets\main.pxml --debug
+
+# 2. 启动调试器（默认连 127.0.0.1:9229）
+.\Pixi2D.Debugger\bin\Debug\net10.0-windows10.0.19041.0\Pixi2D.Debugger.exe
+`
+
+5 个面板：
+- **Tree** — Stage 元素树（缩进文本，1 Hz 刷新；可手动 Refresh）
+- **Console** — JS `console.log/warn/error` 输出（带时间戳）
+- **Network** — HTTP 请求生命周期（status / 字节 / 耗时）
+- **Files** — 已加载的本地资源（.pxml / .js / AssetLoader 触发的本地文件）
+- **Eval** — 输入 JS 表达式，`Enter` 提交，结果显示 `= value` 或 `! error`
+
+注意：调试桥仅监听 `127.0.0.1`，不绑定 `0.0.0.0`，无 token；仅本机使用。

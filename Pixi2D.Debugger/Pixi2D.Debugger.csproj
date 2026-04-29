@@ -1,0 +1,49 @@
+<Project>
+
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <RootNamespace>Pixi2D.Debugger</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <EnableDefaultPriItems>false</EnableDefaultPriItems>
+    <EnableMrtResourceGeneration>false</EnableMrtResourceGeneration>
+    <AppxPackage>false</AppxPackage>
+    <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.241114003" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.756" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <!-- Override AFTER WinAppSDK targets are imported. The PRI/Appx targets shipped with
+       WindowsAppSDK 1.6 reference VS-only task DLLs (Microsoft.Build.AppxPackage.dll,
+       Microsoft.Build.Packaging.Pri.Tasks.dll) that don't ship with the .NET SDK.
+       For an unpackaged WinUI 3 exe we don't need PRI generation, so override the
+       offending targets with no-ops. -->
+  <Target Name="CopyLocalFilesOutputGroup" Returns="@(CopyLocalFilesOutputGroupOutput)" />
+  <Target Name="_GenerateProjectPriFileCore" />
+  <Target Name="_ComputeInputPris" />
+  <Target Name="GetMrtPackagingOutputs" />
+  <Target Name="_ValidateConfiguration" />
+  <Target Name="_GetProjectArchitecture" />
+  <Target Name="_GetDefaultResourceLanguage" />
+  <Target Name="GetOptionalProjectOutputs" />
+
+</Project>
