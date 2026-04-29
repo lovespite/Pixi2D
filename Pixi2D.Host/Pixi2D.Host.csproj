@@ -19,6 +19,10 @@
     <ProjectReference Include="..\Pixi2D.Scripting\Pixi2D.Scripting.csproj" />
     <ProjectReference Include="..\Pixi2D.Scripting.QuickJs\Pixi2D.Scripting.QuickJs.csproj" />
     <ProjectReference Include="..\external\D2DWindow\D2DWindow.csproj" />
+    <ProjectReference Include="..\external\qjs.net\qjs.net\QuickJsNet.csproj" />
+    <ProjectReference Include="..\external\qjs.net\QuickJsNet.SourceGenerators\QuickJsNet.SourceGenerators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
   
   <ItemGroup>

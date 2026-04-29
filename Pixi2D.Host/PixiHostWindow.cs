@@ -27,6 +27,7 @@ public sealed class PixiHostWindow : Direct2D1Window
     private string? _loadError;
     private FileSystemWatcher? _watcher;
     private DateTime _lastReload = DateTime.MinValue;
+    private Scripting.WindowProxy? _windowProxy;
 
     // WM_TIMER pump：与渲染解耦，让 setInterval 在拖窗 / 缩放 / 模态循环里也能滴答。
     private const nuint PumpTimerId = 0x1D01;
@@ -150,6 +151,10 @@ public sealed class PixiHostWindow : Direct2D1Window
             // 把宿主命令行中 PXML 之后的额外位置参数以 string[] 形式暴露给 JS。
             _engine.Execute("globalThis.hostArgs = " + BuildJsStringArray(_extraArgs) + ";", "<host-args>");
 
+            // 把宿主窗体本身以 globalThis.window 暴露给 JS（属性/事件/方法）。
+            _windowProxy = new Scripting.WindowProxy(this, _pxmlPath, _extraArgs);
+            _engine.SetGlobal("window", _windowProxy);
+
             // 加载 JS:  <script src> 暂未实现解析, 这里走 jsPath/同名 .js
             var jsFile = ResolveJs();
             if (jsFile is not null && File.Exists(jsFile))
@@ -208,6 +213,7 @@ public sealed class PixiHostWindow : Direct2D1Window
             RunOnUIThread(() =>
             {
                 Console.WriteLine($"[host] 文件变化, 重建场景: {Path.GetFileName(e.FullPath)}");
+                _windowProxy?.RaiseFileChanged(e.FullPath);
                 BuildScene();
             });
         };
