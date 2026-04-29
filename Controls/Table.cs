@@ -14,6 +14,15 @@ public class Table : Container
     private DataTable? _dataSource;
     private readonly Text.Factory m_textFactory;
 
+    // --- 内部可变数据快照 ---
+    // 始终是渲染所读取的"实际数据"。从 DataSource 复制而来；
+    // 增量 API (UpdateCell/UpdateRow/AppendRow/InsertRow/RemoveRow) 直接修改它而不影响外部 DataSource 引用。
+    private readonly List<string[]> _data = new();
+    // 行级增量脏集合：只重测/重绘指定行，不做整表重排
+    private readonly HashSet<int> _dirtyRows = new();
+    // 结构变更（行数/列数/外部 DataSource 替换）→ 全量重测
+    private bool _structuralDirty = false;
+
     // --- 配置属性 ---
     public float MaxColumnWidth { get; set; } = 200f;
     public float MinRowHeight { get; set; } = 30f;
@@ -63,57 +72,109 @@ public class Table : Container
         set
         {
             if (_dataSource == value) return;
-
-            // UnsubscribeEvents(); // 先取消订阅旧数据源的事件
-
             _dataSource = value;
+            SyncDataFromSource();
+            _structuralDirty = true;
+            _dirtyRows.Clear();
             _dataDirty = true;
             ScrollY = 0;
             ScrollX = 0;
-
-            // SubscribeEvents();
         }
     }
 
-    //private void SubscribeEvents()
-    //{
-    //    if (_dataSource is null) return;
-    //    if (!AutoUpdate) return;
-    //    _dataSource.RowChanged += OnDataRowChanged;
-    //    _dataSource.RowDeleted += OnDataRowChanged;
-    //    _dataSource.ColumnChanged += OnDataColChanged;
-    //    _dataSource.TableCleared += OnDataTableCleared;
-    //}
+    private void SyncDataFromSource()
+    {
+        _data.Clear();
+        if (_dataSource is null) return;
+        foreach (var row in _dataSource)
+        {
+            if (row is null) { _data.Add(Array.Empty<string>()); continue; }
+            var copy = new string[row.Length];
+            Array.Copy(row, copy, row.Length);
+            _data.Add(copy);
+        }
+    }
 
-    //private void UnsubscribeEvents()
-    //{
-    //    if (_dataSource is null) return;
-
-    //    _dataSource.RowChanged -= OnDataRowChanged;
-    //    _dataSource.RowDeleted -= OnDataRowChanged;
-    //    _dataSource.ColumnChanged -= OnDataColChanged;
-    //    _dataSource.TableCleared -= OnDataTableCleared;
-    //}
-
-    // --- 事件处理函数 ---
-
-    //private void OnDataColChanged(object sender, DataColumnChangeEventArgs e)
-    //{
-    //    _dataDirty = true;
-    //}
-
-    //private void OnDataRowChanged(object sender, DataRowChangeEventArgs e)
-    //{
-    //    _dataDirty = true;
-    //}
-
-    //private void OnDataTableCleared(object sender, DataTableClearEventArgs e)
-    //{
-    //    _dataDirty = true;
-    //}
-
+    /// <summary>整表数据已被外部修改 → 触发全量重测。</summary>
     public void NotifyDataChanged()
     {
+        SyncDataFromSource();
+        _structuralDirty = true;
+        _dirtyRows.Clear();
+        _dataDirty = true;
+    }
+
+    /// <summary>当前数据快照行数 (含可能的表头行)。</summary>
+    public int RowCount => _data.Count;
+    /// <summary>当前数据快照列数 (取首行)。</summary>
+    public int ColumnCount => _data.Count > 0 ? _data[0].Length : 0;
+
+    // ---------- 增量更新 API ----------
+    // 这些 API 直接修改内部 _data 副本；不写回 DataSource 引用。
+
+    /// <summary>修改单元格内容（行/列均 0-based）。仅刷新该行已渲染的可见 cell 与行高，列宽保持不变。</summary>
+    public void UpdateCell(int row, int col, string value)
+    {
+        if (row < 0 || row >= _data.Count) return;
+        var r = _data[row];
+        if (col < 0 || col >= r.Length) return;
+        if (string.Equals(r[col], value, StringComparison.Ordinal)) return;
+        r[col] = value ?? string.Empty;
+        if (!_structuralDirty) _dirtyRows.Add(row);
+    }
+
+    /// <summary>覆盖整行单元格内容（数组长度需等于现有列数；不等则视为结构变更，触发全量重测）。</summary>
+    public void UpdateRow(int row, params string[] cells)
+    {
+        if (row < 0 || row >= _data.Count) return;
+        cells ??= Array.Empty<string>();
+        var existing = _data[row];
+        if (existing.Length != cells.Length)
+        {
+            _data[row] = (string[])cells.Clone();
+            _structuralDirty = true;
+            _dirtyRows.Clear();
+            _dataDirty = true;
+            return;
+        }
+        bool changed = false;
+        for (int i = 0; i < cells.Length; i++)
+        {
+            var nv = cells[i] ?? string.Empty;
+            if (!string.Equals(existing[i], nv, StringComparison.Ordinal)) { existing[i] = nv; changed = true; }
+        }
+        if (changed && !_structuralDirty) _dirtyRows.Add(row);
+    }
+
+    /// <summary>在末尾追加一行（结构变更）。</summary>
+    public void AppendRow(params string[] cells)
+    {
+        cells ??= Array.Empty<string>();
+        _data.Add((string[])cells.Clone());
+        _structuralDirty = true;
+        _dirtyRows.Clear();
+        _dataDirty = true;
+    }
+
+    /// <summary>在指定位置插入一行（结构变更；样式 dict 中所有 row >= row 的项不会自动平移）。</summary>
+    public void InsertRow(int row, params string[] cells)
+    {
+        if (row < 0) row = 0;
+        if (row > _data.Count) row = _data.Count;
+        cells ??= Array.Empty<string>();
+        _data.Insert(row, (string[])cells.Clone());
+        _structuralDirty = true;
+        _dirtyRows.Clear();
+        _dataDirty = true;
+    }
+
+    /// <summary>移除一行（结构变更）。</summary>
+    public void RemoveRow(int row)
+    {
+        if (row < 0 || row >= _data.Count) return;
+        _data.RemoveAt(row);
+        _structuralDirty = true;
+        _dirtyRows.Clear();
         _dataDirty = true;
     }
 
@@ -503,12 +564,30 @@ public class Table : Container
         }
 
         // 1. 数据变更时，重新计算表格的整体尺寸和行列位置
-        if (_dataDirty)
+        if (_dataDirty || _structuralDirty)
         {
             CalculateDimensions();
             UpdateScrollBars();
             _layoutDirty = true; // 尺寸变了，必须要重新布局视窗内的 Cell
             _dataDirty = false;
+            _structuralDirty = false;
+            _dirtyRows.Clear();
+        }
+        else if (_dirtyRows.Count > 0)
+        {
+            // 行级增量：只重测脏行高度
+            bool layoutChanged = RecalculateRows(_dirtyRows);
+            if (layoutChanged)
+            {
+                UpdateScrollBars();
+                _layoutDirty = true; // 行高变了 → 需要重布局可见 cell
+            }
+            else
+            {
+                // 行高未变 → 仅原地刷新已渲染 cell 文本/样式
+                RefreshDirtyRowCellsInPlace();
+            }
+            _dirtyRows.Clear();
         }
 
         // 2. 布局“脏”了（比如数据变了、或者发生了滚动）
@@ -526,53 +605,41 @@ public class Table : Container
 
     private void CalculateDimensions()
     {
-        if (DataSource == null || DataSource.Count == 0 || DataSource[0].Length == 0)
+        if (_data.Count == 0 || _data[0].Length == 0)
         {
             _totalWidth = 0; _totalHeight = 0;
+            _colWidths = []; _colPositions = []; _rowHeights = []; _rowPositions = [];
             return;
         }
 
-        int colCount = DataSource[0].Length;
-        int rowCount = DataSource.Count;
+        int colCount = _data[0].Length;
+        int rowCount = _data.Count;
 
         _colWidths = new float[colCount];
         _colPositions = new float[colCount];
         _rowHeights = new float[rowCount];
         _rowPositions = new float[rowCount];
 
-        // 初始化基础行高
-        for (int r = 0; r < rowCount; r++)
-        {
-            _rowHeights[r] = MinRowHeight;
-        }
+        for (int r = 0; r < rowCount; r++) _rowHeights[r] = MinRowHeight;
 
-        // 测量文本以计算列宽与动态行高
         float currentX = 0;
         for (int c = 0; c < colCount; c++)
         {
             float width = 0;
-
             for (int r = 0; r < rowCount; r++)
             {
-                string text = DataSource[r][c];
-
-                // 测量文本，留出内边距。如果文本超出 MaxColumnWidth，会根据其自动换行
+                if (c >= _data[r].Length) continue;
+                string text = _data[r][c];
                 var size = m_textFactory.MeasureText(text, MaxColumnWidth);
-
                 width = Math.Max(width, size.Width + 20);
-
-                // 获取当前行所需的最大高度
                 _rowHeights[r] = Math.Max(_rowHeights[r], size.Height + 10);
             }
-
-            // 限制最大列宽并设置坐标
             _colWidths[c] = Math.Min(width, MaxColumnWidth + 10);
             _colPositions[c] = currentX;
             currentX += _colWidths[c];
         }
         _totalWidth = currentX;
 
-        // 计算行坐标并累加记录总高度
         float currentY = 0;
         for (int r = 0; r < rowCount; r++)
         {
@@ -582,9 +649,70 @@ public class Table : Container
         _totalHeight = currentY;
     }
 
+    /// <summary>
+    /// 行级增量更新：仅重测 <paramref name="rows"/> 给出的行。
+    /// 列宽保持不变（可能略不准；如需重新测量列宽请调用 <see cref="NotifyDataChanged"/>）。
+    /// 行高变化会平移后续 _rowPositions 与 _totalHeight。
+    /// </summary>
+    /// <returns>是否发生行高变化（即 layout 需要重新布局可见 cell）。</returns>
+    private bool RecalculateRows(IEnumerable<int> rows)
+    {
+        if (_data.Count == 0 || _data[0].Length == 0 || _rowHeights.Length != _data.Count) return false;
+        bool layoutChanged = false;
+        int colCount = _data[0].Length;
+
+        foreach (var r in rows)
+        {
+            if (r < 0 || r >= _data.Count) continue;
+            float newHeight = MinRowHeight;
+            var rowArr = _data[r];
+            for (int c = 0; c < colCount; c++)
+            {
+                if (c >= rowArr.Length) continue;
+                var size = m_textFactory.MeasureText(rowArr[c], MaxColumnWidth);
+                if (size.Height + 10 > newHeight) newHeight = size.Height + 10;
+            }
+            if (Math.Abs(_rowHeights[r] - newHeight) > 0.5f)
+            {
+                _rowHeights[r] = newHeight;
+                layoutChanged = true;
+            }
+        }
+
+        if (layoutChanged)
+        {
+            float currentY = 0;
+            for (int r = 0; r < _data.Count; r++)
+            {
+                _rowPositions[r] = currentY;
+                currentY += _rowHeights[r];
+            }
+            _totalHeight = currentY;
+        }
+        return layoutChanged;
+    }
+
+    /// <summary>
+    /// 行级增量快速路径：行尺寸不变时, 只把已渲染 cell 的文本/样式刷新为新值, 不重建 cell pool。
+    /// </summary>
+    private void RefreshDirtyRowCellsInPlace()
+    {
+        if (_dirtyRows.Count == 0) return;
+        foreach (var cell in _activeCells)
+        {
+            if (!_dirtyRows.Contains(cell.CurrentRow)) continue;
+            int r = cell.CurrentRow, c = cell.CurrentCol;
+            if (r < 0 || r >= _data.Count) continue;
+            var rowArr = _data[r];
+            if (c < 0 || c >= rowArr.Length) continue;
+            cell.ApplyStyle(ResolveStyle(r, c));
+            cell.UpdateData(rowArr[c], _colWidths[c], _rowHeights[r], MaxColumnWidth);
+        }
+    }
+
     private void UpdateVisibleCells()
     {
-        if (DataSource == null) return;
+        if (_data.Count == 0) return;
 
         // 1. 回收当前所有的 Cell 入池
         foreach (var cell in _activeCells)
@@ -614,7 +742,8 @@ public class Table : Container
                 TableCell cell = GetOrCreateCell();
 
                 // 判定是否是表头 
-                string text = DataSource[r][c];
+                if (c >= _data[r].Length) continue;
+                string text = _data[r][c];
 
                 // 强制重写所有样式字段, 避免 cell pool 复用时残留旧样式
                 cell.ApplyStyle(ResolveStyle(r, c));
@@ -652,9 +781,8 @@ public class Table : Container
         if (e.CurrentTarget is not TableCell tc) return;
         if (tc.CurrentRow < 0) return;
         string text = string.Empty;
-        if (DataSource is not null
-            && tc.CurrentRow < DataSource.Count
-            && DataSource[tc.CurrentRow] is { } row
+        if (tc.CurrentRow < _data.Count
+            && _data[tc.CurrentRow] is { } row
             && tc.CurrentCol >= 0 && tc.CurrentCol < row.Length)
         {
             text = row[tc.CurrentCol];

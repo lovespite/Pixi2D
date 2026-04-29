@@ -293,6 +293,33 @@ public class TextBox : Container
         SelectionStart = idx;
     }
 
+    /// <summary>
+    /// 把光标定位到指定的 (行, 列)。
+    /// </summary>
+    /// <param name="line1Based">1-based 行号；超出尾行夹到最后一行。</param>
+    /// <param name="column1Based">1-based 列号 (字符偏移；超出该行长度夹到行尾, 不会跨越 \n)。</param>
+    public void SetCursorPosition(int line1Based, int column1Based)
+    {
+        if (line1Based < 1) line1Based = 1;
+        if (column1Based < 1) column1Based = 1;
+        int idx = 0;
+        int line = 1;
+        var s = _textBuilder;
+        while (idx < s.Length && line < line1Based)
+        {
+            if (s[idx] == '\n') line++;
+            idx++;
+        }
+        // idx 现在位于第 line1Based 行的起始 (或文本末尾)
+        int col = 1;
+        while (idx < s.Length && col < column1Based && s[idx] != '\n')
+        {
+            idx++;
+            col++;
+        }
+        SelectionStart = idx;
+    }
+
     #endregion
 
     #region Style Properties
