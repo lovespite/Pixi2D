@@ -30,6 +30,16 @@ public sealed class PixiHostWindow : Direct2D1Window
     private Scripting.WindowProxy? _windowProxy;
     private Pixi2D.Host.Assets.AssetLoader? _assets;
     private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _uiQueue = new();
+    private Pixi2D.Host.Debugging.DebugHost? _debugHost;
+    private int _debugPort;
+    private bool _debugWait;
+
+    /// <summary>启用调试桥 (Phase B)。必须在 Run() 之前调用。</summary>
+    public void EnableDebugger(int port = 9229, bool wait = false)
+    {
+        _debugPort = port;
+        _debugWait = wait;
+    }
 
     /// <summary>从任意线程把工作排队到主 UI 线程 (脚本引擎线程)。</summary>
     public void RunOnUiThread(Action action)
@@ -178,6 +188,22 @@ public sealed class PixiHostWindow : Direct2D1Window
             _windowProxy = new Scripting.WindowProxy(this, _pxmlPath, _extraArgs);
             _engine.SetGlobal("window", _windowProxy);
 
+            // DebugHost: 调试桥 + ConsoleHook + NetworkHook + FileTracker
+            if (_debugPort > 0 && _debugHost is null)
+            {
+                _debugHost = new Pixi2D.Host.Debugging.DebugHost(_debugPort, _stage, _engine, _assets, RunOnUiThread, _pxmlPath, ResolveJs());
+                _debugHost.Start();
+                Console.WriteLine($"[host] debugger listening on 127.0.0.1:{_debugPort}");
+                if (_debugWait)
+                {
+                    Console.WriteLine("[host] --debug-wait: waiting for debugger to attach ...");
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    while (sw.Elapsed < TimeSpan.FromMinutes(2) && _debugHost is { IsConnected: false })
+                        System.Threading.Thread.Sleep(100);
+                    Console.WriteLine("[host] debugger attached, continuing.");
+                }
+            }
+
             // 加载 JS:  <script src> 暂未实现解析, 这里走 jsPath/同名 .js
             var jsFile = ResolveJs();
             if (jsFile is not null && File.Exists(jsFile))
@@ -252,6 +278,7 @@ public sealed class PixiHostWindow : Direct2D1Window
             _pumpTimerInstalled = false;
         }
         _watcher?.Dispose();
+        try { _debugHost?.Dispose(); } catch { }
         DisposeScene();
         base.Dispose();
     }

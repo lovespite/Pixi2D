@@ -46,6 +46,7 @@ internal static class Program
                 opts.Width,
                 opts.Height,
                 opts.ExtraArgs);
+            if (opts.DebugEnabled) window.EnableDebugger(opts.DebugPort, opts.DebugWait);
             window.Run();
             return 0;
         }
@@ -67,6 +68,8 @@ internal static class Program
         Console.Error.WriteLine("  --width  <N>        窗口宽度 (默认 1024)");
         Console.Error.WriteLine("  --height <N>        窗口高度 (默认 720)");
         Console.Error.WriteLine("  --title  <S>        窗口标题");
+        Console.Error.WriteLine("  --debug [<port>]    启用调试桥 (默认 127.0.0.1:9229)");
+        Console.Error.WriteLine("  --debug-wait        启用调试桥并阻塞等待 Debugger 接入后再加载脚本");
         Console.Error.WriteLine("PXML 之后的额外位置参数会以 globalThis.hostArgs (string[]) 形式注入到 JS。");
     }
 }
@@ -81,12 +84,17 @@ internal sealed class CliOptions
     public int Height { get; init; } = 720;
     public string Title { get; init; } = "Pixi2D Host";
     public string[] ExtraArgs { get; init; } = Array.Empty<string>();
+    public bool DebugEnabled { get; init; }
+    public int DebugPort { get; init; } = 9229;
+    public bool DebugWait { get; init; }
 
     public static CliOptions? Parse(string[] args)
     {
         if (args.Length == 0) return null;
         string? pxml = null, js = null, title = null;
         bool useConsole = true, watch = false;
+        bool debugEnabled = false, debugWait = false;
+        int debugPort = 9229;
         int width = 1024, height = 720;
         var extras = new List<string>();
 
@@ -101,6 +109,14 @@ internal sealed class CliOptions
                 case "--width":      if (i + 1 < args.Length && int.TryParse(args[++i], out var w)) width = w; break;
                 case "--height":     if (i + 1 < args.Length && int.TryParse(args[++i], out var h)) height = h; break;
                 case "--title":      title  = i + 1 < args.Length ? args[++i] : null; break;
+                case "--debug":
+                    debugEnabled = true;
+                    if (i + 1 < args.Length && int.TryParse(args[i + 1], out var dp)) { debugPort = dp; i++; }
+                    break;
+                case "--debug-wait":
+                    debugEnabled = true;
+                    debugWait = true;
+                    break;
                 default:
                     if (a.StartsWith("-", StringComparison.Ordinal)) return null;
                     if (pxml is null) pxml = a;
@@ -120,6 +136,9 @@ internal sealed class CliOptions
             Height = height,
             Title = title ?? $"Pixi2D Host - {Path.GetFileName(pxml)}",
             ExtraArgs = extras.ToArray(),
+            DebugEnabled = debugEnabled,
+            DebugPort = debugPort,
+            DebugWait = debugWait,
         };
     }
 }
