@@ -14,21 +14,21 @@
 //       不要写 .Text / .IsOn / .Content）。
 // =====================================================================
 
-const SAVE_DEBOUNCE   = 500;   // AutoSave 防抖
-const POLL_FILE_MS    = 800;   // 磁盘 mtime 轮询
-const SUPPRESS_MS     = 1200;  // 自写入后忽略外部回调的窗口
+const SAVE_DEBOUNCE = 500;   // AutoSave 防抖
+const POLL_FILE_MS = 800;   // 磁盘 mtime 轮询
+const SUPPRESS_MS = 1200;  // 自写入后忽略外部回调的窗口
 
-let currentPath  = (typeof globalThis.hostArgs !== 'undefined' && hostArgs[0]) ? hostArgs[0] : null;
+let currentPath = (typeof globalThis.hostArgs !== 'undefined' && hostArgs[0]) ? hostArgs[0] : null;
 let lastSeenText = '';
-let lastSavedAt  = 0;
+let lastSavedAt = 0;
 let lastDiskMtime = 0;
-let saveTimer    = null;
+let saveTimer = null;
 let suppressUntil = 0;
-let _lastDiags   = [];
+let _lastDiags = [];
 
 // ── 启动 ──────────────────────────────────────────────────────────────
 function init() {
-    swAutoSave.isOn   = true;
+    swAutoSave.isOn = true;
     swAutoReload.isOn = true;
 
     // 诊断表样式 + 表头
@@ -39,7 +39,10 @@ function init() {
         // hasHeader=true 时 DataSource[0] 是表头, 数据行从 1 起
         const d = _lastDiags[row - 1];
         if (!d || !d.line) return;
-        editor.scrollToLine(d.line);
+        console.log(d.line, d.column);
+        editor.setCursorPosition(d.line, d.column || 1);
+        editor.scrollToCaret();
+        editor.focus();
     });
 
     if (currentPath) {
@@ -155,12 +158,12 @@ function renderTree(nodes) {
 function renderDiagnostics(diags) {
     _lastDiags = diags;
     if (diags.length === 0) {
-        diagTable.setData([['Severity','Line','Col','Element','Message'], ['Info','','','','(no diagnostics)']]);
+        diagTable.setData([['Severity', 'Line', 'Col', 'Element', 'Message'], ['Info', '', '', '', '(no diagnostics)']]);
         diagTable.clearStyles();
         diagTable.setHeaderStyle({ backColor: '#22272e', color: '#cdd9e5', fontSize: 12, align: 'left' });
         return;
     }
-    const rows = [['Severity','Line','Col','Element','Message']];
+    const rows = [['Severity', 'Line', 'Col', 'Element', 'Message']];
     for (const d of diags) {
         const tag = d.element ? '<' + d.element + '>' + (d.attribute ? ' @' + d.attribute : '') : '';
         rows.push([

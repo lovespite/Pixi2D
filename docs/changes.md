@@ -1,5 +1,33 @@
 # 改动清单 (feat/dsl-xml-js)
 
+## v0.6.1 — Table 增量更新 + TextBox 光标定位
+
+### Table 增量更新 API (`Controls/Table.cs`)
+内部新增 `_data` 可变副本（自 `DataSource` 拷贝）+ `_dirtyRows` HashSet + `_structuralDirty` 标志。
+- `UpdateCell(int row, int col, string value)` — 修改单格；行高若变 → 后续行平移；不变 → 仅原地刷新已渲染 cell
+- `UpdateRow(int row, params string[] cells)` — 覆盖整行（列数不等视为结构变更走全量）
+- `AppendRow(params string[] cells)` / `InsertRow(int row, params string[] cells)` / `RemoveRow(int row)` — 结构变更
+- `RecalculateLayout()` ≡ `NotifyDataChanged()` — 显式全量重测
+- `RowCount` / `ColumnCount` 属性
+- `Update()` tick 增加 `_dirtyRows` 增量分支：行高变化 → `_layoutDirty`；不变 → `RefreshDirtyRowCellsInPlace()` 仅修补 `_activeCells` 中匹配的 cell 文本+样式
+- `DataSource` setter 现在拷贝外部引用到 `_data`（修改外部数组不再影响 Table；想生效需调 `NotifyDataChanged`）
+
+### TextBox 光标定位 (`Controls/TextBox.cs`)
+- `SetCursorPosition(int line1Based, int column1Based)` — 1-based 行列；列超过行末夹到 \n 前；line 超过末行夹到末尾
+- 删除原同名空 stub
+
+### JS 代理 (`Pixi2D.Scripting.QuickJs/Proxies.cs`)
+- `TableProxy`：新增 `updateCell(row,col,value)` / `updateRow(row, cells)` / `appendRow(cells)` / `insertRow(row, cells)` / `removeRow(row)` / `recalculateLayout()`；带数组参数的方法走 `IJsonShimProxy`（`_shims` 新增 3 条）
+- `TableStyleJson.ParseRow(json)` — 配套单行 JSON 解析
+- `TableProxy.RowCount/ColumnCount` 改读 `Table.RowCount/ColumnCount`（之前读 `DataSource`）
+- `TextBoxProxy.setCursorPosition(line, column)` — 替代原 `setCursor(x, y)`（同方法名/参数语义统一为 1-based 行列）
+- `tools/preview/main.js`：`editor.setCursor` → `editor.setCursorPosition`
+
+### 性能影响
+高频局部更新（如逐秒滴答的状态行）从 O(全表 cell 重测+重建) 降到 O(脏行 cell 数)，且大多数情况下行高不变，仅原地修补文本，避免 cell pool 复用。
+
+---
+
 ## v0.6 — Window 代理 + Table 样式 + Preview 自举完善
 
 ### Window 代理 (`globalThis.window`)

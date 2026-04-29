@@ -200,11 +200,28 @@ diagTable.on('rowClicked',  row => console.log('row', row));
 ``n
 样式字段（全部可选）：`backColor` / `color` / `borderColor` (`#RGB`/`#RRGGBB`/`#RRGGBBAA`)；`fontSize` (number)；`align` (`'left'`/`'center'`/`'right'`)。
 
+#### 增量更新（v0.6.1）
+
+避免高频局部变更走 `setData` 全表重测；行高未变时仅原地刷新已渲染 cell。
+
+```js
+diagTable.updateCell(2, 4, 'new message');     // (row, col, value) — 0-based
+diagTable.updateRow(2, ['Warn','13','7','<text>','...']);   // 数组自动 JSON 序列化
+diagTable.appendRow(['Info','-','-','-','done']);
+diagTable.insertRow(0, ['Severity','Line','Col','Element','Message']);
+diagTable.removeRow(5);
+diagTable.recalculateLayout();                 // 列宽变化时显式触发整表重测
+console.log(diagTable.rowCount, diagTable.columnCount);
+```
+
+注意：`updateRow` 列数与现有不一致时视为结构变更（走全量）。增量 API 修改的是 Table 内部副本，不会写回原 `setData(...)` 传入的数组。
+
 ### TextBox 代理
 
-`js
+```js
 editor.on('changed', txt => console.log('text now', txt));   // 实时, 替代旧的 setInterval 轮询
 editor.scrollToLine(42);                                     // 1-based
+editor.setCursorPosition(42, 5);                             // 1-based 行/列;列超过行末夹到 \n 前
 editor.selectionStart = 100;
 console.log(editor.length, editor.selectionLength);
-``n
+```

@@ -110,6 +110,7 @@ public partial class TextBoxProxy : IControlProxy
     public void ScrollToTop() => _tb.ScollToTop();
     public void ScrollToBottom() => _tb.ScrollToBottom();
     public void SelectAll() => _tb.SelectAll();
+    public void SetCursorPosition(int line, int column) => _tb.SetCursorPosition(line, column);
     public void Focus() => _tb.Focus();
 }
 
@@ -266,6 +267,28 @@ internal static class TableStyleJson
         catch { return Array.Empty<string[]>(); }
     }
 
+    public static string[] ParseRow(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return Array.Empty<string>();
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array) return Array.Empty<string>();
+            var cells = new List<string>();
+            foreach (var c in doc.RootElement.EnumerateArray())
+            {
+                cells.Add(c.ValueKind switch
+                {
+                    System.Text.Json.JsonValueKind.String => c.GetString() ?? string.Empty,
+                    System.Text.Json.JsonValueKind.Null => string.Empty,
+                    _ => c.GetRawText(),
+                });
+            }
+            return cells.ToArray();
+        }
+        catch { return Array.Empty<string>(); }
+    }
+
     private static TableHAlign? ParseAlign(string? a) => (a?.ToLowerInvariant()) switch
     {
         "left"   => TableHAlign.Left,
@@ -312,6 +335,9 @@ public partial class TableProxy : IControlProxy, IJsonShimProxy
         ("setRowStyle",    new[] { 1 }),
         ("setColumnStyle", new[] { 1 }),
         ("setCellStyle",   new[] { 2 }),
+        ("updateRow",      new[] { 1 }),
+        ("appendRow",      new[] { 0 }),
+        ("insertRow",      new[] { 1 }),
     };
     IReadOnlyList<(string Method, int[] JsonArgIndices)> IJsonShimProxy.ShimMethods => _shims;
 
@@ -337,8 +363,8 @@ public partial class TableProxy : IControlProxy, IJsonShimProxy
     public bool Visible { get => _t.Visible; set => _t.Visible = value; }
 
     public bool HasHeader { get => _t.HasHeader; set => _t.HasHeader = value; }
-    public int RowCount    => _t.DataSource?.Count ?? 0;
-    public int ColumnCount => (_t.DataSource is { Count: > 0 } ds) ? ds[0].Length : 0;
+    public int RowCount    => _t.RowCount;
+    public int ColumnCount => _t.ColumnCount;
 
     /// <summary>整表数据 (JSON 字符串 <c>[["a","b"],...]</c>)。脚本侧通过 setData(rows) shim 自动 JSON.stringify。</summary>
     public void SetData(string rowsJson)
@@ -359,6 +385,20 @@ public partial class TableProxy : IControlProxy, IJsonShimProxy
     public void SetColumnStyle(int col, string styleJson)    => _t.SetColumnStyle(col, TableStyleJson.Parse(styleJson));
     public void SetCellStyle(int row, int col, string styleJson) => _t.SetCellStyle(row, col, TableStyleJson.Parse(styleJson));
     public void ClearStyles() => _t.ClearStyles();
+
+    // ---------- 增量更新 (避免 setData 全量重测) ----------
+    /// <summary>修改单元格内容 (row/col 均 0-based)。</summary>
+    public void UpdateCell(int row, int col, string value) => _t.UpdateCell(row, col, value);
+    /// <summary>覆盖整行: cellsJson 形如 <c>["a","b","c"]</c>。</summary>
+    public void UpdateRow(int row, string cellsJson) => _t.UpdateRow(row, TableStyleJson.ParseRow(cellsJson));
+    /// <summary>末尾追加一行: cellsJson 形如 <c>["a","b","c"]</c>。</summary>
+    public void AppendRow(string cellsJson) => _t.AppendRow(TableStyleJson.ParseRow(cellsJson));
+    /// <summary>在 row 位置插入一行 (row 0-based)。</summary>
+    public void InsertRow(int row, string cellsJson) => _t.InsertRow(row, TableStyleJson.ParseRow(cellsJson));
+    /// <summary>移除一行。</summary>
+    public void RemoveRow(int row) => _t.RemoveRow(row);
+    /// <summary>显式触发整表重测算 (列宽 / 行高 / 总尺寸)。</summary>
+    public void RecalculateLayout() => _t.NotifyDataChanged();
 }
 
 [JSExport]

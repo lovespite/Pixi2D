@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
   Pixi2D PXML Preview (self-hosted)
   本身就是一个 PXML 文件 + JS 脚本 (main.js)，由 Pixi2D.Host 启动。
