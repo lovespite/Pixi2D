@@ -24,11 +24,23 @@ let lastSavedAt  = 0;
 let lastDiskMtime = 0;
 let saveTimer    = null;
 let suppressUntil = 0;
+let _lastDiags   = [];
 
 // ── 启动 ──────────────────────────────────────────────────────────────
 function init() {
     swAutoSave.isOn   = true;
     swAutoReload.isOn = true;
+
+    // 诊断表样式 + 表头
+    diagTable.hasHeader = true;
+    diagTable.setHeaderStyle({ backColor: '#22272e', color: '#cdd9e5', fontSize: 12, align: 'left' });
+    diagTable.setTableStyle({ backColor: '#1b1f25', color: '#cdd9e5', borderColor: '#2c333a', fontSize: 12, align: 'left' });
+    diagTable.on('cellClicked', (row, _col, _txt) => {
+        // hasHeader=true 时 DataSource[0] 是表头, 数据行从 1 起
+        const d = _lastDiags[row - 1];
+        if (!d || !d.line) return;
+        editor.scrollToLine(d.line);
+    });
 
     if (currentPath) {
         try {
@@ -141,19 +153,35 @@ function renderTree(nodes) {
 }
 
 function renderDiagnostics(diags) {
-    UI.clear('diagPanel');
+    _lastDiags = diags;
     if (diags.length === 0) {
-        UI.appendText('diagPanel', '(no diagnostics)', '#669966', 13);
+        diagTable.setData([['Severity','Line','Col','Element','Message'], ['Info','','','','(no diagnostics)']]);
+        diagTable.clearStyles();
+        diagTable.setHeaderStyle({ backColor: '#22272e', color: '#cdd9e5', fontSize: 12, align: 'left' });
         return;
     }
+    const rows = [['Severity','Line','Col','Element','Message']];
     for (const d of diags) {
-        const color = d.severity === 'Error' ? '#ff6b6b'
-                    : d.severity === 'Warning' ? '#f1c40f'
-                    : '#88aaff';
-        const loc = (d.line ? '(' + d.line + ',' + d.column + ') ' : '');
-        const tag = d.element ? ' <' + d.element + '>' : '';
-        const att = d.attribute ? ' @' + d.attribute : '';
-        UI.appendText('diagPanel', loc + d.severity + ':' + tag + att + ' ' + d.message, color, 13);
+        const tag = d.element ? '<' + d.element + '>' + (d.attribute ? ' @' + d.attribute : '') : '';
+        rows.push([
+            String(d.severity || ''),
+            d.line ? String(d.line) : '',
+            d.column ? String(d.column) : '',
+            tag,
+            String(d.message || ''),
+        ]);
+    }
+    diagTable.setData(rows);
+    diagTable.clearStyles();
+    diagTable.setHeaderStyle({ backColor: '#22272e', color: '#cdd9e5', fontSize: 12, align: 'left' });
+    for (let i = 0; i < diags.length; i++) {
+        const sev = diags[i].severity;
+        const dataRow = i + 1; // 因 hasHeader=true, 数据行从 1 起
+        if (sev === 'Error') {
+            diagTable.setRowStyle(dataRow, { backColor: '#3a1f24', color: '#ff6b6b' });
+        } else if (sev === 'Warning') {
+            diagTable.setRowStyle(dataRow, { color: '#f1c40f' });
+        }
     }
 }
 

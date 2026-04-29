@@ -26,9 +26,9 @@
     <panel id="treePanel" x="556" y="68" width="716" height="336"
            background-color="#1b1f25" />
 
-    <!-- 右下：诊断面板 -->
+    <!-- 右下：诊断面板 (Table 驱动；点击可跳到对应行) -->
     <fancy-text x="556" y="412" content="Diagnostics" />
-    <panel id="diagPanel" x="556" y="436" width="716" height="328"
+    <table id="diagTable" x="556" y="436" width="716" height="328"
            background-color="#1b1f25" />
 
     <!-- 底部状态栏 -->
