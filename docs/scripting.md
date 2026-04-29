@@ -225,3 +225,69 @@ editor.setCursorPosition(42, 5);                             // 1-based 行/列;
 editor.selectionStart = 100;
 console.log(editor.length, editor.selectionLength);
 ```
+
+## v0.7 新增：Assets 代理
+
+globalThis.assets 提供资源加载入口（详见 [assets.md](assets.md)）。
+
+### 异步加载（事件驱动）
+
+每个异步方法立刻返回一个 `int requestId`；结果通过 `assets.on('xxx', fn)` 派发。
+
+```js
+// 文本
+let id1 = assets.loadText('readme.txt');
+assets.on('loadedText', (requestId, url, text, metaJson) => {
+    if (requestId !== id1) return;
+    const meta = JSON.parse(metaJson);
+    console.log(text, meta.fromCache);
+});
+
+// 二进制 (base64)
+let id2 = assets.loadBytes('image.png');
+assets.on('loadedBytes', (requestId, url, base64, metaJson) => { /* ... */ });
+
+// JSON (脚本侧 JSON.parse)
+let id3 = assets.loadJson('https://api.example.com/data');
+assets.on('loadedJson', (requestId, url, jsonText, metaJson) => {
+    const obj = JSON.parse(jsonText);
+});
+
+// 错误 / 进度
+assets.on('error',    (requestId, url, msg) => console.error(url, msg));
+assets.on('progress', (requestId, url, loaded, total) => { /* total<0 表示未知 */ });
+```
+
+### 同步加载（仅本地）
+
+```js
+const text = assets.loadTextSync('config.json');     // HTTP URL → null
+const b64  = assets.loadBytesSync('icon.png');
+const ok   = assets.exists('config.json');
+```
+
+### 缓存控制
+
+```js
+assets.clearCache();          // L1 + L2 全清
+assets.clearMemoryCache();    // 仅 L1
+assets.clearDiskCache();      // 仅 L2
+assets.removeCache(url);      // 单条
+const stats = JSON.parse(assets.cacheStats());
+// { memoryBytes, memoryEntries, diskBytes, diskEntries }
+```
+
+### meta 字段
+
+`loadedText/Bytes/Json` 回调最后一个参数是 JSON 字符串：
+
+```json
+{
+  "source": "https://example.com/x.json",
+  "contentType": "application/json",
+  "fromCache": false,
+  "fetchedAt": "2025-01-01T08:00:00.0000000+08:00",
+  "sizeBytes": 1234,
+  "statusCode": 200
+}
+```

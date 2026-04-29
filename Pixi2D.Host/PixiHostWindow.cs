@@ -28,6 +28,18 @@ public sealed class PixiHostWindow : Direct2D1Window
     private FileSystemWatcher? _watcher;
     private DateTime _lastReload = DateTime.MinValue;
     private Scripting.WindowProxy? _windowProxy;
+    private Pixi2D.Host.Assets.AssetLoader? _assets;
+    private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _uiQueue = new();
+
+    /// <summary>从任意线程把工作排队到主 UI 线程 (脚本引擎线程)。</summary>
+    public void RunOnUiThread(Action action)
+    {
+        if (action is null) return;
+        _uiQueue.Enqueue(action);
+    }
+
+    /// <summary>暴露给宿主组件的 AssetLoader (在 BuildScene 内创建)。</summary>
+    public Pixi2D.Host.Assets.AssetLoader? Assets => _assets;
 
     // WM_TIMER pump：与渲染解耦，让 setInterval 在拖窗 / 缩放 / 模态循环里也能滴答。
     private const nuint PumpTimerId = 0x1D01;
@@ -97,6 +109,12 @@ public sealed class PixiHostWindow : Direct2D1Window
     private void PumpEngine()
     {
         if (_engine is null) return;
+        // 排空 UI 队列 (asset 回调 / debug 回包 等)
+        while (_uiQueue.TryDequeue(out var work))
+        {
+            try { work(); }
+            catch (Exception ex) { LogDiagnostic(DiagnosticSeverity.Error, "[ui-queue] " + ex.Message); }
+        }
         try { _engine.Pump(); }
         catch (Exception ex) { LogDiagnostic(DiagnosticSeverity.Error, "[pump] " + ex.Message); }
     }
@@ -150,6 +168,11 @@ public sealed class PixiHostWindow : Direct2D1Window
 
             // 把宿主命令行中 PXML 之后的额外位置参数以 string[] 形式暴露给 JS。
             _engine.Execute("globalThis.hostArgs = " + BuildJsStringArray(_extraArgs) + ";", "<host-args>");
+
+            // AssetLoader: PXML 所在目录作为相对路径基底
+            _assets = new Pixi2D.Host.Assets.AssetLoader(Path.GetDirectoryName(_pxmlPath) ?? Environment.CurrentDirectory);
+            var assetsProxy = new Pixi2D.Host.Scripting.AssetsProxy(_assets, RunOnUiThread);
+            _engine.SetGlobal("assets", assetsProxy);
 
             // 把宿主窗体本身以 globalThis.window 暴露给 JS（属性/事件/方法）。
             _windowProxy = new Scripting.WindowProxy(this, _pxmlPath, _extraArgs);

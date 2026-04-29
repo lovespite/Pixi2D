@@ -1,5 +1,44 @@
 # 改动清单 (feat/dsl-xml-js)
 
+## v0.7 — AssetLoader (Phase A) ⏳
+
+### Host 资源加载层 (`Pixi2D.Host/Assets/`)
+新增 6 个文件：
+- `IAssetProvider.cs` — provider 接口 + `IAssetWriteSink` 流式落盘抽象
+- `AssetData.cs` — `AssetData(Bytes, ContentType, Source, FetchedAt, FromCache, DiskPath, SizeBytes, StatusCode, HeadersJson)` + `AssetProgress`
+- `AssetCachePolicy.cs` — 默认 1 MiB 内存阈值 / 256 条 / 32 MiB / `%TEMP%/Pixi2D/AssetCache` / 512 MiB / 30s timeout
+- `FileAssetProvider.cs` — `file://` + 相对路径，基于 PXML 目录解析
+- `HttpAssetProvider.cs` — `HttpClient` 流式下载，双写内存 + sink；暴露 `RequestStart/RequestEnd/RequestError` (供 NetworkHook)
+- `AssetCache.cs` — L1 LRU (LinkedList+Dict, 本地文件仅记入口) + L2 sidecar `.bin/.bin.meta` + EnforceDiskBudget
+- `AssetLoader.cs` — 入口：URI 规范化 / dispatch / 并发去重 (`ConcurrentDictionary<string,Task<AssetData>>`) / Started/Loaded/Failed/Progress 事件
+
+### PixiHostWindow 集成
+- 字段 `_assets: AssetLoader`、`_uiQueue: ConcurrentQueue<Action>`
+- 公开 `RunOnUiThread(Action)`：从 IO 线程把回调排到主 (脚本) 线程
+- `PumpEngine()` 起始处 drain `_uiQueue`，再调 `_engine.Pump()`
+
+### JS 代理 (`Pixi2D.Host/Scripting/AssetsProxy.cs`)
+`globalThis.assets`：
+- `loadText/loadBytes/loadJson(url) → int requestId`（异步，事件驱动）
+- `loadTextSync/loadBytesSync/exists(url)`（仅 file://，HTTP → null）
+- `clearCache() / clearMemoryCache() / clearDiskCache() / removeCache(url)`
+- `cacheStats() → JSON 字符串`
+- 事件：`loadedText / loadedBytes / loadedJson(int, string, string, string)` / `error(int, string, string)` / `progress(int, string, long, long)`
+- bytes 跨 JS 边界以 base64 字符串传输
+
+### Demo
+`demos/12-assets/` — 加载本地 `sample.json` 填表 + Reload/Load Remote/Clear Cache/Stats 四个按钮。
+
+### 文档
+- `docs/assets.md`（新）—— 路径规范化 / 分级缓存 / 并发去重 / 错误诊断
+- `docs/scripting.md` —— 追加「v0.7 新增：Assets 代理」节
+
+### 待完成（Phase B / C）
+- DebugBridge (TCP + JSON-line) + ConsoleHook / NetworkHook / FileTracker / TreeSerializer / EvalHandler
+- `Pixi2D.Debugger` WinUI 3 项目 (元素树 / Console / Network / Files / REPL)
+
+---
+
 ## v0.6.1 — Table 增量更新 + TextBox 光标定位
 
 ### Table 增量更新 API (`Controls/Table.cs`)
