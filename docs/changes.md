@@ -1,5 +1,41 @@
 # 改动清单 (feat/dsl-xml-js)
 
+## v0.6 — Window 代理 + Table 样式 + Preview 自举完善
+
+### Window 代理 (`globalThis.window`)
+
+- `Pixi2D.Host/Scripting/WindowProxy.cs` — `[JSExport]` 暴露 `title` / `width` / `height` / `isFullScreen` / `pxmlPath` / `hostArgs` 属性 + `setTitle()` / `resize(w,h)` / `toggleFullScreen()` / `close()` / `requestRedraw()` 方法 + `resized(w,h)` / `closed()` / `fileChanged(path)` 事件
+- `Pixi2D.Host/PixiHostWindow.cs` — 引擎构造后 `engine.SetGlobal("window", _windowProxy)`；watch 模式 FileSystemWatcher → `RaiseFileChanged`
+- 已知警告 `QJSGEN003: HostArgs string[]`（SG 不支持 `string[]` 导出）：脚本侧仍用 `globalThis.hostArgs` fallback（PixiHostWindow.cs 字面量数组注入）
+
+### Table 样式系统
+
+- `Controls/TableStyle.cs`（新）— `TableStyle`（nullable 字段：`BackColor` / `Color` / `BorderColor` / `FontSize` / `HAlign`）+ `MergeWith` + `TableHAlign` 枚举
+- `Controls/Table.cs`：
+  - `HasHeader` / `DefaultStyle` / `HeaderStyle` + `Set{Table,Header,Row,Column,Cell}Style` / `ClearStyles`
+  - `ResolveStyle(r,c)` 合并优先级：Default → Header(row=0&&hasHeader) → Column → Row → Cell
+  - `UpdateVisibleCells` 强制 `cell.ApplyStyle(ResolveStyle(r,c))`，避免 cell pool 复用样式残留
+  - `event Action<int,int,string>? CellClicked` + `event Action<int>? RowClicked`（cell 内部 mouse-down 路由到 `OnCellMouseDown`）
+- `TableCell` 加 `FontSize` / `HAlign` 字段 + `ApplyStyle` / `ResetStyleToDefaults`
+
+### Table JS 代理
+
+- `Pixi2D.Scripting.QuickJs/Proxies.cs::TableProxy` — `setData(rows)` / `clear()` / `setTableStyle(s)` / `setHeaderStyle(s)` / `setRowStyle(r,s)` / `setColumnStyle(c,s)` / `setCellStyle(r,c,s)` / `clearStyles()` + `cellClicked` / `rowClicked` 事件
+- 由于 SG 不支持 `string[][]` / `float?` / 自定义 POCO 自动 unwrap，C# 端方法签名全为 `string json`；脚本端通过 `IJsonShimProxy` 自动安装 monkey-patch wrapper（`Pixi2D.Scripting/IControlProxy.cs::IJsonShimProxy` + `ScriptBootstrap.EmitJsonShim`），用户调用 `setData([[...]])` 等同 `setData(JSON.stringify(...))`
+- `QuickJsProxyFactory.cs` — `Table → TableProxy`（在 `Container` case 之前匹配）
+- 颜色字符串解析：`#RGB` / `#RRGGBB` / `#RRGGBBAA`；align：`left` / `center` / `right`
+- JSON 解析使用 `System.Text.Json.JsonDocument`（AOT 兼容；无反射）
+
+### Preview 自举完善
+
+- `tools/preview/main.pxml`：诊断面板从 `<panel id="diagPanel">` 改为 `<table id="diagTable">`
+- `tools/preview/main.js`：
+  - `renderDiagnostics` 用 `diagTable.setData([['Severity','Line','Col','Element','Message'], ...rows])`
+  - 错误行 `setRowStyle(i+1, {backColor:'#3a1f24', color:'#ff6b6b'})`；警告行 `{color:'#f1c40f'}`
+  - `diagTable.on('cellClicked', (row,_c,_t) => editor.scrollToLine(_lastDiags[row-1].line))` — 点击诊断行直接跳到编辑器对应行（hasHeader=true 时数据行从 1 起）
+
+---
+
 ## v0.4 — Host Pump + 可运行 Demo 库
 
 ### Host Pump（让 setTimeout / setInterval 真正滴答）

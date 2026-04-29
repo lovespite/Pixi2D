@@ -43,3 +43,11 @@
 | `Controls/TextBox.cs` | `Multiline` 属性改为可写 setter (PXML 入口) |
 
 详见 [`docs/scripting.md`](./scripting.md) §5。
+
+## v0.6 改进
+
+- 诊断面板改用 `<table id='diagTable'>`（Table 控件）渲染：表头 + 错误行红底 + 警告行黄字。
+- 点击诊断行直接 `editor.scrollToLine(d.line)` 跳到编辑器对应行（依赖 `hasHeader=true`，故 cellClicked 的 row=1 对应第一条诊断）。
+- TextBox 多行模式带内置滚动条 + 鼠标滚轮支持（每 notch ≈ 3 行）。
+- TextBox 通过 `editor.on('changed', ...)` 实时通知文本变化，删除原 200ms `setInterval` 轮询。
+

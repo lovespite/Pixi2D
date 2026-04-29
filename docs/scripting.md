@@ -166,3 +166,45 @@ Pixi2D.Host.exe my-tool.pxml extra1 extra2
 
 继承 [qjs.net](https://github.com/lovespite/qjs.net) 默认安装的同步 / 异步文件系统模块；常用：
 `fs.readFile(path, 'utf8')`、`fs.writeFile(path, text, 'utf8')`、`fs.stat(path)`（返回含 `mtimeMs` 的对象）。
+
+## v0.6 新增 API
+
+### window 代理
+
+`js
+window.title = 'My App';                          // 同步改窗口标题
+window.resize(1280, 800);
+window.toggleFullScreen();
+console.log(window.pxmlPath, window.hostArgs);    // hostArgs 仍可用 globalThis.hostArgs 兼容路径
+window.on('resized', (w, h) => console.log(w, h));
+window.on('fileChanged', path => console.log('changed', path));   // --watch 模式
+window.on('closed', () => console.log('closed'));
+``n
+### Table 代理
+
+所有 set*Style/setData 方法的 `style/rows` 参数支持直接传 JS 对象/数组（脚本侧自动 JSON.stringify）：
+
+`js
+diagTable.hasHeader = true;
+diagTable.setData([
+  ['Severity','Line','Col','Element','Message'],
+  ['Error',  '12','5', '<text>', 'invalid color'],
+]);
+diagTable.setHeaderStyle({ backColor:'#22272e', color:'#cdd9e5', fontSize:12, align:'left' });
+diagTable.setRowStyle(1, { backColor:'#3a1f24', color:'#ff6b6b' });    // 错误行红底
+diagTable.setColumnStyle(2, { align:'right' });
+diagTable.setCellStyle(1, 4, { color:'#ffffff' });
+diagTable.clearStyles();
+diagTable.on('cellClicked', (row, col, text) => editor.scrollToLine(row));
+diagTable.on('rowClicked',  row => console.log('row', row));
+``n
+样式字段（全部可选）：`backColor` / `color` / `borderColor` (`#RGB`/`#RRGGBB`/`#RRGGBBAA`)；`fontSize` (number)；`align` (`'left'`/`'center'`/`'right'`)。
+
+### TextBox 代理
+
+`js
+editor.on('changed', txt => console.log('text now', txt));   // 实时, 替代旧的 setInterval 轮询
+editor.scrollToLine(42);                                     // 1-based
+editor.selectionStart = 100;
+console.log(editor.length, editor.selectionLength);
+``n

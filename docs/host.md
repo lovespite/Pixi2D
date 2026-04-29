@@ -97,3 +97,8 @@ Pixi2D.Host.exe my-tool.pxml --watch arg1 arg2
 ```
 
 典型用途：[`tools/preview`](../tools/preview/README.md) 用 `hostArgs[0]` 接收要预览的目标 .pxml 路径。
+
+## v0.6 — Window 代理
+
+`globalThis.window` 由 `Pixi2D.Host.Scripting.WindowProxy` 提供，命名遵循 PascalCase → camelCase 规则。脚本可直接读写窗口属性、订阅尺寸/关闭/文件变化事件。详见 `docs/scripting.md`。
+
