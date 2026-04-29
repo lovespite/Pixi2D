@@ -19,6 +19,7 @@ public sealed class QuickJsProxyFactory : IProxyFactory
         Number n => new NumberProxy(n),
         ProgressBar pb => new ProgressBarProxy(pb),
         Modal m => new ModalProxy(m),
+        Table tbl => new TableProxy(tbl),
         Panel p => new PanelProxy(p),
         Container c => new ContainerProxy(c),
         _ => new DisplayObjectProxy(control),

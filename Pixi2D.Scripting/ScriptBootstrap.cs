@@ -42,6 +42,7 @@ public static class ScriptBootstrap
         IProxyFactory proxyFactory,
         Action<DiagnosticSeverity, string>? log = null)
     {
+        StringBuilder? shimSb = null;
         foreach (var (id, control) in host.NamedObjects)
         {
             if (!IsValidJsIdentifier(id))
@@ -56,6 +57,36 @@ public static class ScriptBootstrap
                 continue;
             }
             engine.SetGlobal(id, proxy);
+
+            if (proxy is IJsonShimProxy js)
+            {
+                shimSb ??= new StringBuilder();
+                EmitJsonShim(shimSb, id, js.ShimMethods);
+            }
+        }
+
+        if (shimSb is { Length: > 0 })
+        {
+            try { engine.Execute(shimSb.ToString(), "<pxml-json-shim>"); }
+            catch (Exception ex)
+            {
+                log?.Invoke(DiagnosticSeverity.Error, $"JSON shim 安装失败: {ex.Message}");
+            }
+        }
+    }
+
+    private static void EmitJsonShim(StringBuilder sb, string id, IReadOnlyList<(string Method, int[] JsonArgIndices)> specs)
+    {
+        // 形式: id.method = (function(orig, idxs){ return function(){ var a=Array.prototype.slice.call(arguments);
+        //         for (var i=0;i<idxs.length;i++){ var k=idxs[i]; if (k<a.length) a[k]=JSON.stringify(a[k]); }
+        //         return orig.apply(null, a); }; })(id.method.bind(id), [..]);
+        foreach (var (m, idxs) in specs)
+        {
+            sb.Append("if (typeof ").Append(id).Append('.').Append(m).Append(" === 'function') ")
+              .Append(id).Append('.').Append(m).Append(" = (function(o, ix){ return function(){ var a=Array.prototype.slice.call(arguments); for (var i=0;i<ix.length;i++){ var k=ix[i]; if (k<a.length) a[k]=JSON.stringify(a[k]); } return o.apply(null, a); }; })(")
+              .Append(id).Append('.').Append(m).Append(".bind(").Append(id).Append("), [");
+            for (int i = 0; i < idxs.Length; i++) { if (i > 0) sb.Append(','); sb.Append(idxs[i]); }
+            sb.Append("]);\n");
         }
     }
 

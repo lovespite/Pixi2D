@@ -23,3 +23,15 @@ public interface IProxyFactory
     /// </summary>
     object? Create(DisplayObject control);
 }
+
+/// <summary>
+/// 标记需要 JS 端薄包装（automatic JSON.stringify）的代理。<br />
+/// <see cref="ScriptBootstrap"/> 在 <see cref="IScriptEngine.SetGlobal"/> 之后会按 <see cref="ShimMethods"/>
+/// 注入 <c>obj.method = (function(o){ return function(){ var a=[].slice.call(arguments); for (var i of indices) a[i]=JSON.stringify(a[i]); return o(...a); }; })(obj.method.bind(obj))</c>
+/// 形式的 monkey patch，让脚本侧可直接 <c>tbl.setData([[...]])</c>。
+/// </summary>
+public interface IJsonShimProxy
+{
+    /// <summary>需要包装的 (JS 方法名, 需 JSON 化的参数索引集合) 列表。</summary>
+    IReadOnlyList<(string Method, int[] JsonArgIndices)> ShimMethods { get; }
+}

@@ -204,6 +204,163 @@ public partial class ContainerProxy : IControlProxy
     public bool Visible { get => _c.Visible; set => _c.Visible = value; }
 }
 
+/// <summary>
+/// 颜色 / 对齐 / 字号样式参数。<br />
+/// 颜色字符串格式: <c>#RGB</c> / <c>#RRGGBB</c> / <c>#RRGGBBAA</c>; 解析失败时该字段视为 null。
+/// align 取值: "left" / "center" / "right"。
+/// </summary>
+internal static class TableStyleJson
+{
+    public static TableStyle? Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object) return null;
+            var s = new TableStyle();
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                switch (prop.Name)
+                {
+                    case "backColor":   s.BackColor   = TryParseColor(prop.Value.GetString()); break;
+                    case "color":       s.Color       = TryParseColor(prop.Value.GetString()); break;
+                    case "borderColor": s.BorderColor = TryParseColor(prop.Value.GetString()); break;
+                    case "fontSize":
+                        if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Number && prop.Value.TryGetDouble(out var d))
+                            s.FontSize = (float)d;
+                        break;
+                    case "align": s.HAlign = ParseAlign(prop.Value.GetString()); break;
+                }
+            }
+            return s;
+        }
+        catch { return null; }
+    }
+
+    public static string[][] ParseRows(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return Array.Empty<string[]>();
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array) return Array.Empty<string[]>();
+            var rows = new List<string[]>();
+            foreach (var row in doc.RootElement.EnumerateArray())
+            {
+                if (row.ValueKind != System.Text.Json.JsonValueKind.Array) { rows.Add(Array.Empty<string>()); continue; }
+                var cells = new List<string>();
+                foreach (var c in row.EnumerateArray())
+                {
+                    cells.Add(c.ValueKind switch
+                    {
+                        System.Text.Json.JsonValueKind.String => c.GetString() ?? string.Empty,
+                        System.Text.Json.JsonValueKind.Null => string.Empty,
+                        _ => c.GetRawText(),
+                    });
+                }
+                rows.Add(cells.ToArray());
+            }
+            return rows.ToArray();
+        }
+        catch { return Array.Empty<string[]>(); }
+    }
+
+    private static TableHAlign? ParseAlign(string? a) => (a?.ToLowerInvariant()) switch
+    {
+        "left"   => TableHAlign.Left,
+        "center" => TableHAlign.Center,
+        "right"  => TableHAlign.Right,
+        _ => null,
+    };
+
+    private static SharpDX.Mathematics.Interop.RawColor4? TryParseColor(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var t = s.StartsWith('#') ? s[1..] : s;
+        try
+        {
+            byte r, g, b, a = 255;
+            if (t.Length == 3)
+            {
+                r = Convert.ToByte(new string(t[0], 2), 16);
+                g = Convert.ToByte(new string(t[1], 2), 16);
+                b = Convert.ToByte(new string(t[2], 2), 16);
+            }
+            else if (t.Length == 6 || t.Length == 8)
+            {
+                r = Convert.ToByte(t[..2], 16);
+                g = Convert.ToByte(t.Substring(2, 2), 16);
+                b = Convert.ToByte(t.Substring(4, 2), 16);
+                if (t.Length == 8) a = Convert.ToByte(t.Substring(6, 2), 16);
+            }
+            else return null;
+            return new SharpDX.Mathematics.Interop.RawColor4(r / 255f, g / 255f, b / 255f, a / 255f);
+        }
+        catch { return null; }
+    }
+}
+
+[JSExport]
+public partial class TableProxy : IControlProxy, IJsonShimProxy
+{
+    private static readonly IReadOnlyList<(string Method, int[] JsonArgIndices)> _shims = new (string, int[])[]
+    {
+        ("setData",        new[] { 0 }),
+        ("setTableStyle",  new[] { 0 }),
+        ("setHeaderStyle", new[] { 0 }),
+        ("setRowStyle",    new[] { 1 }),
+        ("setColumnStyle", new[] { 1 }),
+        ("setCellStyle",   new[] { 2 }),
+    };
+    IReadOnlyList<(string Method, int[] JsonArgIndices)> IJsonShimProxy.ShimMethods => _shims;
+
+    private readonly Table _t;
+    /// <summary>单元格点击 (row, col, text)。</summary>
+    public event Action<int, int, string>? CellClicked;
+    /// <summary>整行点击 (row)。</summary>
+    public event Action<int>? RowClicked;
+
+    public TableProxy(Table t)
+    {
+        _t = t;
+        _t.CellClicked += (r, c, txt) => CellClicked?.Invoke(r, c, txt ?? string.Empty);
+        _t.RowClicked  += r => RowClicked?.Invoke(r);
+    }
+    DisplayObject IControlProxy.Wrapped => _t;
+
+    public string Id { get => _t.Name ?? string.Empty; set => _t.Name = value; }
+    public float X { get => _t.X; set => _t.X = value; }
+    public float Y { get => _t.Y; set => _t.Y = value; }
+    public float Width { get => _t.Width; set => _t.Width = value; }
+    public float Height { get => _t.Height; set => _t.Height = value; }
+    public bool Visible { get => _t.Visible; set => _t.Visible = value; }
+
+    public bool HasHeader { get => _t.HasHeader; set => _t.HasHeader = value; }
+    public int RowCount    => _t.DataSource?.Count ?? 0;
+    public int ColumnCount => (_t.DataSource is { Count: > 0 } ds) ? ds[0].Length : 0;
+
+    /// <summary>整表数据 (JSON 字符串 <c>[["a","b"],...]</c>)。脚本侧通过 setData(rows) shim 自动 JSON.stringify。</summary>
+    public void SetData(string rowsJson)
+    {
+        _t.DataSource = TableStyleJson.ParseRows(rowsJson);
+        _t.NotifyDataChanged();
+    }
+
+    public void Clear()
+    {
+        _t.DataSource = Array.Empty<string[]>();
+        _t.NotifyDataChanged();
+    }
+
+    public void SetTableStyle(string styleJson)              => _t.SetTableStyle(TableStyleJson.Parse(styleJson));
+    public void SetHeaderStyle(string styleJson)             => _t.SetHeaderStyle(TableStyleJson.Parse(styleJson));
+    public void SetRowStyle(int row, string styleJson)       => _t.SetRowStyle(row, TableStyleJson.Parse(styleJson));
+    public void SetColumnStyle(int col, string styleJson)    => _t.SetColumnStyle(col, TableStyleJson.Parse(styleJson));
+    public void SetCellStyle(int row, int col, string styleJson) => _t.SetCellStyle(row, col, TableStyleJson.Parse(styleJson));
+    public void ClearStyles() => _t.ClearStyles();
+}
+
 [JSExport]
 public partial class ModalProxy : IControlProxy
 {
