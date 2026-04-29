@@ -161,6 +161,64 @@ public class Table : Container
 
     public bool AutoUpdate { get; set; } = true;
 
+    /// <summary>是否将第 0 行视为表头, 应用 <see cref="HeaderStyle"/>.</summary>
+    public bool HasHeader { get; set; } = false;
+
+    /// <summary>整表默认样式 (最低优先级). 永不为 null; 可修改字段。</summary>
+    public TableStyle DefaultStyle { get; } = new();
+    /// <summary>表头样式 (HasHeader=true 且 row=0 时叠加在 DefaultStyle 之上).</summary>
+    public TableStyle? HeaderStyle { get; set; }
+
+    private readonly Dictionary<int, TableStyle> _rowStyles = new();
+    private readonly Dictionary<int, TableStyle> _columnStyles = new();
+    private readonly Dictionary<(int row, int col), TableStyle> _cellStyles = new();
+
+    public void SetTableStyle(TableStyle? s)
+    {
+        DefaultStyle.BackColor   = s?.BackColor;
+        DefaultStyle.Color       = s?.Color;
+        DefaultStyle.BorderColor = s?.BorderColor;
+        DefaultStyle.FontSize    = s?.FontSize;
+        DefaultStyle.HAlign      = s?.HAlign;
+        _layoutDirty = true;
+    }
+    public void SetHeaderStyle(TableStyle? s) { HeaderStyle = s; HasHeader = s is not null || HasHeader; _layoutDirty = true; }
+    public void SetRowStyle(int row, TableStyle? s)
+    {
+        if (s is null) _rowStyles.Remove(row); else _rowStyles[row] = s;
+        _layoutDirty = true;
+    }
+    public void SetColumnStyle(int col, TableStyle? s)
+    {
+        if (s is null) _columnStyles.Remove(col); else _columnStyles[col] = s;
+        _layoutDirty = true;
+    }
+    public void SetCellStyle(int row, int col, TableStyle? s)
+    {
+        var k = (row, col);
+        if (s is null) _cellStyles.Remove(k); else _cellStyles[k] = s;
+        _layoutDirty = true;
+    }
+    public void ClearStyles()
+    {
+        _rowStyles.Clear();
+        _columnStyles.Clear();
+        _cellStyles.Clear();
+        HeaderStyle = null;
+        SetTableStyle(null);
+    }
+
+    /// <summary>返回 (row,col) 处合并后的样式 (Default → Header → Column → Row → Cell)。</summary>
+    private TableStyle ResolveStyle(int row, int col)
+    {
+        var merged = DefaultStyle;
+        if (HasHeader && row == 0 && HeaderStyle is not null) merged = merged.MergeWith(HeaderStyle);
+        if (_columnStyles.TryGetValue(col, out var cs)) merged = merged.MergeWith(cs);
+        if (_rowStyles.TryGetValue(row, out var rs))    merged = merged.MergeWith(rs);
+        if (_cellStyles.TryGetValue((row, col), out var es)) merged = merged.MergeWith(es);
+        return merged;
+    }
+
     /// <summary>
     /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
     /// </summary>
@@ -558,6 +616,11 @@ public class Table : Container
                 // 判定是否是表头 
                 string text = DataSource[r][c];
 
+                // 强制重写所有样式字段, 避免 cell pool 复用时残留旧样式
+                cell.ApplyStyle(ResolveStyle(r, c));
+                cell.CurrentRow = r;
+                cell.CurrentCol = c;
+
                 // 填充数据并更新UI配置
                 cell.UpdateData(text, _colWidths[c], _rowHeights[r], MaxColumnWidth);
 
@@ -571,9 +634,33 @@ public class Table : Container
         }
     }
 
+    /// <summary>单元格点击 (row, col, text)。</summary>
+    public event Action<int, int, string>? CellClicked;
+    /// <summary>整行点击 (row)。</summary>
+    public event Action<int>? RowClicked;
+
     private TableCell GetOrCreateCell()
     {
-        return _cellPool.Count > 0 ? _cellPool.Pop() : new TableCell(m_textFactory.Create());
+        if (_cellPool.Count > 0) return _cellPool.Pop();
+        var cell = new TableCell(m_textFactory.Create());
+        cell.OnMouseDown += OnCellMouseDown;
+        return cell;
+    }
+
+    private void OnCellMouseDown(Pixi2D.Events.DisplayObjectEvent e)
+    {
+        if (e.CurrentTarget is not TableCell tc) return;
+        if (tc.CurrentRow < 0) return;
+        string text = string.Empty;
+        if (DataSource is not null
+            && tc.CurrentRow < DataSource.Count
+            && DataSource[tc.CurrentRow] is { } row
+            && tc.CurrentCol >= 0 && tc.CurrentCol < row.Length)
+        {
+            text = row[tc.CurrentCol];
+        }
+        CellClicked?.Invoke(tc.CurrentRow, tc.CurrentCol, text);
+        RowClicked?.Invoke(tc.CurrentRow);
     }
 
     // 辅助方法：查找第一个位置小于等于 target 的索引
@@ -598,6 +685,10 @@ public class TableCell : Container
     private readonly Graphics m_background;
     private readonly Text m_text;
 
+    /// <summary>当前承载的数据行/列索引 (Table 在 UpdateVisibleCells 时回写)。</summary>
+    internal int CurrentRow { get; set; } = -1;
+    internal int CurrentCol { get; set; } = -1;
+
     /// <summary>
     /// 无参构造：使用 <see cref="UIContext.Current"/> 默认文本工厂。
     /// </summary>
@@ -605,21 +696,48 @@ public class TableCell : Container
 
     public TableCell(Text text)
     {
-        m_background = new Graphics();
+        m_background = new Graphics { Interactive = true };
         m_text = text;
         m_text.WordWrap = true; // 启用自动换行
 
         AddChild(m_background);
         AddChild(m_text);
+
+        Interactive = true;
     }
 
     private RawColor4 m_textColor = new(1, 1, 1, 1);
     private RawColor4 m_bgColor = new(0, 0, 0, 0);
     private RawColor4 m_strokeColor = new(0.33f, 0.33f, 0.33f, 1);
+    private float? m_fontSizeOverride;
+    private TableHAlign m_hAlign = TableHAlign.Left;
 
     public RawColor4 BorderColor { get => m_strokeColor; set => m_strokeColor = value; }
     public RawColor4 Color { get => m_textColor; set => m_textColor = value; }
     public RawColor4 BackColor { get => m_bgColor; set => m_bgColor = value; }
+    public float? FontSize { get => m_fontSizeOverride; set => m_fontSizeOverride = value; }
+    public TableHAlign HAlign { get => m_hAlign; set => m_hAlign = value; }
+
+    /// <summary>把 <paramref name="style"/> 字段写入本 cell；null 字段不修改。供 Table 在 UpdateVisibleCells 时调用。</summary>
+    internal void ApplyStyle(TableStyle? style)
+    {
+        if (style is null) { ResetStyleToDefaults(); return; }
+        // 强制重写所有字段, 避免 cell pool 复用时残留旧样式
+        m_textColor   = style.Color       ?? new RawColor4(1, 1, 1, 1);
+        m_bgColor     = style.BackColor   ?? new RawColor4(0, 0, 0, 0);
+        m_strokeColor = style.BorderColor ?? new RawColor4(0.33f, 0.33f, 0.33f, 1);
+        m_fontSizeOverride = style.FontSize;
+        m_hAlign = style.HAlign ?? TableHAlign.Left;
+    }
+
+    internal void ResetStyleToDefaults()
+    {
+        m_textColor   = new RawColor4(1, 1, 1, 1);
+        m_bgColor     = new RawColor4(0, 0, 0, 0);
+        m_strokeColor = new RawColor4(0.33f, 0.33f, 0.33f, 1);
+        m_fontSizeOverride = null;
+        m_hAlign = TableHAlign.Left;
+    }
 
     public void UpdateData(string text, float width, float height, float maxColumnWidth)
     {
@@ -634,6 +752,8 @@ public class TableCell : Container
         m_text.FillColor = m_textColor;
         m_text.Content = text;
         m_text.MaxWidth = maxColumnWidth; // 设置文本最大换行宽度
+        if (m_fontSizeOverride.HasValue) m_text.FontSize = m_fontSizeOverride.Value;
+        m_text.TextAlignment = TableStyle.ToDWriteAlign(m_hAlign);
 
         // 文本内边距
         m_text.X = 5;
