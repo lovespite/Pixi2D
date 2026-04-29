@@ -8,9 +8,13 @@
 //   • AutoSave: 文本变更后 500ms 防抖回写磁盘
 //   • AutoHotReload: 800ms 轮询 mtime, 外部修改自动重载
 //   • Pxml.parse → 渲染对象树 + 诊断列表 + 状态栏统计
+//
+// 注意：所有 [JSExport] 控件属性名均为 camelCase
+//      （如 editor.text、swAutoSave.isOn、lblPath.content；
+//       不要写 .Text / .IsOn / .Content）。
 // =====================================================================
 
-const POLL_TEXT_MS    = 200;   // editor 文本变化检测
+const POLL_TEXT_MS    = 200;   // editor 文本变化检测（fallback；优先用 changed 事件）
 const SAVE_DEBOUNCE   = 500;   // AutoSave 防抖
 const POLL_FILE_MS    = 800;   // 磁盘 mtime 轮询
 const SUPPRESS_MS     = 1200;  // 自写入后忽略外部回调的窗口
@@ -24,25 +28,25 @@ let suppressUntil = 0;
 
 // ── 启动 ──────────────────────────────────────────────────────────────
 function init() {
-    swAutoSave.IsOn   = true;
-    swAutoReload.IsOn = true;
+    swAutoSave.isOn   = true;
+    swAutoReload.isOn = true;
 
     if (currentPath) {
         try {
             const txt = fs.readFile(currentPath, 'utf8');
-            editor.Text = txt;
+            editor.text = txt;
             lastSeenText = txt;
             lastDiskMtime = safeMtime(currentPath);
-            lblPath.Content = currentPath;
+            lblPath.content = currentPath;
             setStatus('loaded ' + currentPath);
         } catch (e) {
             setStatus('error: ' + e.message);
-            lblPath.Content = '(load failed)';
+            lblPath.content = '(load failed)';
         }
     } else {
-        editor.Text = '<?xml version="1.0" encoding="utf-8"?>\n<panel id="root" width="640" height="360" />\n';
-        lastSeenText = editor.Text;
-        lblPath.Content = '(no file - editing in memory)';
+        editor.text = '<?xml version="1.0" encoding="utf-8"?>\n<panel id="root" width="640" height="360" />\n';
+        lastSeenText = editor.text;
+        lblPath.content = '(no file - editing in memory)';
         setStatus('no input file; edit and Reload to parse');
     }
 
@@ -55,11 +59,11 @@ function init() {
 
 // ── 编辑器轮询 ────────────────────────────────────────────────────────
 function checkEditorChange() {
-    const t = editor.Text;
+    const t = editor.text;
     if (t === lastSeenText) return;
     lastSeenText = t;
     parseAndRender();
-    if (currentPath && swAutoSave.IsOn) {
+    if (currentPath && swAutoSave.isOn) {
         if (saveTimer) clearTimeout(saveTimer);
         saveTimer = setTimeout(saveNow, SAVE_DEBOUNCE);
     }
@@ -69,7 +73,7 @@ function saveNow() {
     saveTimer = null;
     if (!currentPath) return;
     try {
-        fs.writeFile(currentPath, editor.Text, 'utf8');
+        fs.writeFile(currentPath, editor.text, 'utf8');
         lastSavedAt = Date.now();
         suppressUntil = lastSavedAt + SUPPRESS_MS;
         lastDiskMtime = safeMtime(currentPath);
@@ -81,15 +85,15 @@ function saveNow() {
 
 // ── 磁盘 mtime 轮询 ───────────────────────────────────────────────────
 function checkDiskChange() {
-    if (!currentPath || !swAutoReload.IsOn) return;
+    if (!currentPath || !swAutoReload.isOn) return;
     if (Date.now() < suppressUntil) return;
     const m = safeMtime(currentPath);
     if (m === 0 || m === lastDiskMtime) return;
     lastDiskMtime = m;
     try {
         const txt = fs.readFile(currentPath, 'utf8');
-        if (txt === editor.Text) return;
-        editor.Text = txt;
+        if (txt === editor.text) return;
+        editor.text = txt;
         lastSeenText = txt;
         parseAndRender();
         setStatus('reloaded from disk @ ' + new Date().toLocaleTimeString());
@@ -110,7 +114,7 @@ function safeMtime(path) {
 
 // ── Pxml.parse + 渲染 ────────────────────────────────────────────────
 function parseAndRender() {
-    const r = Pxml.parse(editor.Text, currentPath || '<editor>');
+    const r = Pxml.parse(editor.text, currentPath || '<editor>');
     renderTree(r.tree || []);
     renderDiagnostics(r.diagnostics || []);
     const errs = (r.diagnostics || []).filter(d => d.severity === 'Error').length;
@@ -146,7 +150,7 @@ function renderDiagnostics(diags) {
 }
 
 function setStatus(msg) {
-    status.Content = msg;
+    status.content = msg;
 }
 
 // ── 事件处理（PXML on-* 引用） ───────────────────────────────────────
@@ -154,7 +158,7 @@ function onReload() {
     if (!currentPath) { parseAndRender(); return; }
     try {
         const txt = fs.readFile(currentPath, 'utf8');
-        editor.Text = txt;
+        editor.text = txt;
         lastSeenText = txt;
         lastDiskMtime = safeMtime(currentPath);
         parseAndRender();

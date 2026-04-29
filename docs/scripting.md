@@ -1,6 +1,28 @@
 # Pixi2D Scripting (QuickJS)
 
-> 适用版本：v0.3。本文档描述 PXML + JavaScript 集成的设计与使用。
+> 适用版本：v0.6。本文档描述 PXML + JavaScript 集成的设计与使用。
+
+## 0. JS 命名规则（必读）
+
+> **所有 .NET 端 `PascalCase` 标识符在 JS 端一律 `camelCase`**（属性、方法、事件名）。
+> 这是 `qjs.net` 的 `[JSExport]` source generator 自动转换（参见
+> `external/qjs.net/QuickJsNet.SourceGenerators/JSExportGenerator.cs:308 ResolveJsName → ToCamelCase`）。
+
+```js
+// ✅ 正确
+editor.text = '...';            // C# TextBox.Text
+swAutoSave.isOn = true;         // C# Switch.IsOn
+lblPath.content = '...';        // C# FancyText.Content
+btn.on('click', fn);            // C# Button.Click 事件
+
+// ❌ 错误（运行时静默失败 → undefined 写入 / 读到 undefined）
+editor.Text = '...';
+swAutoSave.IsOn = true;
+lblPath.Content = '...';
+btn.on('Click', fn);
+```
+
+如需自定义 JS 名（覆盖默认 camelCase）：在 .NET 端用 `[JSName("foo")]` 或 `[JSExport("Foo")]`（类名）。
 
 ## 1. 总体架构
 
