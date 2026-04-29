@@ -106,6 +106,7 @@ public sealed class PixiHostWindow : Direct2D1Window
         // 确保即便 SetTimer 失败 setInterval 仍能跟随渲染帧滴答 (拖窗会停).
         if (!_pumpTimerInstalled) PumpEngine();
 
+        _stage.Update(deltaTimeInSeconds);
         _stage.Render(target);
 
         if (_loadError is not null)

@@ -10,6 +10,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Pixi2D.Host</RootNamespace>
     <AssemblyName>Pixi2D.Host</AssemblyName>
+    <Version>0.0.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,7 +20,13 @@
     <ProjectReference Include="..\Pixi2D.Scripting.QuickJs\Pixi2D.Scripting.QuickJs.csproj" />
     <ProjectReference Include="..\external\D2DWindow\D2DWindow.csproj" />
   </ItemGroup>
-
+  
+  <ItemGroup>
+    <TrimmerRootAssembly Include="SharpDX" />
+    <TrimmerRootAssembly Include="SharpDX.Direct2D1" />
+    <TrimmerRootAssembly Include="SharpDX.XAudio2" />
+  </ItemGroup>
+  
   <!-- 显式拷贝原生 quickjs.dll 到输出目录 (透传可能在某些 SDK 版本下失效) -->
   <ItemGroup>
     <None Include="..\external\qjs.net\qjs.net\quickjs.dll"
