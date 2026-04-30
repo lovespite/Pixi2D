@@ -21,6 +21,7 @@ public class ComboBox : Container
 {
     // --- UI 组件 ---
     private readonly Graphics _header;
+    private readonly Container _labelClip;
     private readonly Text _selectedLabel;
     private readonly Graphics _arrow;
 
@@ -101,13 +102,25 @@ public class ComboBox : Container
         _header.OnMouseOut += (e) => _header.FillColor = new RawColor4(0.2f, 0.2f, 0.2f, 1f);
         AddChild(_header);
 
-        // 2. 创建选中显示文本
+        // 2. 创建选中显示文本（使用内部裁剪容器，避免长文本溢出到箭头/边框外）
+        const float labelLeftPad = 8f;
+        const float labelRightPad = 22f; // 留给箭头
         _selectedLabel = textFactory.Create(_placeholder, 14, Color.White);
-        _selectedLabel.X = 8;
+        _selectedLabel.X = 0;
         _selectedLabel.Y = (height - _selectedLabel.FontSize) / 2f - 2;
-        _selectedLabel.MaxWidth = width - 30; // 留出箭头空间
-        _selectedLabel.WordWrap = false;      // 单行
-        AddChild(_selectedLabel);
+        _selectedLabel.MaxWidth = float.MaxValue;
+        _selectedLabel.WordWrap = false;
+
+        _labelClip = new Container
+        {
+            X = labelLeftPad,
+            Y = 0,
+            ClipContent = true,
+            ClipWidth = Math.Max(1f, width - labelLeftPad - labelRightPad),
+            ClipHeight = height,
+        };
+        _labelClip.AddChild(_selectedLabel);
+        AddChild(_labelClip);
 
         // 3. 创建下拉箭头 (简单的 V 形)
         _arrow = new Graphics

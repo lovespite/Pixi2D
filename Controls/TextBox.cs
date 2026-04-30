@@ -1109,13 +1109,14 @@ public class TextBox : Container
                 _textClipContainer.Y = _paddingY;
                 _textClipContainer.ClipWidth = _boxWidth - (_paddingX * 2);
                 _textClipContainer.ClipHeight = _boxHeight - (_paddingY * 2);
-                _textDisplay.MaxWidth = _boxWidth;
+                _textDisplay.MaxWidth = _boxWidth - (_paddingX * 2);
             }
             else
             {
                 float textHeight = _textFactory.FontSize + 2f;
                 _textClipContainer.X = _paddingX;
                 _textClipContainer.Y = (_boxHeight - textHeight) / 2;
+                _textClipContainer.ClipWidth = _boxWidth - (_paddingX * 2);
                 _textClipContainer.ClipHeight = textHeight + _paddingY;
             }
 
