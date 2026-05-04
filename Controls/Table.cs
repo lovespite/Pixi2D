@@ -878,6 +878,13 @@ public class Table : Container
             CommitEditing(moveSelectionDown: false, focusTable: false);
         }
 
+        if (BeforeEdit is not null)
+        {
+            var args = new BeforeEditEventArgs(row, col, _data[row][col]);
+            BeforeEdit(this, args);
+            if (args.Cancel) return false;
+        }
+
         SetSelectedCell(row, col);
         _editingRow = row;
         _editingCol = col;
@@ -1084,22 +1091,25 @@ public class Table : Container
     /// <summary>整行点击 (row)。</summary>
     public event Action<int>? RowClicked;
     public event CellChangedEventHandler? CellChanged;
+    public event BeforeEditEventHandler? BeforeEdit;
 
-    public delegate void CellChangedEventHandler(Table sender, CellChangedEventArgs args);
-    public class CellChangedEventArgs : EventArgs
+    public delegate void BeforeEditEventHandler(Table sender, BeforeEditEventArgs args);
+    public class BeforeEditEventArgs(int row, int col, string value) : EventArgs
     {
         public bool Cancel { get; set; } = false;
-        public int Row { get; }
-        public int Col { get; }
-        public string NewValue { get; }
-        public string? OldValue { get; }
-        public CellChangedEventArgs(int row, int col, string newValue, string? oldValue)
-        {
-            Row = row;
-            Col = col;
-            NewValue = newValue;
-            OldValue = oldValue;
-        }
+        public int Row { get; } = row;
+        public int Col { get; } = col;
+        public string Value { get; } = value;
+    }
+
+    public delegate void CellChangedEventHandler(Table sender, CellChangedEventArgs args);
+    public class CellChangedEventArgs(int row, int col, string newValue, string? oldValue) : EventArgs
+    {
+        public bool Cancel { get; set; } = false;
+        public int Row { get; } = row;
+        public int Col { get; } = col;
+        public string NewValue { get; } = newValue;
+        public string? OldValue { get; } = oldValue;
     }
 
     private TableCell GetOrCreateCell()
