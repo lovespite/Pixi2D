@@ -953,7 +953,8 @@ public class Table : Container
                     nextCol = Math.Clamp(nextCol, 0, nextRowLength - 1);
                     SetSelectedCell(nextRow, nextCol);
                     EnsureCellVisible(nextRow, nextCol);
-                    BeginEditing(nextRow, nextCol);
+                    shouldFocusTable = !BeginEditing(nextRow, nextCol);
+
                 }
             }
         }
