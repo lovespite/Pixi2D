@@ -18,6 +18,17 @@ public class SoundEffect : IDisposable
     // 缓存音频数据，避免重复从磁盘读取。
     // key: 声音名称, value: (AudioBuffer, DecodedPacketsInfo, WaveFormat)
     private static readonly ConcurrentDictionary<string, CachedSound> _soundCache = new();
+    public static bool TryGetFormat(string name, out WaveFormat? wavFormat)
+    {
+        if (_soundCache.TryGetValue(name, out var sound))
+        {
+            wavFormat = sound.WaveFormat;
+            return true;
+        }
+
+        wavFormat = null;
+        return false;
+    }
 
     private record CachedSound(byte[] AudioData, uint[] DecodedPacketsInfo, WaveFormat WaveFormat);
 

@@ -37,6 +37,7 @@ public static class Textures
         // 尝试获取 DeviceContext (Direct2D 1.1)
         try
         {
+            _context?.Dispose();
             _context = renderTarget.QueryInterface<DeviceContext>();
         }
         catch
@@ -207,6 +208,22 @@ public static class Textures
         }
 
         return E;
+    }
+
+    /// <summary>
+    /// 尝试获取纹理。成功返回 true 和对应的 Bitmap1；失败返回 false 和一个空的纹理(Empty)。
+    /// </summary>
+    /// <param name="name">纹理名称。</param>
+    /// <param name="bitmap">输出参数，返回对应的 Bitmap1。</param>
+    /// <returns>如果找到纹理，返回 true；否则返回 false。</returns>
+    public static bool TryGet(string name, out Bitmap1 bitmap)
+    {
+        if (_cache.TryGetValue(name, out bitmap!))
+        {
+            return true;
+        }
+        bitmap = E;
+        return false;
     }
 
     /// <summary>
