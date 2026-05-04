@@ -363,6 +363,16 @@ public partial class TableProxy : IControlProxy, IJsonShimProxy
     public bool Visible { get => _t.Visible; set => _t.Visible = value; }
 
     public bool HasHeader { get => _t.HasHeader; set => _t.HasHeader = value; }
+    public string EditMode
+    {
+        get => _t.EditMode.ToString();
+        set
+        {
+            if (!Enum.TryParse<TableEditMode>(value, true, out var mode))
+                throw new ArgumentException($"Invalid table edit mode: {value}", nameof(value));
+            _t.EditMode = mode;
+        }
+    }
     public int RowCount    => _t.RowCount;
     public int ColumnCount => _t.ColumnCount;
 

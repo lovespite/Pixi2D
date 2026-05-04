@@ -186,6 +186,7 @@ window.on('closed', () => console.log('closed'));
 
 `js
 diagTable.hasHeader = true;
+diagTable.editMode = 'doubleClick';  // 'none' | 'f2' | 'click' | 'doubleClick'
 diagTable.setData([
   ['Severity','Line','Col','Element','Message'],
   ['Error',  '12','5', '<text>', 'invalid color'],
@@ -199,6 +200,9 @@ diagTable.on('cellClicked', (row, col, text) => editor.scrollToLine(row));
 diagTable.on('rowClicked',  row => console.log('row', row));
 ``n
 样式字段（全部可选）：`backColor` / `color` / `borderColor` (`#RGB`/`#RRGGBB`/`#RRGGBBAA`)；`fontSize` (number)；`align` (`'left'`/`'center'`/`'right'`)。
+
+编辑模式：`editMode` 支持 `none` / `f2` / `click` / `doubleClick`。  
+进入编辑后：`Enter` 提交并把焦点移动到同列下一行；`Esc` 取消；失焦自动提交。
 
 #### 增量更新（v0.6.1）
 

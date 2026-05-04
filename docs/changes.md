@@ -106,6 +106,26 @@ Pixi2D.Debugger.exe   # 默认连 127.0.0.1:9229
 
 ---
 
+## v0.6.2 — Table Cell Editor + EditMode
+
+### Table 可编辑模式 (`Controls/Table.cs`)
+
+- 新增 `TableEditMode`：`None` / `F2` / `Click` / `DoubleClick`
+- 新增 `Table.EditMode`（默认 `None`，保持只读行为）
+- 内置单元格编辑器（复用 `TextBox`），支持：
+  - `Enter` 提交并把选择移动到同列下一行（末行夹住）
+  - `Esc` 取消编辑
+  - 失焦自动提交
+- `DoubleClick` 由 Table 内部按时间窗判定（Stage 目前没有原生双击事件）
+- 编辑中若目标单元格滚出视口，走提交并关闭编辑器
+
+### JS 代理 (`Pixi2D.Scripting.QuickJs/Proxies.cs`)
+
+- `TableProxy` 新增 `editMode` 属性（字符串）：
+  - `none` / `f2` / `click` / `doubleClick`
+
+---
+
 ## v0.6.1 — Table 增量更新 + TextBox 光标定位
 
 ### Table 增量更新 API (`Controls/Table.cs`)

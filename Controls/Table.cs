@@ -1,10 +1,20 @@
-﻿using Pixi2D.Core;
+using Pixi2D.Core;
 using Pixi2D.Events;
+using Pixi2D.Extensions;
 using SharpDX.Mathematics.Interop;
+using System.Diagnostics;
 
 using DataTable = System.Collections.Generic.IReadOnlyList<string[]>;
 
 namespace Pixi2D.Controls;
+
+public enum TableEditMode
+{
+    None,
+    F2,
+    Click,
+    DoubleClick,
+}
 
 /// <summary>
 /// 高性能虚拟化表格控件
@@ -27,6 +37,26 @@ public class Table : Container
     public float MaxColumnWidth { get; set; } = 200f;
     public float MinRowHeight { get; set; } = 30f;
     public float DefaultColumnWidth { get; set; } = 100f;
+    private TableEditMode _editMode = TableEditMode.None;
+
+    /// <summary>
+    /// Gets or sets the indexes of columns that are editable. All columns are non-editable if null or empty. Indexes are 0-based. Out-of-range indexes are ignored.
+    /// </summary>
+    public int[]? EditableColumns { get; set; }
+
+    /// <summary>
+    /// 编辑模式：None=不可编辑；F2=选中单元格按 F2 进入编辑；Click=单击进入编辑；DoubleClick=双击进入编辑。
+    /// </summary>
+    public TableEditMode EditMode
+    {
+        get => _editMode;
+        set
+        {
+            if (_editMode == value) return;
+            _editMode = value;
+            if (_editMode == TableEditMode.None) CancelEditing(focusTable: false);
+        }
+    }
 
     // --- 外观属性 ---
     private SharpDX.Mathematics.Interop.RawColor4 _backgroundColor = new(0, 0, 0, 0);
@@ -72,6 +102,7 @@ public class Table : Container
         set
         {
             if (_dataSource == value) return;
+            CancelEditing(focusTable: false);
             _dataSource = value;
             SyncDataFromSource();
             _structuralDirty = true;
@@ -98,6 +129,7 @@ public class Table : Container
     /// <summary>整表数据已被外部修改 → 触发全量重测。</summary>
     public void NotifyDataChanged()
     {
+        CancelEditing(focusTable: false);
         SyncDataFromSource();
         _structuralDirty = true;
         _dirtyRows.Clear();
@@ -131,6 +163,7 @@ public class Table : Container
         var existing = _data[row];
         if (existing.Length != cells.Length)
         {
+            CancelEditing(focusTable: false);
             _data[row] = (string[])cells.Clone();
             _structuralDirty = true;
             _dirtyRows.Clear();
@@ -149,6 +182,7 @@ public class Table : Container
     /// <summary>在末尾追加一行（结构变更）。</summary>
     public void AppendRow(params string[] cells)
     {
+        CancelEditing(focusTable: false);
         cells ??= Array.Empty<string>();
         _data.Add((string[])cells.Clone());
         _structuralDirty = true;
@@ -159,6 +193,7 @@ public class Table : Container
     /// <summary>在指定位置插入一行（结构变更；样式 dict 中所有 row >= row 的项不会自动平移）。</summary>
     public void InsertRow(int row, params string[] cells)
     {
+        CancelEditing(focusTable: false);
         if (row < 0) row = 0;
         if (row > _data.Count) row = _data.Count;
         cells ??= Array.Empty<string>();
@@ -172,6 +207,7 @@ public class Table : Container
     public void RemoveRow(int row)
     {
         if (row < 0 || row >= _data.Count) return;
+        CancelEditing(focusTable: false);
         _data.RemoveAt(row);
         _structuralDirty = true;
         _dirtyRows.Clear();
@@ -190,6 +226,15 @@ public class Table : Container
 
     private float _totalWidth = 0;
     private float _totalHeight = 0;
+    private int _selectedRow = -1;
+    private int _selectedCol = -1;
+    private int _editingRow = -1;
+    private int _editingCol = -1;
+    private bool _isEditing = false;
+    private int _lastClickRow = -1;
+    private int _lastClickCol = -1;
+    private long _lastClickTick = 0;
+    private readonly TextBox _cellEditor;
 
     // 虚拟渲染：单元格对象池
     private readonly List<TableCell> _activeCells = [];
@@ -205,6 +250,10 @@ public class Table : Container
 
     private const float ScrollBarWidth = 10f;
     private const float MinThumbSize = 20f;
+    private const int VK_F2 = 0x71;
+    private const int VK_ENTER = 13;
+    private const int VK_ESCAPE = 27;
+    private const double DoubleClickThresholdMs = 350;
 
     // 拖拽状态
     private bool _isDraggingH = false;
@@ -236,11 +285,11 @@ public class Table : Container
 
     public void SetTableStyle(TableStyle? s)
     {
-        DefaultStyle.BackColor   = s?.BackColor;
-        DefaultStyle.Color       = s?.Color;
+        DefaultStyle.BackColor = s?.BackColor;
+        DefaultStyle.Color = s?.Color;
         DefaultStyle.BorderColor = s?.BorderColor;
-        DefaultStyle.FontSize    = s?.FontSize;
-        DefaultStyle.HAlign      = s?.HAlign;
+        DefaultStyle.FontSize = s?.FontSize;
+        DefaultStyle.HAlign = s?.HAlign;
         _layoutDirty = true;
     }
     public void SetHeaderStyle(TableStyle? s) { HeaderStyle = s; HasHeader = s is not null || HasHeader; _layoutDirty = true; }
@@ -275,7 +324,7 @@ public class Table : Container
         var merged = DefaultStyle;
         if (HasHeader && row == 0 && HeaderStyle is not null) merged = merged.MergeWith(HeaderStyle);
         if (_columnStyles.TryGetValue(col, out var cs)) merged = merged.MergeWith(cs);
-        if (_rowStyles.TryGetValue(row, out var rs))    merged = merged.MergeWith(rs);
+        if (_rowStyles.TryGetValue(row, out var rs)) merged = merged.MergeWith(rs);
         if (_cellStyles.TryGetValue((row, col), out var es)) merged = merged.MergeWith(es);
         return merged;
     }
@@ -290,11 +339,24 @@ public class Table : Container
         m_textFactory = textFactory;
         ClipContent = true; // 开启裁剪，防止溢出视窗
         Interactive = true;
+        AcceptFocus = true;
         _content.Interactive = true;
         _background.Interactive = true;
+        OnKeyDown += HandleTableKeyDown;
+
+        _cellEditor = new TextBox(m_textFactory, width: DefaultColumnWidth, height: MinRowHeight, multiline: false)
+        {
+            Visible = false,
+            BackgroundStyle = new(new RawColor4(1, 1, 1, 1)),
+            TextColor = System.Drawing.Color.Black,
+            HightlightColor = System.Drawing.Color.SkyBlue,
+        };
+        _cellEditor.OnKeyDown += HandleEditorKeyDown;
+        _cellEditor.OnBlur += HandleEditorBlur;
 
         AddChild(_background);
         AddChildren(_content);
+        _content.AddChild(_cellEditor);
 
         // 初始化滚动条
         _hScrollBar.FillColor = new SharpDX.Mathematics.Interop.RawColor4(0.2f, 0.2f, 0.2f, 0.5f);
@@ -531,6 +593,10 @@ public class Table : Container
 
     public override void Dispose()
     {
+        OnKeyDown -= HandleTableKeyDown;
+        _cellEditor.OnKeyDown -= HandleEditorKeyDown;
+        _cellEditor.OnBlur -= HandleEditorBlur;
+
         if (_stage != null)
         {
             _stage.OnMouseMove -= OnGlobalMouseMove;
@@ -547,6 +613,11 @@ public class Table : Container
     public override void Update(float deltaTime)
     {
         base.Update(deltaTime);
+
+        if (_isEditing && !IsValidCell(_editingRow, _editingCol))
+        {
+            CancelEditing(focusTable: false);
+        }
 
         if (_lastWidth != Width || _lastHeight != Height)
         {
@@ -597,9 +668,19 @@ public class Table : Container
             ScrollX = Math.Clamp(ScrollX, 0, GetMaxScrollX());
             ScrollY = Math.Clamp(ScrollY, 0, GetMaxScrollY());
 
+            if (_isEditing && !IsCellVisible(_editingRow, _editingCol))
+            {
+                CommitEditing(moveSelectionDown: false, focusTable: true);
+            }
+
             UpdateVisibleCells();
+            UpdateEditorBounds();
             UpdateScrollBars();
             _layoutDirty = false;
+        }
+        else
+        {
+            UpdateEditorBounds();
         }
     }
 
@@ -710,10 +791,243 @@ public class Table : Container
         }
     }
 
+    private bool IsValidCell(int row, int col)
+    {
+        if (row < 0 || row >= _data.Count) return false;
+        var rowArr = _data[row];
+        return col >= 0 && col < rowArr.Length;
+    }
+
+    private void SetSelectedCell(int row, int col)
+    {
+        if (!IsValidCell(row, col))
+        {
+            _selectedRow = -1;
+            _selectedCol = -1;
+            return;
+        }
+        _selectedRow = row;
+        _selectedCol = col;
+    }
+
+    private bool IsCellVisible(int row, int col)
+    {
+        if (!IsValidCell(row, col)) return false;
+        if (row >= _rowPositions.Length || row >= _rowHeights.Length) return false;
+        if (col >= _colPositions.Length || col >= _colWidths.Length) return false;
+        GetViewSize(out float viewWidth, out float viewHeight);
+        if (viewWidth <= 0 || viewHeight <= 0) return false;
+
+        float x = _colPositions[col] - ScrollX;
+        float y = _rowPositions[row] - ScrollY;
+        float w = _colWidths[col];
+        float h = _rowHeights[row];
+        return x + w > 0 && x < viewWidth && y + h > 0 && y < viewHeight;
+    }
+
+    private void EnsureCellVisible(int row, int col)
+    {
+        if (!IsValidCell(row, col)) return;
+        if (row >= _rowPositions.Length || row >= _rowHeights.Length) return;
+        if (col >= _colPositions.Length || col >= _colWidths.Length) return;
+
+        GetViewSize(out float viewWidth, out float viewHeight);
+        if (viewWidth <= 0 || viewHeight <= 0) return;
+
+        float left = _colPositions[col];
+        float right = left + _colWidths[col];
+        float top = _rowPositions[row];
+        float bottom = top + _rowHeights[row];
+
+        if (left < ScrollX) ScrollX = left;
+        else if (right > ScrollX + viewWidth) ScrollX = right - viewWidth;
+
+        if (top < ScrollY) ScrollY = top;
+        else if (bottom > ScrollY + viewHeight) ScrollY = bottom - viewHeight;
+    }
+
+    private bool IsDoubleClickCandidate(int row, int col)
+    {
+        var now = Stopwatch.GetTimestamp();
+        bool matched = _lastClickRow == row && _lastClickCol == col && _lastClickTick > 0;
+        bool withinThreshold = matched && ((now - _lastClickTick) * 1000.0 / Stopwatch.Frequency) <= DoubleClickThresholdMs;
+
+        if (withinThreshold)
+        {
+            _lastClickRow = -1;
+            _lastClickCol = -1;
+            _lastClickTick = 0;
+            return true;
+        }
+
+        _lastClickRow = row;
+        _lastClickCol = col;
+        _lastClickTick = now;
+        return false;
+    }
+
+    private bool BeginEditing(int row, int col)
+    {
+        if (EditMode == TableEditMode.None) return false;
+        if (EditableColumns is not null && !EditableColumns.Contains(col)) return false;
+        if (!IsValidCell(row, col)) return false;
+
+        if (_isEditing)
+        {
+            if (_editingRow == row && _editingCol == col) return true;
+            CommitEditing(moveSelectionDown: false, focusTable: false);
+        }
+
+        SetSelectedCell(row, col);
+        _editingRow = row;
+        _editingCol = col;
+        _isEditing = true;
+
+        _cellEditor.Text = _data[row][col] ?? string.Empty;
+        if (col < _colWidths.Length) _cellEditor.Width = _colWidths[col];
+        if (row < _rowHeights.Length) _cellEditor.Height = _rowHeights[row];
+
+        EnsureCellVisible(row, col);
+        UpdateEditorBounds();
+        _cellEditor.SelectAll();
+        _cellEditor.Focus();
+        return true;
+    }
+
+    private void CommitEditing(bool moveSelectionDown, bool focusTable)
+    {
+        if (!_isEditing) return;
+
+        bool shouldFocusTable = focusTable || ReferenceEquals(GetStage()?.FocusedObject, _cellEditor);
+        int row = _editingRow;
+        int col = _editingCol;
+        string value = _cellEditor.Text ?? string.Empty;
+        _isEditing = false;
+        _editingRow = -1;
+        _editingCol = -1;
+        _cellEditor.Visible = false;
+
+        if (IsValidCell(row, col))
+        {
+            var oldValue = _data[row][col];
+            if (!string.Equals(oldValue, value, StringComparison.Ordinal))
+            {
+                if (CellChanged is not null)
+                {
+                    var args = new CellChangedEventArgs(row, col, value, oldValue);
+                    CellChanged(this, args);
+                    if (args.Cancel)
+                    {
+                        // 外部取消了修改，保持原值并退出编辑状态
+                        SetSelectedCell(row, col);
+                        return;
+                    }
+                }
+
+                UpdateCell(row, col, value);
+                SetSelectedCell(row, col);
+            }
+        }
+
+        if (moveSelectionDown && _data.Count > 0)
+        {
+            int nextRow = Math.Clamp(row + 1, 0, _data.Count - 1);
+            int nextCol = col;
+            if (nextRow >= 0 && nextRow < _data.Count)
+            {
+                int nextRowLength = _data[nextRow].Length;
+                if (nextRowLength == 0)
+                {
+                    _selectedRow = -1;
+                    _selectedCol = -1;
+                }
+                else
+                {
+                    nextCol = Math.Clamp(nextCol, 0, nextRowLength - 1);
+                    SetSelectedCell(nextRow, nextCol);
+                    EnsureCellVisible(nextRow, nextCol);
+                    BeginEditing(nextRow, nextCol);
+                }
+            }
+        }
+
+        if (shouldFocusTable) Focus();
+    }
+
+    private void CancelEditing(bool focusTable)
+    {
+        if (!_isEditing) return;
+        bool shouldFocusTable = focusTable || ReferenceEquals(GetStage()?.FocusedObject, _cellEditor);
+        _isEditing = false;
+        _editingRow = -1;
+        _editingCol = -1;
+        _cellEditor.Visible = false;
+        if (shouldFocusTable) Focus();
+    }
+
+    private void UpdateEditorBounds()
+    {
+        if (!_isEditing)
+        {
+            _cellEditor.Visible = false;
+            return;
+        }
+
+        if (!IsValidCell(_editingRow, _editingCol))
+        {
+            CancelEditing(focusTable: false);
+            return;
+        }
+
+        if (_editingRow >= _rowPositions.Length || _editingRow >= _rowHeights.Length) return;
+        if (_editingCol >= _colPositions.Length || _editingCol >= _colWidths.Length) return;
+
+        _cellEditor.X = _colPositions[_editingCol] - ScrollX;
+        _cellEditor.Y = _rowPositions[_editingRow] - ScrollY;
+        _cellEditor.Width = _colWidths[_editingCol];
+        _cellEditor.Height = _rowHeights[_editingRow];
+        _cellEditor.Visible = true;
+
+        if (_content.Count == 0 || !ReferenceEquals(_content[_content.Count - 1], _cellEditor))
+            _content.AddChild(_cellEditor);
+    }
+
+    private void HandleTableKeyDown(DisplayObjectEvent evt)
+    {
+        if (evt.Data is null) return;
+        if (EditMode != TableEditMode.F2) return;
+        if (_isEditing) return;
+        if (evt.Data.KeyCode != VK_F2) return;
+        if (BeginEditing(_selectedRow, _selectedCol))
+            evt.StopPropagation();
+    }
+
+    private void HandleEditorKeyDown(DisplayObjectEvent evt)
+    {
+        if (!_isEditing || evt.Data is null) return;
+
+        if (evt.Data.KeyCode == VK_ENTER)
+        {
+            CommitEditing(moveSelectionDown: true, focusTable: true);
+            evt.StopPropagation();
+            return;
+        }
+
+        if (evt.Data.KeyCode == VK_ESCAPE)
+        {
+            CancelEditing(focusTable: true);
+            evt.StopPropagation();
+        }
+    }
+
+    private void HandleEditorBlur()
+    {
+        if (!_isEditing) return;
+        CommitEditing(moveSelectionDown: false, focusTable: false);
+    }
+
     private void UpdateVisibleCells()
     {
-        if (_data.Count == 0) return;
-
         // 1. 回收当前所有的 Cell 入池
         foreach (var cell in _activeCells)
         {
@@ -721,6 +1035,8 @@ public class Table : Container
             _cellPool.Push(cell);
         }
         _activeCells.Clear();
+
+        if (_data.Count == 0) return;
 
         // 2. 二分/线性查找计算视窗内的行列范围 (View Frustum Culling)
         GetViewSize(out float viewWidth, out float viewHeight);
@@ -767,6 +1083,24 @@ public class Table : Container
     public event Action<int, int, string>? CellClicked;
     /// <summary>整行点击 (row)。</summary>
     public event Action<int>? RowClicked;
+    public event CellChangedEventHandler? CellChanged;
+
+    public delegate void CellChangedEventHandler(Table sender, CellChangedEventArgs args);
+    public class CellChangedEventArgs : EventArgs
+    {
+        public bool Cancel { get; set; } = false;
+        public int Row { get; }
+        public int Col { get; }
+        public string NewValue { get; }
+        public string? OldValue { get; }
+        public CellChangedEventArgs(int row, int col, string newValue, string? oldValue)
+        {
+            Row = row;
+            Col = col;
+            NewValue = newValue;
+            OldValue = oldValue;
+        }
+    }
 
     private TableCell GetOrCreateCell()
     {
@@ -780,6 +1114,18 @@ public class Table : Container
     {
         if (e.CurrentTarget is not TableCell tc) return;
         if (tc.CurrentRow < 0) return;
+        if (tc.CurrentCol < 0) return;
+        SetSelectedCell(tc.CurrentRow, tc.CurrentCol);
+
+        if (EditMode == TableEditMode.Click)
+        {
+            BeginEditing(tc.CurrentRow, tc.CurrentCol);
+        }
+        else if (EditMode == TableEditMode.DoubleClick && IsDoubleClickCandidate(tc.CurrentRow, tc.CurrentCol))
+        {
+            BeginEditing(tc.CurrentRow, tc.CurrentCol);
+        }
+
         string text = string.Empty;
         if (tc.CurrentRow < _data.Count
             && _data[tc.CurrentRow] is { } row
@@ -851,8 +1197,8 @@ public class TableCell : Container
     {
         if (style is null) { ResetStyleToDefaults(); return; }
         // 强制重写所有字段, 避免 cell pool 复用时残留旧样式
-        m_textColor   = style.Color       ?? new RawColor4(1, 1, 1, 1);
-        m_bgColor     = style.BackColor   ?? new RawColor4(0, 0, 0, 0);
+        m_textColor = style.Color ?? new RawColor4(1, 1, 1, 1);
+        m_bgColor = style.BackColor ?? new RawColor4(0, 0, 0, 0);
         m_strokeColor = style.BorderColor ?? new RawColor4(0.33f, 0.33f, 0.33f, 1);
         m_fontSizeOverride = style.FontSize;
         m_hAlign = style.HAlign ?? TableHAlign.Left;
@@ -860,8 +1206,8 @@ public class TableCell : Container
 
     internal void ResetStyleToDefaults()
     {
-        m_textColor   = new RawColor4(1, 1, 1, 1);
-        m_bgColor     = new RawColor4(0, 0, 0, 0);
+        m_textColor = new RawColor4(1, 1, 1, 1);
+        m_bgColor = new RawColor4(0, 0, 0, 0);
         m_strokeColor = new RawColor4(0.33f, 0.33f, 0.33f, 1);
         m_fontSizeOverride = null;
         m_hAlign = TableHAlign.Left;
