@@ -238,7 +238,7 @@ public sealed class Toast : Container
             "✕"),
         _ => (
             new BrushStyle(Color.White),
-            new BrushStyle(Color.FromArgb(50, 50, 50)),
+            new BrushStyle(Color.FromArgb(0x00, 0x9a, 0xd6)),
             "ℹ"),
     };
 
@@ -280,6 +280,7 @@ internal sealed class ToastHost : Container
 
     public void Add(Toast toast)
     {
+        _stage.BringToFront(this); // 确保在舞台最上层显示。
         // FIFO 挤出：先把超额的最早 toast 关闭。
         while (_toasts.Count >= Math.Max(1, Toast.MaxCount))
         {
