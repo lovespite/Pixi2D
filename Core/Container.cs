@@ -67,6 +67,17 @@ public class Container : DisplayObject, IReadOnlyList<DisplayObject>
         }
     }
 
+    public void BringToFront(DisplayObject obj)
+    {
+        if (obj is null) return;
+        if (!ReferenceEquals(obj.Parent, this)) return;// 只能调整自己的子项
+
+        if (Children.Remove(obj))
+        {
+            Children.Add(obj);
+        }
+    }
+
     public void InsertChildAt(DisplayObject child, int index)
     {
         if (index < 0 || index > Children.Count)
