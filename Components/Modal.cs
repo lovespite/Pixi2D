@@ -252,6 +252,218 @@ public class Modal : Container
         return await tcs.Task;
     }
 
+    /// <summary>
+    /// 显示一个带文本输入框的对话框。点击确定返回输入内容；取消返回 <c>null</c>。
+    /// 可选的 <paramref name="validator"/> 在点击确定时被调用：返回 <c>null</c> 表示通过，
+    /// 返回非空字符串则作为错误提示显示在输入框下方并阻止关闭。
+    /// </summary>
+    public static Task<string?> Prompt(
+        Stage stage,
+        string content,
+        string defaultValue = "",
+        string? placeholder = null,
+        Func<string, string?>? validator = null,
+        string okText = "确定",
+        string cancelText = "取消",
+        Text.Factory? factory = null)
+    {
+        var modal = new Modal
+        {
+            TextFactory = factory,
+            Content = content,
+        };
+        if (factory is not null)
+        {
+            modal.FontSize = factory.FontSize;
+            modal.FontWeight = factory.FontWeight;
+            modal.ForeColor = factory.FillColor.ToRawColor4();
+        }
+        return modal.PopupPrompt(stage, defaultValue, placeholder, validator, okText, cancelText);
+    }
+
+    private Task<string?> PopupPrompt(
+        Stage stage,
+        string defaultValue,
+        string? placeholder,
+        Func<string, string?>? validator,
+        string okText,
+        string cancelText)
+    {
+        var tcs = new TaskCompletionSource<string?>();
+
+        TextFactory ??= new Text.Factory
+        {
+            FontSize = FontSize,
+            FontWeight = FontWeight,
+            FillColor = System.Drawing.Color.FromArgb(
+                red: (int)(ForeColor.R * 255),
+                green: (int)(ForeColor.G * 255),
+                blue: (int)(ForeColor.B * 255),
+                alpha: (int)(ForeColor.A * 255)),
+        };
+
+        var width = stage.Width;
+        var height = stage.Height;
+
+        var mask = new Panel(width + 20, height + 20)
+        {
+            X = -10,
+            Y = -10,
+            Interactive = true,
+            BackgroundColor = MaskColor,
+        };
+
+        // 提示文本
+        var contentText = TextFactory.Create(Content);
+        contentText.FillColor = ForeColor;
+        contentText.FontSize = FontSize;
+        contentText.FontWeight = FontWeight;
+        contentText.WordWrap = true;
+        contentText.MaxWidth = MaxSize.Width - Padding * 2;
+        var contentTextRect = contentText.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget());
+        contentText.Height = contentTextRect.Height; // 显式高度，避免与下方控件在 FlowLayout 中重叠
+
+        float outerWidth = Math.Clamp(contentTextRect.Width + Padding * 2, 360, MaxSize.Width);
+        float innerWidth = outerWidth - Padding * 2;
+
+        // 输入框
+        var textBox = new Pixi2D.Controls.TextBox(TextFactory, innerWidth, 32f)
+        {
+            Text = defaultValue ?? string.Empty,
+        };
+        if (!string.IsNullOrEmpty(placeholder)) textBox.PlaceholderText = placeholder!;
+
+        // 错误提示（始终占位，避免显隐切换导致 FlowLayout 重排引发的重叠）
+        var errorText = TextFactory.Create(string.Empty);
+        errorText.FillColor = new RawColor4(0.85f, 0.2f, 0.2f, 1f);
+        errorText.FontSize = Math.Max(12f, FontSize - 2f);
+        errorText.WordWrap = true;
+        errorText.MaxWidth = innerWidth;
+        errorText.Height = errorText.FontSize + 4f;
+        // 保持始终可见以维持 FlowLayout 中的占位，仅切换 Content。
+
+        // 按钮栏
+        var actionsBar = new AutoFlowLayout
+        {
+            Direction = FlowLayout.LayoutDirection.Horizontal,
+            JustifyMain = FlowLayout.JustifyContent.End,
+            AlignCross = FlowLayout.AlignItems.Center,
+            Gap = 20f,
+            Width = innerWidth,
+        };
+
+        var okBtnText = TextFactory.Create(okText);
+        var okBtnRect = okBtnText.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget());
+        var okButton = new Button(okBtnText, okBtnRect.Width + 20, okBtnRect.Height + 10);
+
+        var cancelBtnText = TextFactory.Create(cancelText);
+        var cancelBtnRect = cancelBtnText.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget());
+        var cancelButton = new Button(cancelBtnText, cancelBtnRect.Width + 20, cancelBtnRect.Height + 10);
+
+        actionsBar.AddChildren(cancelButton, okButton);
+        var actionsHeight = Math.Max(okButton.Height, cancelButton.Height);
+        actionsBar.Height = actionsHeight;
+
+        // 估算 outerHeight：提示 + 输入框 + 错误占位 + 按钮 + 间距
+        const float Gap = 10f;
+        const float ErrorReservedHeight = 18f; // 预留一行错误高度，避免按钮跳动
+        float outerHeight = Padding * 2
+            + contentTextRect.Height + Gap
+            + textBox.Height + Gap
+            + ErrorReservedHeight + Gap
+            + actionsHeight;
+        outerHeight = Math.Clamp(outerHeight, 160, MaxSize.Height);
+
+        var position = GetPopupPostion(new SizeF(outerWidth, outerHeight), new SizeF(stage.Width, stage.Height));
+
+        var vbox = new AutoFlowLayout
+        {
+            Direction = FlowLayout.LayoutDirection.Vertical,
+            JustifyMain = FlowLayout.JustifyContent.Start,
+            AlignCross = FlowLayout.AlignItems.Start,
+            Gap = Gap,
+            X = position.X + Padding,
+            Y = position.Y + Padding,
+            Width = innerWidth,
+            Height = outerHeight - Padding * 2,
+        };
+        vbox.AddChildren(contentText, textBox, errorText, actionsBar);
+
+        var bg = new Graphics
+        {
+            X = position.X,
+            Y = position.Y,
+            FillColor = BackColor,
+        };
+        bg.DrawRoundedRectangle(0, 0, outerWidth, outerHeight, 10, 10);
+
+        mask.AddChildren(bg, vbox);
+        stage.AddChild(mask);
+        stage.OnResize += Stage_OnResize;
+        Interlocked.Increment(ref s_modalCounter);
+
+        // 关闭时只允许一次结果
+        bool closed = false;
+        void Close(string? result)
+        {
+            if (closed) return;
+            closed = true;
+            Interlocked.Decrement(ref s_modalCounter);
+            stage.OnResize -= Stage_OnResize;
+            stage.RemoveChild(mask);
+            mask.Dispose();
+            tcs.TrySetResult(result);
+        }
+
+        void TryCommit()
+        {
+            var value = textBox.Text ?? string.Empty;
+            if (validator is not null)
+            {
+                var err = validator(value);
+                if (err is not null)
+                {
+                    errorText.Content = err;
+                    return;
+                }
+            }
+            Close(value);
+        }
+
+        okButton.OnButtonClick += _ => TryCommit();
+        cancelButton.OnButtonClick += _ => Close(null);
+        mask.OnClick += _ => { if (MaskClosable) Close(null); };
+
+        // 输入时清除错误显示
+        textBox.TextChanged += (_, _) =>
+        {
+            if (!string.IsNullOrEmpty(errorText.Content))
+                errorText.Content = string.Empty;
+        };
+
+        // 回车确认 / Esc 取消
+        textBox.OnKeyDown += (evt) =>
+        {
+            var code = evt.Data?.KeyCode;
+            var shift = evt.Data?.Shift == true;
+            if (!shift && code == 13) TryCommit();
+            else if (code == 27) Close(null);
+        };
+
+        void Stage_OnResize(Stage _, float w, float h)
+        {
+            mask.SetSize(w + 20, h + 20);
+            var newPos = GetPopupPostion(new SizeF(outerWidth, outerHeight), new SizeF(w, h));
+            bg.SetPosition(newPos.X, newPos.Y);
+            vbox.SetPosition(newPos.X + Padding, newPos.Y + Padding);
+        }
+
+        // 自动聚焦输入框
+        textBox.Focus();
+
+        return tcs.Task;
+    }
+
     public class Builder
     {
         private readonly Modal m_modal;
