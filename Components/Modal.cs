@@ -33,6 +33,13 @@ public class Modal : Container
     protected bool AutoOffset { get; private set; } = true;
 
     protected readonly List<ModalAction> m_actions;
+    private readonly List<Button> m_actionButtons = [];
+
+    /// <summary>
+    /// 弹窗打开后已创建的 action 按钮列表（顺序与 <see cref="AddAction(string, Action?, Text.Factory?)"/> 一致）。
+    /// 可用于动态更新按钮文本等。
+    /// </summary>
+    public IReadOnlyList<Button> ActionButtons => m_actionButtons;
 
     public enum PopupPosition
     {
@@ -66,6 +73,8 @@ public class Modal : Container
 
     public void Popup(Stage stage)
     {
+        m_actionButtons.Clear();
+
         TextFactory ??= new Text.Factory
         {
             FontSize = FontSize,
@@ -122,6 +131,7 @@ public class Modal : Container
             var button = new Button(btnText, btnRect.Width + 20, btnRect.Height + 10);
             actionsBar.AddChild(button);
             button.Tag = a;
+            m_actionButtons.Add(button);
             //button.OnButtonClick += (e) =>
             //{
             //    a.Callback?.Invoke();
@@ -250,6 +260,7 @@ public class Modal : Container
             var button = new Button(btnText, btnRect.Width + 20, btnRect.Height + 10);
             actionsBar.AddChild(button);
             button.Tag = action;
+            m_actionButtons.Add(button);
             if (button.Height > actionsHeight) actionsHeight = button.Height;
         }
 
