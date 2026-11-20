@@ -23,6 +23,12 @@ public class Modal : Container
     protected FontWeight FontWeight { get; private set; } = FontWeight.Regular;
     protected Text.Factory? TextFactory { get; private set; }
     protected string Content { get; set; }
+
+    /// <summary>
+    /// 自定义内容（如列表、勾选项等）。设置后弹窗会使用自定义内容布局，而不仅仅显示 <see cref="Content"/> 文本。
+    /// </summary>
+    public DisplayObject? CustomContent { get; set; }
+
     protected PopupPosition PopPosition { get; private set; } = PopupPosition.Center;
     protected bool AutoOffset { get; private set; } = true;
 
@@ -70,6 +76,12 @@ public class Modal : Container
                 blue: (int)(ForeColor.B * 255),
                 alpha: (int)(ForeColor.A * 255)),
         };
+
+        if (CustomContent is not null)
+        {
+            PopupWithCustomContent(stage);
+            return;
+        }
 
         var width = stage.Width;
         var height = stage.Height;
@@ -180,6 +192,135 @@ public class Modal : Container
             var newPos = GetPopupPostion(new SizeF(outerWidth, outerHeight), new SizeF(w, h));
             bg.SetPosition(newPos.X, newPos.Y);
             vbox.SetPosition(newPos.X + 10, newPos.Y + 10);
+        }
+    }
+
+    private void PopupWithCustomContent(Stage stage)
+    {
+        var customContent = CustomContent!;
+
+        var width = stage.Width;
+        var height = stage.Height;
+
+        var mask = new Panel(width + 20, height + 20)
+        {
+            X = -10,
+            Y = -10,
+            Interactive = true,
+            BackgroundColor = MaskColor,
+        };
+
+        Text? title = null;
+        float titleWidth = 0f;
+        float titleHeight = 0f;
+        if (!string.IsNullOrEmpty(Content))
+        {
+            title = TextFactory!.Create(Content);
+            title.FillColor = ForeColor;
+            title.FontSize = FontSize;
+            title.FontWeight = FontWeight;
+            title.WordWrap = true;
+            title.MaxWidth = MaxSize.Width - Padding * 2;
+            var titleRect = title.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget());
+            title.Height = titleRect.Height;
+            titleWidth = titleRect.Width;
+            titleHeight = titleRect.Height;
+        }
+
+        var innerWidth = Math.Max(customContent.Width, titleWidth);
+        var outerWidth = Math.Clamp(innerWidth + Padding * 2, 320, MaxSize.Width);
+        innerWidth = outerWidth - Padding * 2;
+
+        const float Gap = 12f;
+
+        var actionsBar = new AutoFlowLayout
+        {
+            Direction = FlowLayout.LayoutDirection.Horizontal,
+            JustifyMain = FlowLayout.JustifyContent.End,
+            AlignCross = FlowLayout.AlignItems.Center,
+            Gap = 12f,
+            Width = innerWidth,
+        };
+
+        var actionsHeight = 0f;
+        foreach (var action in m_actions)
+        {
+            var btnText = (action.Factory ?? TextFactory!).Create(action.Title);
+            var btnRect = btnText.GetTextRect(forceUpdate: true, stage.GetCachedRenderTarget());
+            var button = new Button(btnText, btnRect.Width + 20, btnRect.Height + 10);
+            actionsBar.AddChild(button);
+            button.Tag = action;
+            if (button.Height > actionsHeight) actionsHeight = button.Height;
+        }
+
+        actionsBar.Height = actionsHeight;
+
+        var outerHeight = Padding * 2 + titleHeight + (title is null ? 0f : Gap) + customContent.Height + Gap + actionsBar.Height;
+        outerHeight = Math.Clamp(outerHeight, 120, MaxSize.Height);
+
+        var position = GetPopupPostion(new SizeF(outerWidth, outerHeight), new SizeF(stage.Width, stage.Height));
+
+        var vbox = new AutoFlowLayout
+        {
+            Direction = FlowLayout.LayoutDirection.Vertical,
+            JustifyMain = FlowLayout.JustifyContent.Start,
+            AlignCross = FlowLayout.AlignItems.Start,
+            Gap = Gap,
+            X = position.X + Padding,
+            Y = position.Y + Padding,
+            Width = innerWidth,
+            Height = outerHeight - Padding * 2,
+        };
+
+        if (title is not null)
+        {
+            vbox.AddChild(title);
+        }
+        vbox.AddChild(customContent);
+        vbox.AddChild(actionsBar);
+
+        var bg = new Graphics
+        {
+            X = position.X,
+            Y = position.Y,
+            FillColor = BackColor,
+        };
+        bg.DrawRoundedRectangle(0, 0, outerWidth, outerHeight, 10, 10);
+
+        mask.AddChildren(bg, vbox);
+        stage.AddChild(mask);
+
+        stage.OnResize += Stage_OnResize;
+
+        Interlocked.Increment(ref s_modalCounter);
+
+        mask.OnClick += (e) => { if (MaskClosable) DestroyModal(); };
+        foreach (var button in actionsBar.OfType<Button>())
+        {
+            button.OnButtonClick += (e) =>
+            {
+                if (button.Tag is ModalAction action)
+                {
+                    action.Callback?.Invoke();
+                }
+                DestroyModal();
+            };
+        }
+
+        void DestroyModal()
+        {
+            Interlocked.Decrement(ref s_modalCounter);
+            stage.OnResize -= Stage_OnResize;
+            stage.RemoveChild(mask);
+            mask.Dispose();
+        }
+
+        void Stage_OnResize(Stage _, float w, float h)
+        {
+            mask.SetSize(w + 20, h + 20);
+            var newPos = GetPopupPostion(new SizeF(outerWidth, outerHeight), new SizeF(w, h));
+            bg.SetPosition(newPos.X, newPos.Y);
+            vbox.SetPosition(newPos.X + Padding, newPos.Y + Padding);
         }
     }
 
@@ -493,6 +634,11 @@ public class Modal : Container
         public Builder SetContent(string content)
         {
             m_modal.Content = content;
+            return this;
+        }
+        public Builder SetCustomContent(DisplayObject content)
+        {
+            m_modal.CustomContent = content;
             return this;
         }
         public Builder SetTextFactory(Text.Factory factory)
